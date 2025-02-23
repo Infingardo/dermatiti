@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Diagnostico Dermatiti</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Strumento Diagnostico per Dermatiti</h1>
+  
+  <!-- Parametri (vengono generati dinamicamente da JavaScript) -->
+  <div id="params"></div>
+
+  <!-- Calcolare il punteggio -->
+  <button onclick="calcolaPunteggio()">Calcola Punteggio Diagnostico</button>
+
+  <!-- Risultato della Diagnosi -->
+  <div id="result" style="display:none;">
+    <h2 id="punteggio-totale"></h2>
+    <h3>Possibili Diagnosi:</h3>
+    <ul id="diagnosi-list"></ul>
+  </div>
+
+  <!-- Avviso -->
+  <div class="warning">
+    ATTENZIONE: Questo strumento è solo un ausilio diagnostico.
+  </div>
+
+  <!-- Collega lo script JS -->
+  <script src="script.js"></script>
+</body>
+</html>
+
+  <!-- Collega lo script JS -->
+  <script src="script.js"></script>
+</body>
+</html>
+
