@@ -125,22 +125,35 @@ const parametriConfig = {
       { value: 3, text: "3 - Molto rapida (ore o pochi giorni)" }
     ],
     peso: 1.2
+  },
+  // Nuovo parametro: Sede della lesione
+  sede: {
+    options: [
+      { value: 0, text: "0 - Non specificata" },
+      { value: 1, text: "1 - Testa/Collo" },
+      { value: 2, text: "2 - Tronco" },
+      { value: 3, text: "3 - Arti" }
+    ],
+    peso: 0,       // Non influisce sul calcolo numerico
+    scoring: false // Flag per escluderlo dal punteggio
   }
 };
 
-// Patterns specifici per le diagnosi
+// Patterns specifici per le diagnosi (inclusa la sede come filtro)
 const patternDiagnosi = {
   "Dermatite seborroica": {
     paracheratosi: [1, 2, 3],
     spongiosi: [0, 1],
     neutrofili: [0, 1],
-    distribuzione: [1, 2]
+    distribuzione: [1, 2],
+    sede: [1]  // Tipica per Testa/Collo
   },
   "Dermatite atopica": {
     spongiosi: [1, 2, 3],
     esocitosi: [1, 2],
     infiltrato: [1, 2],
-    prurito: [2, 3]
+    prurito: [2, 3],
+    sede: [2, 3]  // Tipica per Tronco o Arti
   },
   "Psoriasi": {
     paracheratosi: [2, 3],
@@ -177,7 +190,7 @@ const patternDiagnosi = {
 // Funzione per generare dinamicamente i selettori
 function creaParametri() {
   const container = document.getElementById('params');
-  container.innerHTML = ''; // pulisce prima di ricreare
+  container.innerHTML = ''; // Pulizia prima di ricreare
 
   const grid = document.createElement('div');
   grid.className = "param-grid";
@@ -206,10 +219,13 @@ function creaParametri() {
     
     groupDiv.appendChild(select);
     
-    const pesoInfo = document.createElement('span');
-    pesoInfo.className = 'peso-info';
-    pesoInfo.textContent = `×${parametriConfig[parametro].peso}`;
-    groupDiv.appendChild(pesoInfo);
+    // Mostra il moltiplicatore solo se il peso è diverso da 0
+    if (parametriConfig[parametro].peso !== 0) {
+      const pesoInfo = document.createElement('span');
+      pesoInfo.className = 'peso-info';
+      pesoInfo.textContent = `×${parametriConfig[parametro].peso}`;
+      groupDiv.appendChild(pesoInfo);
+    }
 
     grid.appendChild(groupDiv);
   }
@@ -239,6 +255,15 @@ function calcolaPunteggio() {
 
   ids.forEach(id => {
     const val = parseInt(document.getElementById(id).value, 10);
+    if (parametriConfig[id].scoring === false) {
+      // Registra il valore per report e pattern matching, senza incidere sul punteggio
+      punteggiSingoli[id] = { 
+        valore: val, 
+        peso: parametriConfig[id].peso,
+        pesato: 0  
+      };
+      return;
+    }
     const pesoPunti = val * parametriConfig[id].peso;
     totale += pesoPunti;
     punteggiSingoli[id] = { 
@@ -248,19 +273,18 @@ function calcolaPunteggio() {
     };
   });
 
-  // Arrotonda a una cifra decimale
+  // Arrotonda il punteggio totale a una cifra decimale
   totale = Math.round(totale * 10) / 10;
   
-  // Calcola il punteggio massimo possibile
+  // Calcola il punteggio massimo escludendo i parametri non scoring
   let maxPossibile = 0;
   ids.forEach(id => {
-    maxPossibile += 3 * parametriConfig[id].peso; // Valore max = 3
+    if (parametriConfig[id].scoring === false) return;
+    maxPossibile += 3 * parametriConfig[id].peso;
   });
   
-  // Calcola la percentuale
   const percentuale = (totale / maxPossibile) * 100;
   
-  // Determina la categoria
   let categoria;
   if (percentuale <= 25) {
     categoria = "Basso";
@@ -281,7 +305,7 @@ function calcolaPunteggio() {
   creaGraficoRadar(punteggiSingoli);
 }
 
-// Mostra diagnosi basate sul punteggio + pattern specifico
+// Mostra diagnosi basate sul punteggio e sui pattern specifici, con "sede" a doppio peso
 function mostraDiagnosi(categoria, punteggiSingoli) {
   const diagnosiGeneriche = {
     "Basso": ["Dermatite seborroica lieve", "Dermatite atopica lieve", "Pitiriasi rosea"],
@@ -293,7 +317,7 @@ function mostraDiagnosi(categoria, punteggiSingoli) {
   const diagnosiListEl = document.getElementById('diagnosi-list');
   diagnosiListEl.innerHTML = "";
   
-  // Diagnosi generiche
+  // Diagnosi generiche in base al punteggio totale
   const genericheTitolo = document.createElement('h4');
   genericheTitolo.textContent = 'In base al punteggio totale:';
   diagnosiListEl.appendChild(genericheTitolo);
@@ -304,7 +328,7 @@ function mostraDiagnosi(categoria, punteggiSingoli) {
     diagnosiListEl.appendChild(li);
   });
   
-  // Pattern matching
+  // Pattern matching, assegnando un peso doppio al criterio "sede"
   const patternTitolo = document.createElement('h4');
   patternTitolo.textContent = 'In base ai pattern specifici:';
   diagnosiListEl.appendChild(patternTitolo);
@@ -316,10 +340,12 @@ function mostraDiagnosi(categoria, punteggiSingoli) {
     let totalCriteria = 0;
     
     for (const criterio in patternDiagnosi[nomeDiagnosi]) {
-      totalCriteria++;
+      // Peso di default pari a 1, ma 2 per "sede"
+      let weight = (criterio === 'sede') ? 2 : 1;
+      totalCriteria += weight;
       const valoreAttuale = parseInt(document.getElementById(criterio).value, 10);
       if (patternDiagnosi[nomeDiagnosi][criterio].includes(valoreAttuale)) {
-        matchCount++;
+        matchCount += weight;
       }
     }
     
@@ -332,7 +358,7 @@ function mostraDiagnosi(categoria, punteggiSingoli) {
   
   risultatiPattern.sort((a, b) => b.percentuale - a.percentuale);
 
-  // Filtra le diagnosi che abbiano almeno 60% di corrispondenza
+  // Filtra le diagnosi con almeno il 60% di corrispondenza
   const diagnosiCorrispondenti = risultatiPattern.filter(r => r.percentuale >= 60);
 
   if (diagnosiCorrispondenti.length > 0) {
@@ -347,7 +373,7 @@ function mostraDiagnosi(categoria, punteggiSingoli) {
     diagnosiListEl.appendChild(li);
   }
 
-  // Tabella con punteggi dettaglio
+  // Tabella con i dettagli dei punteggi
   creaTabellaPunteggi(punteggiSingoli);
 }
 
@@ -359,7 +385,7 @@ function creaTabellaPunteggi(punteggiSingoli) {
   const table = document.createElement('table');
   table.className = 'punteggi-tabella';
   
-  // intestazione
+  // Intestazione
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
   ['Parametro', 'Valore', 'Peso', 'Punteggio Pesato'].forEach(text => {
@@ -370,7 +396,7 @@ function creaTabellaPunteggi(punteggiSingoli) {
   thead.appendChild(headerRow);
   table.appendChild(thead);
   
-  // corpo
+  // Corpo
   const tbody = document.createElement('tbody');
   for (const parametro in punteggiSingoli) {
     const row = document.createElement('tr');
@@ -558,7 +584,7 @@ function resetForm() {
   }
 }
 
-// Tab switching
+// Gestione del cambio di tab
 function showTab(tabId) {
   const tabs = document.querySelectorAll('.tab-content');
   tabs.forEach(tab => {
@@ -568,7 +594,7 @@ function showTab(tabId) {
   
   const btns = document.querySelectorAll('.tab-btn');
   btns.forEach(b => b.classList.remove('active'));
-  // Trova il bottone che corrisponde a tabId e aggiungi active
+  // Completa il codice per evidenziare il bottone corrispondente se necessario
 }
 
 // Helper per capitalizzare la prima lettera
@@ -576,7 +602,7 @@ function capitalizeFirstLetter(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// Inizializza i parametri quando la pagina è pronta
+// Inizializza i parametri al caricamento della pagina
 window.onload = function() {
   creaParametri();
   
