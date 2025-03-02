@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnostico Dermatiti Avanzato</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Libreria Chart.js per il grafico radar -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Strumento Diagnostico Avanzato per Dermatiti</h1>
+      <p class="subtitle">Sistema di supporto decisionale per dermatologi</p>
+    </header>
+    
+    <!-- Barra di navigazione a tab -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('input-tab')">Parametri</button>
+      <button class="tab-btn" onclick="showTab('results-tab')">Risultati</button>
+      <button class="tab-btn" onclick="showTab('info-tab')">Informazioni</button>
+    </div>
+    
+    <!-- Tab 1: Inserimento Parametri -->
+    <div id="input-tab" class="tab-content active">
+      <div class="section-header">
+        <h2>Inserimento Parametri</h2>
+        <div class="actions">
+          <button onclick="resetForm()" class="btn secondary">Reset</button>
+          <button onclick="salvaDati()" class="btn secondary">Salva</button>
+          <button onclick="caricaDati()" class="btn secondary">Carica</button>
+        </div>
+      </div>
+      
+      <!-- Parametri generati dinamicamente da script.js -->
+      <div id="params" class="params-container"></div>
+      
+      <!-- Bottone per calcolare il punteggio -->
+      <div class="action-buttons">
+        <button onclick="calcolaPunteggio()" class="btn primary">Calcola Punteggio Diagnostico</button>
+      </div>
+    </div>
+    
+    <!-- Tab 2: Risultati Diagnostici -->
+    <div id="results-tab" class="tab-content">
+      <div class="section-header">
+        <h2>Risultati Diagnostici</h2>
+        <button onclick="generaReport()" class="btn secondary">Genera Report PDF</button>
+      </div>
+      
+      <div id="result" style="display: none;">
+        <div class="result-header">
+          <h2 id="punteggio-totale">Punteggio Totale: 0 (Basso)</h2>
+        </div>
+        
+        <div class="result-columns">
+          <!-- Colonna Diagnosi -->
+          <div class="result-column">
+            <h3>Possibili Diagnosi:</h3>
+            <ul id="diagnosi-list"></ul>
+          </div>
+          
+          <!-- Colonna Grafico -->
+          <div class="result-column chart-container">
+            <h3>Visualizzazione Parametri:</h3>
+            <canvas id="radar-chart"></canvas>
+          </div>
+        </div>
+        
+        <div class="detailed-scores">
+          <h3>Dettaglio Punteggi:</h3>
+          <div id="punteggi-dettagli"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tab 3: Informazioni -->
+    <div id="info-tab" class="tab-content">
+      <h2>Informazioni sullo Strumento</h2>
+      <div class="info-content">
+        <h3>Informazioni sul Punteggio</h3>
+        <p>
+          Questo strumento diagnostico utilizza un sistema ponderato di punteggi per valutare diverse caratteristiche
+          istologiche e cliniche delle dermatiti. Ogni parametro contribuisce in maniera più o meno incisiva
+          (peso) al computo finale, in base alla sua rilevanza clinico-patologica.
+        </p>
+        
+        <h3>Categorie di Rischio</h3>
+        <ul>
+          <li><strong>Basso (0-25%):</strong> Patologie generalmente benigne con evoluzione favorevole</li>
+          <li><strong>Medio (26-50%):</strong> Patologie che richiedono monitoraggio e trattamento</li>
+          <li><strong>Alto (51-75%):</strong> Patologie potenzialmente gravi che richiedono intervento tempestivo</li>
+          <li><strong>Molto alto (>75%):</strong> Patologie estremamente severe con potenziali complicanze gravi</li>
+        </ul>
+        
+        <h3>Approccio Clinico-Patologico</h3>
+        <p>
+          Oltre al punteggio, si raccomanda di considerare altri fattori clinici (sede anatomica, durata delle lesioni,
+          risposta a terapie topiche, sintomatologia) e di integrare, se necessario, indagini strumentali
+          (patch test, immunoistochimica, esami colturali).
+        </p>
+        
+        <h3>Avvertenza</h3>
+        <p><strong>Questo strumento è un ausilio diagnostico e non sostituisce il giudizio clinico di un dermatologo.</strong>
+          Le diagnosi finali richiedono sempre la correlazione clinico-patologica e,
+          laddove indicato, l’esecuzione di ulteriori esami di laboratorio o strumentali.
+        </p>
+      </div>
+    </div>
+  </div>
+  
+  <script src="script-migliorato.js"></script>
+</body>
+</html>
