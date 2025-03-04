@@ -128,7 +128,7 @@ const parametriConfig = {
     ],
     peso: 1.2
   },
-  // MODIFICA: aggiunta del parametro "sede" per la localizzazione anatomica
+  // Parametro "sede" già integrato precedentemente
   sede: {
     options: [
       { value: 0, text: "0 - Non specificato" },
@@ -195,28 +195,39 @@ const patternDiagnosi = {
 const branchingRules = [
   {
     descrizione: "Spongiosi ≥2 e Eosinofili ≥2",
-    condition: (vals) => vals.spongiosi >= 2 && vals.eosinofili >= 2,
+    condition: (vals, anagrafica) => vals.spongiosi >= 2 && vals.eosinofili >= 2,
     diagnoses: ["Dermatite Atopica (fase attiva)", "Eczema da Contatto (molto probabile)"]
   },
   {
     descrizione: "Neutrofili ≥3 e Paracheratosi ≥2",
-    condition: (vals) => vals.neutrofili >= 3 && vals.paracheratosi >= 2,
+    condition: (vals, anagrafica) => vals.neutrofili >= 3 && vals.paracheratosi >= 2,
     diagnoses: ["Psoriasi (possibile) - valutare PAS per escludere Tinea"]
   },
   {
     descrizione: "Infiltrato a banda (lichenoide =3) ed Eosinofili=0",
-    condition: (vals) => vals.infiltrato === 3 && vals.eosinofili === 0,
+    condition: (vals, anagrafica) => vals.infiltrato === 3 && vals.eosinofili === 0,
     diagnoses: ["Lichen Planus classico"]
   },
   {
     descrizione: "Spongiosi ≥2 e velocità=3 (Molto rapida)",
-    condition: (vals) => vals.spongiosi >= 2 && vals.velocita === 3,
+    condition: (vals, anagrafica) => vals.spongiosi >= 2 && vals.velocita === 3,
     diagnoses: ["Eritema multiforme (valutare cause infettive o farmaci)"]
   },
   {
     descrizione: "Mucina≥2 e Atrofia≥2",
-    condition: (vals) => vals.mucina >=2 && vals.atrofia >=2,
+    condition: (vals, anagrafica) => vals.mucina >= 2 && vals.atrofia >= 2,
     diagnoses: ["Lupus eritematoso cutaneo (valutare immunofluorescenza)"]
+  },
+  // Nuove regole basate sull'età:
+  {
+    descrizione: "Patologie infantili",
+    condition: (vals, anagrafica) => anagrafica.eta < 18,
+    diagnoses: ["Eczema infantile", "Dermatite da pannolino"]
+  },
+  {
+    descrizione: "Patologie dell'anziano",
+    condition: (vals, anagrafica) => anagrafica.eta > 65,
+    diagnoses: ["Dermatite cronica", "Psoriasi tardiva"]
   }
 ];
 
@@ -298,19 +309,21 @@ function calcolaPunteggio() {
     };
   });
 
-  // Arrotonda a una cifra decimale
+  // Recupera dati anagrafici
+  const eta = parseInt(document.getElementById('eta').value, 10) || 0;
+  const sesso = document.getElementById('sesso').value;
+  const datiAnagrafici = { eta, sesso };
+
+  // Arrotonda a una cifra decimale e calcola percentuale
   totale = Math.round(totale * 10) / 10;
   
-  // Calcolo punteggio massimo
   let maxPossibile = 0;
   ids.forEach(id => {
-    maxPossibile += 3 * parametriConfig[id].peso; // Valore max = 3
+    maxPossibile += 3 * parametriConfig[id].peso;
   });
   
-  // Percentuale
   const percentuale = (totale / maxPossibile) * 100;
   
-  // Determina la categoria
   let categoria;
   if (percentuale <= 25) {
     categoria = "Basso";
@@ -327,20 +340,16 @@ function calcolaPunteggio() {
   
   document.getElementById('result').style.display = 'block';
   
-  // Mostra diagnosi generiche e pattern
-  mostraDiagnosi(categoria, punteggiSingoli);
-  
-  // Applica branching rules
-  mostraBranchingRules(punteggiSingoli);
-  
-  // Crea grafico radar
+  // Passa i dati anagrafici anche alle funzioni diagnostiche
+  mostraDiagnosi(categoria, punteggiSingoli, datiAnagrafici);
+  mostraBranchingRules(punteggiSingoli, datiAnagrafici);
   creaGraficoRadar(punteggiSingoli);
 }
 
 // =======================
 // 6. MOSTRA DIAGNOSI PRINCIPALI + PATTERN
 // =======================
-function mostraDiagnosi(categoria, punteggiSingoli) {
+function mostraDiagnosi(categoria, punteggiSingoli, datiAnagrafici) {
   const diagnosiGeneriche = {
     "Basso": ["Dermatite seborroica lieve", "Dermatite atopica lieve", "Pitiriasi rosea"],
     "Medio": ["Eczema da contatto", "Eritema polimorfo", "Lichen planus attivo"],
@@ -361,6 +370,17 @@ function mostraDiagnosi(categoria, punteggiSingoli) {
     li.textContent = d;
     diagnosiListEl.appendChild(li);
   });
+  
+  // Segnala eventuale rilevanza dell'età
+  if (datiAnagrafici.eta < 18) {
+    const li = document.createElement('li');
+    li.innerHTML = "<strong>Attenzione:</strong> Paziente in età pediatrica. Considerare diagnosi infantili.";
+    diagnosiListEl.appendChild(li);
+  } else if (datiAnagrafici.eta > 65) {
+    const li = document.createElement('li');
+    li.innerHTML = "<strong>Attenzione:</strong> Paziente in età geriatra. Considerare diagnosi tipiche degli anziani.";
+    diagnosiListEl.appendChild(li);
+  }
   
   // Pattern matching
   const patternTitolo = document.createElement('h4');
@@ -389,7 +409,6 @@ function mostraDiagnosi(categoria, punteggiSingoli) {
   }
   
   risultatiPattern.sort((a, b) => b.percentuale - a.percentuale);
-
   const diagnosiCorrispondenti = risultatiPattern.filter(r => r.percentuale >= 60);
 
   if (diagnosiCorrispondenti.length > 0) {
@@ -410,8 +429,7 @@ function mostraDiagnosi(categoria, punteggiSingoli) {
 // =======================
 // 7. MOSTRA REGOLE DI BRANCHING
 // =======================
-function mostraBranchingRules(punteggiSingoli) {
-  // Crea o sostituisci un ul dedicato
+function mostraBranchingRules(punteggiSingoli, datiAnagrafici) {
   const existingUl = document.getElementById('branching-extra');
   if (existingUl) {
     existingUl.remove();
@@ -423,7 +441,7 @@ function mostraBranchingRules(punteggiSingoli) {
   let anyMatch = false;
 
   branchingRules.forEach(rule => {
-    if (rule.condition(getValsFromPunteggi(punteggiSingoli))) {
+    if (rule.condition(getValsFromPunteggi(punteggiSingoli), datiAnagrafici)) {
       anyMatch = true;
       const li = document.createElement('li');
       li.innerHTML = `<strong>${rule.descrizione}:</strong> ${rule.diagnoses.join(", ")}`;
@@ -432,10 +450,8 @@ function mostraBranchingRules(punteggiSingoli) {
   });
 
   const diagnosiListEl = document.getElementById('diagnosi-list');
-
   const branchingTitolo = document.createElement('h4');
   branchingTitolo.textContent = "Branching Extra:";
-
   diagnosiListEl.appendChild(branchingTitolo);
 
   if (!anyMatch) {
@@ -447,7 +463,7 @@ function mostraBranchingRules(punteggiSingoli) {
   diagnosiListEl.appendChild(branchingUl);
 }
 
-// Helper per convertire punteggiSingoli in un object { spongiosi: 2, eosinofili: 3, ... }
+// Helper per convertire punteggiSingoli in un oggetto { spongiosi: 2, eosinofili: 3, ... }
 function getValsFromPunteggi(punteggiSingoli) {
   const result = {};
   for (let k in punteggiSingoli) {
@@ -466,7 +482,7 @@ function creaTabellaPunteggi(punteggiSingoli) {
   const table = document.createElement('table');
   table.className = 'punteggi-tabella';
   
-  // intestazione
+  // Intestazione
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
   ['Parametro', 'Valore', 'Peso', 'Punteggio Pesato'].forEach(text => {
@@ -477,7 +493,7 @@ function creaTabellaPunteggi(punteggiSingoli) {
   thead.appendChild(headerRow);
   table.appendChild(thead);
   
-  // corpo
+  // Corpo
   const tbody = document.createElement('tbody');
   for (const parametro in punteggiSingoli) {
     const row = document.createElement('tr');
@@ -682,10 +698,7 @@ function showTab(tabId) {
   
   const btns = document.querySelectorAll('.tab-btn');
   btns.forEach(b => b.classList.remove('active'));
-  // Attiva solo il bottone corrispondente
-  // Trova quello che matcha tabId e aggiungi la classe "active"
-  // (Per semplicità potresti fare un matching se i due ID coincidono, 
-  //  ma qui potresti dover mappare tabId -> bottone)
+  // Attiva il bottone corrispondente (puoi mappare tabId -> bottone se necessario)
 }
 
 // =======================

@@ -33,7 +33,21 @@
         </div>
       </div>
       
-      <!-- Parametri generati dinamicamente da script.js -->
+      <!-- Sezione Dati Anagrafici -->
+      <div id="dati-anagrafici" class="anagrafica-section">
+        <h3>Dati Anagrafici</h3>
+        <label for="eta">Età:</label>
+        <input type="number" id="eta" name="eta" placeholder="Inserisci età" min="0">
+        
+        <label for="sesso">Sesso:</label>
+        <select id="sesso" name="sesso">
+          <option value="non_specificato">Non specificato</option>
+          <option value="maschile">Maschile</option>
+          <option value="femminile">Femminile</option>
+        </select>
+      </div>
+      
+      <!-- Parametri generati dinamicamente da script-migliorato.js -->
       <div id="params" class="params-container"></div>
       
       <!-- Bottone per calcolare il punteggio -->
