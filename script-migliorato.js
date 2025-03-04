@@ -127,6 +127,16 @@ const parametriConfig = {
       { value: 3, text: "3 - Molto rapida (ore o pochi giorni)" }
     ],
     peso: 1.2
+  },
+  // MODIFICA: aggiunta del parametro "sede" per la localizzazione anatomica
+  sede: {
+    options: [
+      { value: 0, text: "0 - Non specificato" },
+      { value: 1, text: "1 - Capo" },
+      { value: 2, text: "2 - Collo" },
+      { value: 3, text: "3 - Mani/Arti" }
+    ],
+    peso: 1.2
   }
 };
 
