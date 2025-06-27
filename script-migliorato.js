@@ -185,6 +185,25 @@ const patternDiagnosi = {
     esocitosi: [2, 3],
     acantosi: [1, 2],
     distribuzione: [2, 3]
+  },
+  "Dermatite da stasi": {
+    infiltrato: [1, 2],
+    pigmento: [2, 3],
+    ulcerazione: [1, 2, 3],
+    sede: [3]
+  },
+  "Dermatite periorale": {
+    sede: [1],
+    spongiosi: [1, 2],
+    paracheratosi: [1, 2],
+    infiltrato: [1],
+    prurito: [0, 1]
+  },
+  "Dermatite da pannolino": {
+    spongiosi: [1, 2],
+    paracheratosi: [1, 2],
+    neutrofili: [1, 2],
+    prurito: [1, 2]
   }
 };
 
@@ -217,6 +236,16 @@ const branchingRules = [
     descrizione: "Mucina≥2 e Atrofia≥2",
     condition: (vals, anagrafica) => vals.mucina >= 2 && vals.atrofia >= 2,
     diagnoses: ["Lupus eritematoso cutaneo (valutare immunofluorescenza)"]
+  },
+  {
+    descrizione: "Età >50, sede arti e ulcerazione ≥1",
+    condition: (vals, anagrafica) => anagrafica.eta > 50 && vals.sede === 3 && vals.ulcerazione >= 1,
+    diagnoses: ["Dermatite da stasi (suggerita)"]
+  },
+  {
+    descrizione: "Sede capo con spongiosi 1-2 e paracheratosi 1-2",
+    condition: (vals) => vals.sede === 1 && vals.spongiosi >= 1 && vals.spongiosi <= 2 && vals.paracheratosi >= 1 && vals.paracheratosi <= 2,
+    diagnoses: ["Dermatite periorale"]
   },
   // Nuove regole basate sull'età:
   {
