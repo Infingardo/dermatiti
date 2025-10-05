@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema diagnostico pattern-based per dermatiti infiammatorie e linfomi cutanei">
+    <meta name="author" content="DermPath Team">
+    <title>DermPath - Sistema Diagnostico Pattern-Based</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React 18 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel Standalone -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // Componenti icone semplificati
+        const FileText = ({ className, size }) => <span className={className}>📋</span>;
+        const Download = ({ size }) => <span>💾</span>;
+        const RotateCcw = ({ size }) => <span>🔄</span>;
+        const ChevronRight = ({ className }) => <span className={className}>→</span>;
+        const AlertCircle = ({ size, className }) => <span className={className} style={{fontSize: size}}>⚠️</span>;
+        const CheckCircle2 = ({ size }) => <span>✓</span>;
+
+        const DermPathDiagnostic = () => {
+            const [step, setStep] = useState(1);
+            const [patternData, setPatternData] = useState({
+                pattern_primario: '',
+                spongiosi: '',
+                paracheratosi: '',
+                acantosi: '',
+                atrofia_epidermica: '',
+                ipergranulosi: '',
+                ipogranulosi: '',
+                vacuolizzazione_basale: '',
+                necrosi_keratinociti: '',
+                esocitosi: '',
+                infiltrato_distribuzione: '',
+                infiltrato_densita: '',
+                linfociti: false,
+                eosinofili: '',
+                neutrofili: '',
+                plasmacellule: false,
+                istiociti: false,
+                edema_dermico: '',
+                linfociti_atipici: '',
+                epidermotropismo: '',
+                alone_chiaro: false,
+                cellule_cerebriformi: false,
+                cd30_positivi: false,
+                linfociti_B_atipici: false,
+                ortokeratosi: false,
+                microascessi_munro: false,
+                croste: '',
+                eritrociti_extravasati: '',
+                vasculite: '',
+                depositi_mucina: '',
+                sede_anatomica: '',
+                note_cliniche: ''
+            });
+
+            const [diagnoses, setDiagnoses] = useState([]);
+            const [showResults, setShowResults] = useState(false);
+
+            const diagnosticPatterns = {
+                dermatite_allergica_contatto_acuta: {
+                    nome: "Dermatite allergica da contatto (fase acuta)",
+                    categoria: "Spongotico",
+                    criteri_maggiori: {
+                        pattern_primario: "spongotico",
+                        spongiosi: "marcata",
+                        esocitosi: "presente"
+                    },
+                    criteri_minori: {
+                        eosinofili: ["presenti", "abbondanti"],
+                        infiltrato_distribuzione: "perivascolare_superficiale",
+                        paracheratosi: "focale"
+                    },
+                    note: "Pattern classico da ipersensibilità tipo IV. Correlazione con patch test.",
+                    colorazioni: ["Nessuna colorazione speciale necessaria"],
+                    bibliografia: "Ackerman AB, 2005 - Spongiotic dermatitis patterns"
+                },
+                dermatite_atopica_acuta: {
+                    nome: "Dermatite atopica (fase acuta)",
+                    categoria: "Spongotico",
+                    criteri_maggiori: {
+                        pattern_primario: "spongotico",
+                        spongiosi: ["moderata", "marcata"],
+                        esocitosi: "presente"
+                    },
+                    criteri_minori: {
+                        eosinofili: ["presenti", "abbondanti"],
+                        paracheratosi: "focale",
+                        acantosi: "lieve"
+                    },
+                    note: "Fase acuta/subacuta. Se cronicizzata: acantosi, ipergranulosi, minore spongiosi.",
+                    colorazioni: ["PAS (escludere dermatofitosi se dubbi)"],
+                    bibliografia: "Elder DE, 2020 - Atopic dermatitis histology"
+                },
+                dermatite_atopica_cronica: {
+                    nome: "Dermatite atopica (fase cronica/lichenificata)",
+                    categoria: "Spongotico/Psoriasiforme",
+                    criteri_maggiori: {
+                        pattern_primario: ["spongotico", "psoriasiforme"],
+                        acantosi: ["moderata", "marcata"],
+                        ipergranulosi: "si"
+                    },
+                    criteri_minori: {
+                        spongiosi: ["assente", "lieve"],
+                        eosinofili: "rari"
+                    },
+                    note: "Lichenificazione da grattamento cronico. Pattern misto spongotico-psoriasiforme.",
+                    colorazioni: [],
+                    bibliografia: "Weedon D, 2010 - Chronic eczematous dermatitis"
+                },
+                pitiriasi_rosea: {
+                    nome: "Pitiriasi rosea",
+                    categoria: "Spongotico",
+                    criteri_maggiori: {
+                        pattern_primario: "spongotico",
+                        spongiosi: "lieve",
+                        eritrociti_extravasati: "presenti"
+                    },
+                    criteri_minori: {
+                        paracheratosi: "focale",
+                        esocitosi: "lieve",
+                        infiltrato_distribuzione: "perivascolare_superficiale"
+                    },
+                    note: "Chiazza madre + lesioni satellite (correlazione clinica). Eritrociti extravasati caratteristici.",
+                    colorazioni: [],
+                    bibliografia: "Rapini RP, 2012 - Pityriasis rosea patterns"
+                },
+                psoriasi_vulgaris: {
+                    nome: "Psoriasi vulgaris",
+                    categoria: "Psoriasiforme",
+                    criteri_maggiori: {
+                        pattern_primario: "psoriasiforme",
+                        acantosi: "marcata",
+                        paracheratosi: ["moderata", "marcata"],
+                        ipogranulosi: "si"
+                    },
+                    criteri_minori: {
+                        neutrofili: ["presenti", "abbondanti"],
+                        microascessi_munro: true,
+                        spongiosi: "assente"
+                    },
+                    note: "Ipergranulosi assente/ridotta. Allungamento regolare rete ridges. Capillari dilatati.",
+                    colorazioni: ["PAS per escludere tinea (DD psoriasi vs dermatofitosi)"],
+                    bibliografia: "Nestle FO, 2009 - Psoriasis histopathology"
+                },
+                dermatite_seborroica: {
+                    nome: "Dermatite seborroica",
+                    categoria: "Psoriasiforme",
+                    criteri_maggiori: {
+                        pattern_primario: "psoriasiforme",
+                        paracheratosi: ["moderata", "marcata"],
+                        spongiosi: "lieve"
+                    },
+                    criteri_minori: {
+                        neutrofili: "presenti",
+                        acantosi: "lieve"
+                    },
+                    note: "Pattern intermedio spongotico-psoriasiforme. Spalle di paracheratosi agli osti follicolari.",
+                    colorazioni: ["PAS (Malassezia spp. talvolta visibile)"],
+                    bibliografia: "Schwartz RA, 2006 - Seborrheic dermatitis"
+                },
+                lichen_planus: {
+                    nome: "Lichen planus",
+                    categoria: "Interfaccia/Lichenoide",
+                    criteri_maggiori: {
+                        pattern_primario: "interfaccia_lichenoide",
+                        infiltrato_distribuzione: "banda_lichenoide",
+                        vacuolizzazione_basale: "presente"
+                    },
+                    criteri_minori: {
+                        necrosi_keratinociti: "presente",
+                        ipergranulosi: "si",
+                        acantosi: "irregolare"
+                    },
+                    note: "Infiltrato a banda oscura giunzione dermo-epidermica. Corpi di Civatte (cheratinociti necrotici).",
+                    colorazioni: ["PAS per escludere GVHD lichenoide (clinica!)"],
+                    bibliografia: "Shiohara T, 2012 - Lichen planus histologic criteria"
+                },
+                lupus_eritematoso_discoide: {
+                    nome: "Lupus eritematoso cutaneo cronico (discoide)",
+                    categoria: "Interfaccia",
+                    criteri_maggiori: {
+                        pattern_primario: "interfaccia_vacuolare",
+                        vacuolizzazione_basale: "presente",
+                        infiltrato_distribuzione: "perivascolare_perianessiale"
+                    },
+                    criteri_minori: {
+                        atrofia_epidermica: "si",
+                        ipergranulosi: "si",
+                        depositi_mucina: "presenti"
+                    },
+                    note: "Tappi folliculari. Mucina dermica. Membrana basale ispessita (PAS+).",
+                    colorazioni: ["PAS (membrana basale ispessita)", "Alcian blue (mucina)"],
+                    bibliografia: "Kuhn A, 2007 - Cutaneous lupus erythematosus"
+                },
+                eritema_polimorfo: {
+                    nome: "Eritema multiforme",
+                    categoria: "Interfaccia",
+                    criteri_maggiori: {
+                        pattern_primario: "interfaccia_lichenoide",
+                        necrosi_keratinociti: "marcata",
+                        vacuolizzazione_basale: "presente"
+                    },
+                    criteri_minori: {
+                        eosinofili: "presenti",
+                        edema_dermico: "marcato",
+                        infiltrato_densita: "denso"
+                    },
+                    note: "Necrosi cheratinocitaria massiva. Spesso post-infettivo (HSV) o farmaci. Lesioni a bersaglio (clinica).",
+                    colorazioni: [],
+                    bibliografia: "Bastuji-Garin S, 1993 - Erythema multiforme spectrum"
+                },
+                pitiriasi_lichenoide_acuta: {
+                    nome: "Pitiriasi lichenoide acuta (PLEVA)",
+                    categoria: "Interfaccia/Vasculitico",
+                    criteri_maggiori: {
+                        pattern_primario: "interfaccia_lichenoide",
+                        necrosi_keratinociti: "marcata",
+                        eritrociti_extravasati: "presenti"
+                    },
+                    criteri_minori: {
+                        paracheratosi: "focale",
+                        linfociti: true,
+                        neutrofili: "presenti"
+                    },
+                    note: "Necrosi cheratinocitaria diffusa. Eritrociti extravasati prominenti. Clinica: papule necrotiche.",
+                    colorazioni: ["PAS per escludere vasculite infettiva"],
+                    bibliografia: "Fernandes NF, 2010 - PLEVA histopathology"
+                },
+                dermatite_perivascolare_superficiale: {
+                    nome: "Dermatite perivascolare superficiale aspecifica",
+                    categoria: "Perivascolare",
+                    criteri_maggiori: {
+                        pattern_primario: "perivascolare",
+                        infiltrato_distribuzione: "perivascolare_superficiale",
+                        linfociti: true
+                    },
+                    criteri_minori: {
+                        spongiosi: "assente",
+                        eosinofili: ["assenti", "rari"]
+                    },
+                    note: "Pattern aspecifico. Richiede correlazione clinica stretta. Possibile reazione da farmaci, virale.",
+                    colorazioni: [],
+                    bibliografia: "Ackerman AB, 1978 - Perivascular dermatitis classification"
+                },
+                vasculite_leucocitoclastica: {
+                    nome: "Vasculite leucocitoclastica",
+                    categoria: "Vasculitico",
+                    criteri_maggiori: {
+                        pattern_primario: "perivascolare",
+                        vasculite: "si",
+                        neutrofili: "abbondanti"
+                    },
+                    criteri_minori: {
+                        eritrociti_extravasati: "presenti"
+                    },
+                    note: "Porpora palpabile (clinica). Indagare cause: infezioni, farmaci, connettiviti, crioglobulinemia.",
+                    colorazioni: ["PAS/Alcian blue per depositi vascolari"],
+                    bibliografia: "Carlson JA, 2006 - Cutaneous vasculitis update"
+                },
+                micosi_fungoide_early: {
+                    nome: "Micosi fungoide (early patch/plaque stage)",
+                    categoria: "Linfoma cutaneo T",
+                    criteri_maggiori: {
+                        pattern_primario: ["spongotico", "interfaccia_lichenoide"],
+                        infiltrato_distribuzione: ["perivascolare_superficiale", "banda_lichenoide"],
+                        linfociti_atipici: "presenti"
+                    },
+                    criteri_minori: {
+                        epidermotropismo: "presente",
+                        alone_chiaro: true,
+                        linfociti: true
+                    },
+                    note: "⚠️ LINFOMA! Early MF mima dermatite cronica. Key: linfociti atipici epidermotropi con alone chiaro, sproporzionati rispetto a spongiosi.",
+                    colorazioni: ["IHC MANDATORIA: CD3+, CD4+>CD8+, CD7 loss, CD2 loss variabile"],
+                    workup_molecolare: "PCR per riarrangiamento TCR (clonalità T)",
+                    bibliografia: "Willemze R, 2019 - WHO-EORTC classification MF"
+                },
+                micosi_fungoide_tumor: {
+                    nome: "Micosi fungoide (tumor stage)",
+                    categoria: "Linfoma cutaneo T",
+                    criteri_maggiori: {
+                        pattern_primario: "perivascolare",
+                        infiltrato_distribuzione: "perivascolare_profondo",
+                        infiltrato_densita: "denso",
+                        linfociti_atipici: "abbondanti"
+                    },
+                    criteri_minori: {
+                        epidermotropismo: "variabile",
+                        cellule_cerebriformi: true
+                    },
+                    note: "⚠️ LINFOMA AVANZATO! Fase tumorale con noduli/tumori. Rischio trasformazione a large cell.",
+                    colorazioni: ["IHC: CD3+, CD4+, CD8-, perdita CD7/CD2", "Ki67", "CD30 se trasformazione"],
+                    workup_molecolare: "PCR TCR + staging (biopsia linfonodi sentinella)",
+                    bibliografia: "Guitart J, 2018 - MF tumor transformation"
+                },
+                sindrome_sezary: {
+                    nome: "Sindrome di Sézary",
+                    categoria: "Linfoma cutaneo T leucemico",
+                    criteri_maggiori: {
+                        pattern_primario: "perivascolare",
+                        infiltrato_densita: "denso",
+                        linfociti_atipici: "abbondanti",
+                        epidermotropismo: "presente"
+                    },
+                    criteri_minori: {
+                        cellule_cerebriformi: true
+                    },
+                    note: "⚠️ LINFOMA ERITRODERMICO LEUCEMICO! Triade: eritroderma, linfadenopatia, cellule Sézary circolanti (>1000/μL).",
+                    colorazioni: ["IHC: CD3+, CD4+, CD8-, CD7 loss", "Flow cytometry sangue"],
+                    workup_molecolare: "PCR TCR su cute E sangue (stesso clone)",
+                    bibliografia: "Scarisbrick JJ, 2015 - Sézary syndrome"
+                },
+                papulosi_linfomatoide: {
+                    nome: "Papulosi linfomatoide (LyP)",
+                    categoria: "Disordine linfoproliferativo CD30+",
+                    criteri_maggiori: {
+                        pattern_primario: "perivascolare",
+                        infiltrato_distribuzione: "perivascolare_profondo",
+                        linfociti_atipici: "abbondanti",
+                        cd30_positivi: true
+                    },
+                    criteri_minori: {
+                        eosinofili: "presenti",
+                        neutrofili: "presenti"
+                    },
+                    note: "Lesioni papulo-nodulari ricorrenti autolimitanti. CD30+ large. Benign ma 10-20% sviluppa linfoma.",
+                    colorazioni: ["IHC: CD30+ (>75%)", "CD3+, CD4+", "ALK negativo"],
+                    workup_molecolare: "PCR TCR (clonalità non predittiva)",
+                    bibliografia: "Kempf W, 2016 - LyP spectrum"
+                },
+                linfoma_anaplastico_cutaneo_primitivo: {
+                    nome: "Linfoma anaplastico cutaneo primitivo (pcALCL)",
+                    categoria: "Linfoma cutaneo CD30+",
+                    criteri_maggiori: {
+                        pattern_primario: "perivascolare",
+                        infiltrato_distribuzione: "perivascolare_profondo",
+                        infiltrato_densita: "denso",
+                        linfociti_atipici: "abbondanti",
+                        cd30_positivi: true
+                    },
+                    criteri_minori: {
+                        epidermotropismo: "assente"
+                    },
+                    note: "⚠️ LINFOMA! Noduli/tumori. CD30+ anaplastiche. Buona prognosi se confinato a cute. Escludere linfonodi.",
+                    colorazioni: ["IHC: CD30+ diffuso", "ALK negativo", "CD3+, CD4±, CD8-"],
+                    workup_molecolare: "Staging TC, biopsia linfonodo sentinella",
+                    bibliografia: "Kadin ME, 2018 - pcALCL vs systemic"
+                },
+                linfoma_B_grandi_cellule_leg_type: {
+                    nome: "Linfoma cutaneo a grandi cellule B, leg type",
+                    categoria: "Linfoma cutaneo B",
+                    criteri_maggiori: {
+                        pattern_primario: "perivascolare",
+                        infiltrato_distribuzione: "perivascolare_profondo",
+                        infiltrato_densita: "denso",
+                        linfociti_B_atipici: true
+                    },
+                    criteri_minori: {
+                        epidermotropismo: "assente"
+                    },
+                    note: "⚠️ LINFOMA AGGRESSIVO! Anziane, gambe. Cellule B large. Prognosi peggiore altri linfomi B cutanei.",
+                    colorazioni: ["IHC: CD20+, CD79a+", "BCL2+, BCL6+, MUM1+", "Ki67 alto (>60%)"],
+                    workup_molecolare: "FISH MYC/BCL2/BCL6 + staging PET-TC",
+                    bibliografia: "Senff NJ, 2008 - PCLBCL leg type"
+                },
+                linfoma_B_zona_marginale: {
+                    nome: "Linfoma cutaneo B della zona marginale",
+                    categoria: "Linfoma cutaneo B indolente",
+                    criteri_maggiori: {
+                        pattern_primario: "perivascolare",
+                        infiltrato_distribuzione: "perivascolare_profondo",
+                        infiltrato_densita: "denso",
+                        linfociti_B_atipici: true
+                    },
+                    criteri_minori: {
+                        plasmacellule: true,
+                        epidermotropismo: "assente"
+                    },
+                    note: "Linfoma B indolente. Noduli/placche. Infiltrato polimorfo. Possibile associazione Borrelia (EU).",
+                    colorazioni: ["IHC: CD20+, CD79a+", "BCL2+, CD10-, BCL6-", "Catene κ/λ"],
+                    workup_molecolare: "PCR IgH + sierologia Borrelia",
+                    bibliografia: "Michaelis S, 2021 - Primary cutaneous MZL"
+                },
+                pseudo_linfoma: {
+                    nome: "Pseudolinfoma cutaneo (iperplasia linfoide benigna)",
+                    categoria: "Simulatore di linfoma",
+                    criteri_maggiori: {
+                        pattern_primario: "perivascolare",
+                        infiltrato_distribuzione: "perivascolare_profondo",
+                        infiltrato_densita: "denso",
+                        linfociti: true
+                    },
+                    criteri_minori: {
+                        eosinofili: "presenti",
+                        plasmacellule: true
+                    },
+                    note: "Reazione benigna (farmaci, tatuaggi, piercing). Architettura preservata, popolazione polimorfa policlonale.",
+                    colorazioni: ["IHC: Mix CD3/CD20 policlonale", "BCL2- centri germinativi", "Ki67 limitato"],
+                    workup_molecolare: "PCR TCR/IgH: policlonale",
+                    bibliografia: "Ploysangam T, 1998 - Cutaneous pseudolymphoma"
+                }
+            };
+
+            const calculateDiagnoses = () => {
+                const results = [];
+
+                Object.entries(diagnosticPatterns).forEach(([key, pattern]) => {
+                    let score = 0;
+                    let maxScore = 0;
+
+                    Object.entries(pattern.criteri_maggiori).forEach(([criterio, valoreAtteso]) => {
+                        maxScore += 3;
+                        const valoreCorrente = patternData[criterio];
+
+                        if (Array.isArray(valoreAtteso)) {
+                            if (valoreAtteso.includes(valoreCorrente)) score += 3;
+                        } else if (typeof valoreAtteso === 'boolean') {
+                            if (valoreCorrente === valoreAtteso) score += 3;
+                        } else {
+                            if (valoreCorrente === valoreAtteso) score += 3;
+                        }
+                    });
+
+                    Object.entries(pattern.criteri_minori || {}).forEach(([criterio, valoreAtteso]) => {
+                        maxScore += 1;
+                        const valoreCorrente = patternData[criterio];
+
+                        if (Array.isArray(valoreAtteso)) {
+                            if (valoreAtteso.includes(valoreCorrente)) score += 1;
+                        } else if (typeof valoreAtteso === 'boolean') {
+                            if (valoreCorrente === valoreAtteso) score += 1;
+                        } else {
+                            if (valoreCorrente === valoreAtteso) score += 1;
+                        }
+                    });
+
+                    const percentuale = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+
+                    if (percentuale >= 40) {
+                        results.push({ ...pattern, percentuale });
+                    }
+                });
+
+                results.sort((a, b) => b.percentuale - a.percentuale);
+                setDiagnoses(results);
+                setShowResults(true);
+            };
+
+            const handleReset = () => {
+                if (confirm('Resettare tutti i dati inseriti?')) {
+                    setPatternData({
+                        pattern_primario: '', spongiosi: '', paracheratosi: '', acantosi: '',
+                        atrofia_epidermica: '', ipergranulosi: '', ipogranulosi: '',
+                        vacuolizzazione_basale: '', necrosi_keratinociti: '', esocitosi: '',
+                        infiltrato_distribuzione: '', infiltrato_densita: '', linfociti: false,
+                        eosinofili: '', neutrofili: '', plasmacellule: false, istiociti: false,
+                        edema_dermico: '', linfociti_atipici: '', epidermotropismo: '',
+                        alone_chiaro: false, cellule_cerebriformi: false, cd30_positivi: false,
+                        linfociti_B_atipici: false, ortokeratosi: false, microascessi_munro: false,
+                        croste: '', eritrociti_extravasati: '', vasculite: '', depositi_mucina: '',
+                        sede_anatomica: '', note_cliniche: ''
+                    });
+                    setStep(1);
+                    setShowResults(false);
+                    setDiagnoses([]);
+                }
+            };
+
+            const generateReport = () => {
+                const hasLymphoma = diagnoses.some(d => d.categoria.includes('Linfoma') || d.categoria.includes('linfoproliferativo'));
+                
+                const reportContent = `
+================================================================================
+REFERTO ANATOMOPATOLOGICO - DERMATOPATOLOGIA
+================================================================================
+Data: ${new Date().toLocaleDateString('it-IT')}
+
+PATTERN ARCHITETTURALE: ${patternData.pattern_primario.toUpperCase().replace(/_/g, ' ')}
+
+CARATTERISTICHE ISTOLOGICHE:
+
+Epidermide:
+- Spongiosi: ${patternData.spongiosi || 'non valutata'}
+- Acantosi: ${patternData.acantosi || 'assente'}
+- Paracheratosi: ${patternData.paracheratosi || 'assente'}
+- Ipergranulosi: ${patternData.ipergranulosi || 'no'}
+- Ipogranulosi: ${patternData.ipogranulosi || 'no'}
+- Vacuolizzazione basale: ${patternData.vacuolizzazione_basale || 'assente'}
+- Necrosi cheratinociti: ${patternData.necrosi_keratinociti || 'assente'}
+- Esocitosi: ${patternData.esocitosi || 'assente'}
+
+Derma e Infiltrato:
+- Distribuzione: ${patternData.infiltrato_distribuzione || 'non specificata'}
+- Densità: ${patternData.infiltrato_densita || 'non specificata'}
+- Linfociti: ${patternData.linfociti ? 'presenti' : 'non specificati'}
+- Linfociti atipici: ${patternData.linfociti_atipici || 'non valutati'}
+- Epidermotropismo: ${patternData.epidermotropismo || 'non valutato'}
+- Eosinofili: ${patternData.eosinofili || 'non valutati'}
+- Neutrofili: ${patternData.neutrofili || 'non valutati'}
+- Alone chiaro: ${patternData.alone_chiaro ? 'presente' : 'assente'}
+- Cellule cerebriformi: ${patternData.cellule_cerebriformi ? 'presenti' : 'assenti'}
+
+Sede: ${patternData.sede_anatomica || 'non specificata'}
+Note: ${patternData.note_cliniche || 'nessuna'}
+
+================================================================================
+DIAGNOSI DIFFERENZIALE ISTOPATOLOGICA:
+================================================================================
+
+${diagnoses.map((d, i) => `
+${i + 1}. ${d.nome.toUpperCase()} (match ${d.percentuale}%)
+   Categoria: ${d.categoria}
+   ${d.categoria.includes('Linfoma') ? '⚠️ DIAGNOSI DI LINFOMA - ATTENZIONE' : ''}
+   
+   Note: ${d.note}
+   
+   ${d.colorazioni.length > 0 ? `Colorazioni/IHC:\n   ${d.colorazioni.map(c => `- ${c}`).join('\n   ')}` : ''}
+   
+   ${d.workup_molecolare ? `Biologia Molecolare: ${d.workup_molecolare}` : ''}
+   
+   Bibliografia: ${d.bibliografia}
+   
+   --------------------------------------------------------------------------------
+`).join('\n')}
+
+${hasLymphoma ? `
+⚠️⚠️⚠️ ATTENZIONE - SOSPETTO LINFOMA CUTANEO ⚠️⚠️⚠️
+
+AZIONI OBBLIGATORIE:
+1. IMMUNOISTOCHIMICA: CD3, CD4, CD8, CD20, CD30, CD7, Ki67
+2. BIOLOGIA MOLECOLARE: PCR TCR (T) o IgH (B)
+3. CORRELAZIONE CLINICA: durata, risposta terapie, linfoadenopatia
+4. STAGING se confermato: emocromo, LDH, TC, ± biopsia linfonodo
+` : ''}
+
+Patologo refertante: _____________________
+Data: ${new Date().toLocaleDateString('it-IT')}
+================================================================================
+`;
+
+                const blob = new Blob([reportContent], { type: 'text/plain; charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `referto_dermpath_${new Date().getTime()}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+                    <div className="max-w-6xl mx-auto">
+                        {/* Header */}
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-2">
+                                        <FileText /> DermPath Diagnostic System
+                                    </h1>
+                                    <p className="text-slate-600 mt-2">Pattern-based approach per dermatiti infiammatorie e linfomi cutanei</p>
+                                </div>
+                                <button onClick={handleReset} className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                                    <RotateCcw /> Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Progress */}
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <div className="flex items-center justify-between">
+                                {[1, 2, 3, 4].map((s) => (
+                                    <div key={s} className="flex items-center">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                                            step >= s ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                                        }`}>{s}</div>
+                                        {s < 4 && <ChevronRight className="mx-2 text-slate-400" />}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-between mt-2 text-sm text-slate-600">
+                                <span>Pattern</span>
+                                <span>Epidermide</span>
+                                <span>Derma</span>
+                                <span>Risultati</span>
+                            </div>
+                        </div>
+
+                        {/* Form Steps */}
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            {step === 1 && (
+                                <div>
+                                    <h2 className="text-2xl font-bold text-slate-800 mb-4">Step 1: Pattern Architetturale Primario</h2>
+                                    <p className="text-slate-600 mb-6">Quale pattern architetturale prevale?</p>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {[
+                                            { value: 'spongotico', label: 'Spongotico', desc: 'Edema intercellulare epidermico' },
+                                            { value: 'psoriasiforme', label: 'Psoriasiforme', desc: 'Allungamento regolare rete ridges' },
+                                            { value: 'interfaccia_lichenoide', label: 'Interfaccia (Lichenoide)', desc: 'Infiltrato a banda, vacuolizzazione' },
+                                            { value: 'interfaccia_vacuolare', label: 'Interfaccia (Vacuolare)', desc: 'Vacuoli senza banda' },
+                                            { value: 'perivascolare', label: 'Perivascolare', desc: 'Infiltrato attorno ai vasi' },
+                                            { value: 'vasculitico', label: 'Vasculitico', desc: 'Danno vascolare primario' }
+                                        ].map(option => (
+                                            <label key={option.value} className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                                                patternData.pattern_primario === option.value ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-blue-300'
+                                            }`}>
+                                                <input type="radio" name="pattern_primario" value={option.value}
+                                                    checked={patternData.pattern_primario === option.value}
+                                                    onChange={(e) => setPatternData({...patternData, pattern_primario: e.target.value})}
+                                                    className="mr-2" />
+                                                <span className="font-semibold">{option.label}</span>
+                                                <p className="text-sm text-slate-600 mt-1">{option.desc}</p>
+                                            </label>
+                                        ))}
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">Sede anatomica</label>
+                                        <input type="text" value={patternData.sede_anatomica}
+                                            onChange={(e) => setPatternData({...patternData, sede_anatomica: e.target.value})}
+                                            placeholder="es. avambraccio, cuoio capelluto, dorso"
+                                            className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none" />
+                                    </div>
+
+                                    <button onClick={() => setStep(2)} disabled={!patternData.pattern_primario}
+                                        className="mt-6 w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors">
+                                        Avanti: Epidermide
+                                    </button>
+                                </div>
+                            )}
+
+                            {step === 2 && (
+                                <div>
+                                    <h2 className="text-2xl font-bold text-slate-800 mb-4">Step 2: Caratteristiche Epidermiche</h2>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Spongiosi</label>
+                                            <select value={patternData.spongiosi}
+                                                onChange={(e) => setPatternData({...patternData, spongiosi: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="assente">Assente</option>
+                                                <option value="lieve">Lieve</option>
+                                                <option value="moderata">Moderata</option>
+                                                <option value="marcata">Marcata (con vescicole)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Esocitosi</label>
+                                            <select value={patternData.esocitosi}
+                                                onChange={(e) => setPatternData({...patternData, esocitosi: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="assente">Assente</option>
+                                                <option value="lieve">Lieve</option>
+                                                <option value="presente">Presente</option>
+                                                <option value="marcata">Marcata</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Acantosi</label>
+                                            <select value={patternData.acantosi}
+                                                onChange={(e) => setPatternData({...patternData, acantosi: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="assente">Assente/Normale</option>
+                                                <option value="lieve">Lieve</option>
+                                                <option value="moderata">Moderata</option>
+                                                <option value="marcata">Marcata (psoriasiforme)</option>
+                                                <option value="irregolare">Irregolare (verrucosa)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Paracheratosi</label>
+                                            <select value={patternData.paracheratosi}
+                                                onChange={(e) => setPatternData({...patternData, paracheratosi: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="assente">Assente (ortokeratosi)</option>
+                                                <option value="focale">Focale</option>
+                                                <option value="moderata">Moderata</option>
+                                                <option value="marcata">Marcata (confluente)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Ipergranulosi</label>
+                                            <select value={patternData.ipergranulosi}
+                                                onChange={(e) => setPatternData({...patternData, ipergranulosi: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="no">No</option>
+                                                <option value="si">Sì (ispessimento granuloso)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Ipogranulosi</label>
+                                            <select value={patternData.ipogranulosi}
+                                                onChange={(e) => setPatternData({...patternData, ipogranulosi: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="no">No</option>
+                                                <option value="si">Sì (riduzione/assenza)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Vacuolizzazione basale</label>
+                                            <select value={patternData.vacuolizzazione_basale}
+                                                onChange={(e) => setPatternData({...patternData, vacuolizzazione_basale: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="assente">Assente</option>
+                                                <option value="presente">Presente</option>
+                                                <option value="marcata">Marcata</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Necrosi cheratinociti</label>
+                                            <select value={patternData.necrosi_keratinociti}
+                                                onChange={(e) => setPatternData({...patternData, necrosi_keratinociti: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="assente">Assente</option>
+                                                <option value="presente">Presente (singole cellule)</option>
+                                                <option value="marcata">Marcata (confluente)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex gap-4">
+                                        <button onClick={() => setStep(1)}
+                                            className="flex-1 bg-slate-200 text-slate-700 py-3 rounded-lg font-semibold hover:bg-slate-300 transition-colors">
+                                            Indietro
+                                        </button>
+                                        <button onClick={() => setStep(3)}
+                                            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                                            Avanti: Derma e Infiltrato
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {step === 3 && (
+                                <div>
+                                    <h2 className="text-2xl font-bold text-slate-800 mb-4">Step 3: Derma e Infiltrato</h2>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Distribuzione infiltrato</label>
+                                            <select value={patternData.infiltrato_distribuzione}
+                                                onChange={(e) => setPatternData({...patternData, infiltrato_distribuzione: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="perivascolare_superficiale">Perivascolare superficiale</option>
+                                                <option value="perivascolare_profondo">Perivascolare superficiale e profondo</option>
+                                                <option value="banda_lichenoide">A banda lichenoide</option>
+                                                <option value="interstiziale">Interstiziale</option>
+                                                <option value="perivascolare_perianessiale">Perivascolare e perianessiale</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Densità infiltrato</label>
+                                            <select value={patternData.infiltrato_densita}
+                                                onChange={(e) => setPatternData({...patternData, infiltrato_densita: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="scarso">Scarso</option>
+                                                <option value="moderato">Moderato</option>
+                                                <option value="denso">Denso</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Eosinofili</label>
+                                            <select value={patternData.eosinofili}
+                                                onChange={(e) => setPatternData({...patternData, eosinofili: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="assenti">Assenti</option>
+                                                <option value="rari">Rari</option>
+                                                <option value="presenti">Presenti</option>
+                                                <option value="abbondanti">Abbondanti</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Neutrofili</label>
+                                            <select value={patternData.neutrofili}
+                                                onChange={(e) => setPatternData({...patternData, neutrofili: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="assenti">Assenti</option>
+                                                <option value="rari">Rari</option>
+                                                <option value="presenti">Presenti</option>
+                                                <option value="abbondanti">Abbondanti (microascessi)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Eritrociti extravasati</label>
+                                            <select value={patternData.eritrociti_extravasati}
+                                                onChange={(e) => setPatternData({...patternData, eritrociti_extravasati: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="assenti">Assenti</option>
+                                                <option value="presenti">Presenti</option>
+                                                <option value="abbondanti">Abbondanti</option>
+                                            </select>
+                                        </div>
+
+                                        <label className="flex items-center p-3 border-2 border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                                            <input type="checkbox" checked={patternData.linfociti}
+                                                onChange={(e) => setPatternData({...patternData, linfociti: e.target.checked})}
+                                                className="mr-3" />
+                                            <span>Linfociti presenti</span>
+                                        </label>
+                                    </div>
+
+                                    {/* Sezione Linfomi */}
+                                    <div className="mt-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+                                        <h3 className="text-lg font-bold text-red-900 mb-3 flex items-center gap-2">
+                                            <AlertCircle size={20} className="text-red-600" />
+                                            Sospetto Linfoma? Valuta questi parametri
+                                        </h3>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-slate-700 mb-2">Linfociti atipici</label>
+                                                <select value={patternData.linfociti_atipici}
+                                                    onChange={(e) => setPatternData({...patternData, linfociti_atipici: e.target.value})}
+                                                    className="w-full p-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none bg-white">
+                                                    <option value="">Seleziona...</option>
+                                                    <option value="assenti">Assenti</option>
+                                                    <option value="presenti">Presenti (cerebriformi isolati)</option>
+                                                    <option value="abbondanti">Abbondanti (infiltrato monotono)</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-slate-700 mb-2">Epidermotropismo</label>
+                                                <select value={patternData.epidermotropismo}
+                                                    onChange={(e) => setPatternData({...patternData, epidermotropismo: e.target.value})}
+                                                    className="w-full p-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none bg-white">
+                                                    <option value="">Seleziona...</option>
+                                                    <option value="assente">Assente</option>
+                                                    <option value="presente">Presente</option>
+                                                    <option value="marcato">Marcato (Pautrier)</option>
+                                                </select>
+                                            </div>
+
+                                            <label className="flex items-center p-3 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-50 bg-white">
+                                                <input type="checkbox" checked={patternData.alone_chiaro}
+                                                    onChange={(e) => setPatternData({...patternData, alone_chiaro: e.target.checked})}
+                                                    className="mr-3" />
+                                                <span>Alone chiaro perinucleare</span>
+                                            </label>
+
+                                            <label className="flex items-center p-3 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-50 bg-white">
+                                                <input type="checkbox" checked={patternData.cellule_cerebriformi}
+                                                    onChange={(e) => setPatternData({...patternData, cellule_cerebriformi: e.target.checked})}
+                                                    className="mr-3" />
+                                                <span>Cellule cerebriformi (Sézary/MF)</span>
+                                            </label>
+
+                                            <label className="flex items-center p-3 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-50 bg-white">
+                                                <input type="checkbox" checked={patternData.cd30_positivi}
+                                                    onChange={(e) => setPatternData({...patternData, cd30_positivi: e.target.checked})}
+                                                    className="mr-3" />
+                                                <span>CD30+ (se IHC già fatta)</span>
+                                            </label>
+
+                                            <label className="flex items-center p-3 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-50 bg-white">
+                                                <input type="checkbox" checked={patternData.linfociti_B_atipici}
+                                                    onChange={(e) => setPatternData({...patternData, linfociti_B_atipici: e.target.checked})}
+                                                    className="mr-3" />
+                                                <span>Linfociti B atipici (large)</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex gap-4">
+                                        <button onClick={() => setStep(2)}
+                                            className="flex-1 bg-slate-200 text-slate-700 py-3 rounded-lg font-semibold hover:bg-slate-300 transition-colors">
+                                            Indietro
+                                        </button>
+                                        <button onClick={() => setStep(4)}
+                                            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                                            Avanti: Completamento
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {step === 4 && (
+                                <div>
+                                    <h2 className="text-2xl font-bold text-slate-800 mb-4">Step 4: Completamento</h2>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <label className="flex items-center p-3 border-2 border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                                            <input type="checkbox" checked={patternData.microascessi_munro}
+                                                onChange={(e) => setPatternData({...patternData, microascessi_munro: e.target.checked})}
+                                                className="mr-3" />
+                                            <span>Microascessi di Munro</span>
+                                        </label>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Vasculite</label>
+                                            <select value={patternData.vasculite}
+                                                onChange={(e) => setPatternData({...patternData, vasculite: e.target.value})}
+                                                className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                <option value="">Seleziona...</option>
+                                                <option value="no">No</option>
+                                                <option value="si">Sì (necrosi fibrinoide, leucocitoclasia)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">Note cliniche / Quesito diagnostico</label>
+                                        <textarea value={patternData.note_cliniche}
+                                            onChange={(e) => setPatternData({...patternData, note_cliniche: e.target.value})}
+                                            placeholder="es. Paziente con dermatite recidivante da 6 mesi, risposta parziale a steroidi..."
+                                            className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none h-32" />
+                                    </div>
+
+                                    <div className="mt-6 flex gap-4">
+                                        <button onClick={() => setStep(3)}
+                                            className="flex-1 bg-slate-200 text-slate-700 py-3 rounded-lg font-semibold hover:bg-slate-300 transition-colors">
+                                            Indietro
+                                        </button>
+                                        <button onClick={calculateDiagnoses}
+                                            className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                                            <CheckCircle2 /> Genera Diagnosi Differenziale
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Results */}
+                        {showResults && (
+                            <div className="bg-white rounded-lg shadow-lg p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-2xl font-bold text-slate-800">Diagnosi Differenziale Istopatologica</h2>
+                                    <button onClick={generateReport}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                        <Download /> Esporta Referto
+                                    </button>
+                                </div>
+
+                                {diagnoses.some(d => d.categoria.includes('Linfoma') || d.categoria.includes('linfoproliferativo')) && (
+                                    <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg">
+                                        <div className="flex items-start gap-3">
+                                            <AlertCircle size={24} className="text-red-600 flex-shrink-0 mt-1" />
+                                            <div>
+                                                <h3 className="text-lg font-bold text-red-900 mb-2">⚠️ ATTENZIONE: SOSPETTO LINFOMA CUTANEO</h3>
+                                                <p className="text-sm text-red-800 mb-2">La diagnosi differenziale include disordini linfoproliferativi. Azioni consigliate:</p>
+                                                <ul className="text-sm text-red-800 list-disc list-inside space-y-1">
+                                                    <li><strong>IHC OBBLIGATORIA:</strong> CD3, CD4, CD8, CD20, CD30, CD7, Ki67</li>
+                                                    <li><strong>Biologia molecolare:</strong> PCR TCR (linfomi T) o IgH (linfomi B)</li>
+                                                    <li><strong>Correlazione clinica:</strong> Durata, risposta terapie, linfoadenopatia</li>
+                                                    <li><strong>Staging se confermato:</strong> Emocromo, TC, ± biopsia linfonodale</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="space-y-4">
+                                    {diagnoses.map((diagnosis, index) => {
+                                        const isLymphoma = diagnosis.categoria.includes('Linfoma') || diagnosis.categoria.includes('linfoproliferativo');
+                                        
+                                        return (
+                                            <div key={index} className={`border-2 rounded-lg p-4 ${
+                                                isLymphoma ? 'border-red-500 bg-red-50' :
+                                                index === 0 ? 'border-green-500 bg-green-50' : 'border-slate-200'
+                                            }`}>
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <h3 className="text-xl font-bold text-slate-800">{diagnosis.nome}</h3>
+                                                            {isLymphoma && (
+                                                                <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">LINFOMA</span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm text-slate-600">Categoria: {diagnosis.categoria}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className={`text-2xl font-bold ${isLymphoma ? 'text-red-600' : 'text-blue-600'}`}>
+                                                            {diagnosis.percentuale}%
+                                                        </div>
+                                                        <div className="text-sm text-slate-600">match</div>
+                                                    </div>
+                                                </div>
+
+                                                <div className={`rounded p-3 mb-3 ${isLymphoma ? 'bg-white border border-red-200' : 'bg-white'}`}>
+                                                    <p className="text-sm text-slate-700"><strong>Note:</strong> {diagnosis.note}</p>
+                                                </div>
+
+                                                {diagnosis.colorazioni.length > 0 && (
+                                                    <div className={`border rounded p-3 mb-3 ${
+                                                        isLymphoma ? 'bg-red-100 border-red-300' : 'bg-amber-50 border-amber-200'
+                                                    }`}>
+                                                        <p className={`text-sm font-semibold mb-1 ${isLymphoma ? 'text-red-900' : 'text-amber-900'}`}>
+                                                            {isLymphoma ? '🔬 IHC/Workup OBBLIGATORIO:' : 'Colorazioni suggerite:'}
+                                                        </p>
+                                                        <ul className={`text-sm list-disc list-inside ${isLymphoma ? 'text-red-800' : 'text-amber-800'}`}>
+                                                            {diagnosis.colorazioni.map((col, i) => (
+                                                                <li key={i}>{col}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+
+                                                {diagnosis.workup_molecolare && (
+                                                    <div className="bg-purple-50 border border-purple-200 rounded p-3 mb-3">
+                                                        <p className="text-sm font-semibold text-purple-900 mb-1">🧬 Biologia Molecolare:</p>
+                                                        <p className="text-sm text-purple-800">{diagnosis.workup_molecolare}</p>
+                                                    </div>
+                                                )}
+
+                                                <div className="text-xs text-slate-500 italic">
+                                                    Riferimento: {diagnosis.bibliografia}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Footer */}
+                        <div className="mt-6 bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                                <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-1" />
+                                <div className="text-sm text-amber-900">
+                                    <strong>Avvertenza professionale:</strong> Questo strumento è un ausilio diagnostico basato su pattern istopatologici riconosciuti.
+                                    La diagnosi definitiva richiede sempre correlazione clinico-patologica. In caso di dubbio, considerare colorazioni speciali,
+                                    immunoistochimica, o consulenza con colleghi esperti.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<DermPathDiagnostic />, document.getElementById('root'));
+    </script>
+</body>
+</html>
