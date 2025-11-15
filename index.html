@@ -40,11 +40,36 @@
                 vasculite: '',
                 eritrociti_extravasati: '',
                 sede_anatomica: '',
-                note_cliniche: ''
+                note_cliniche: '',
+                edema_dermico: '',
+                palisading_necrosi_mucina: false,
+                necrosi_collagenosa: '',
+                mucina_dermica: '',
+                microvescicole: false,
+                corpi_civatte: false,
+                acantolisi: false,
+                bolle_intraepidermiche: false,
+                bolle_subepidermiche: false,
+                infiltrato_neutrofili_pustole: false
             });
 
             const [diagnoses, setDiagnoses] = useState([]);
             const [showResults, setShowResults] = useState(false);
+
+            // Red flags discriminanti (esclusioni/indicatori forti)
+            const redFlags = [
+                { flag: "microascessi_munro", diagnosi: "Psoriasi", escludi: ["dermatite_allergica_contatto", "dermatite_atopica_acuta"] },
+                { flag: "infiltrato_banda", diagnosi: "Lichen planus o GVHD", escludi: ["dermatite_allergica_contatto", "dermatite_atopica_acuta"] },
+                { flag: "corpi_civatte", diagnosi: "Lichen planus", escludi: ["psoriasi_vulgaris", "dermatite_allergica_contatto"] },
+                { flag: "eosinofili_marcati_edema", diagnosi: "Dermatite da contatto", escludi: ["dermatite_atopica_cronica", "psoriasi_vulgaris"] },
+                { flag: "pustole_subcornee_neutrofili", diagnosi: "Pustolosi subcornea", escludi: ["psoriasi_vulgaris", "dermatite_allergica_contatto"] },
+                { flag: "palisading_necrosi_mucina", diagnosi: "Granuloma anulare", escludi: ["dermatite_allergica_contatto", "dermatite_atopica_acuta"] },
+                { flag: "spongiosi_microvescicole", diagnosi: "Dermatite eczematosa acuta", escludi: [] },
+                { flag: "epidermotropismo_alone", diagnosi: "Linfoma cutaneo", escludi: ["dermatite_allergica_contatto", "lichen_planus"] },
+                { flag: "acantolisi_bolloso", diagnosi: "Pemfigo volgare - IHC MANDATORIA", escludi: ["dermatite_erpetiforme", "pemfigoide_bolloso"] },
+                { flag: "pustole_subcornee_heip", diagnosi: "Dermatite erpetiforme - IF MANDATORIA", escludi: ["pemfigo_volgare", "pemfigoide_bolloso"] },
+                { flag: "bolle_subepidermiche_eosinofili", diagnosi: "Pemfigoide bolloso - IF MANDATORIA", escludi: ["pemfigo_volgare", "dermatite_erpetiforme"] }
+            ];
 
             const diagnosticPatterns = {
                 dermatite_allergica_contatto: {
@@ -52,12 +77,13 @@
                     categoria: "Spongotico",
                     criteri_maggiori: {
                         pattern_primario: "spongotico",
-                        spongiosi: "marcata",
+                        spongiosi: ["moderata", "marcata"],
                         esocitosi: "presente"
                     },
                     criteri_minori: {
                         eosinofili: ["presenti", "abbondanti"],
-                        infiltrato_distribuzione: "perivascolare_superficiale"
+                        infiltrato_distribuzione: "perivascolare_superficiale",
+                        edema_dermico: ["moderato", "marcato"]
                     },
                     note: "Pattern classico da ipersensibilità tipo IV. Correlazione con patch test.",
                     colorazioni: ["Nessuna colorazione speciale necessaria"],
@@ -205,22 +231,119 @@
                     colorazioni: ["IHC: CD30+ diffuso", "ALK negativo", "CD3+"],
                     workup_molecolare: "Staging TC, biopsia linfonodo sentinella",
                     bibliografia: "Kadin ME, 2018"
+                },
+                granuloma_anulare: {
+                    nome: "Granuloma anulare",
+                    categoria: "Granulomatoso",
+                    criteri_maggiori: {
+                        pattern_primario: "granulomatoso",
+                        palisading_necrosi_mucina: true,
+                        infiltrato_distribuzione: "derma_medio_profondo"
+                    },
+                    criteri_minori: {
+                        necrosi_collagenosa: "presente",
+                        mucina_dermica: "presente"
+                    },
+                    note: "Palisading granulomi con necrosi mucinosa centrale. Clinicamente: papule anulari.",
+                    colorazioni: ["PAS (escludere infezioni)", "Alcian blue (mucina)"],
+                    bibliografia: "Dabski K, 1989"
+                },
+                pemfigo_volgare: {
+                    nome: "Pemfigo volgare",
+                    categoria: "Bolloso Intraepidermico",
+                    criteri_maggiori: {
+                        pattern_primario: "intraepidermico",
+                        acantolisi: true,
+                        bolle_intraepidermiche: true
+                    },
+                    criteri_minori: {
+                        necrosi_keratinociti: "presente",
+                        infiltrato_densita: "moderato"
+                    },
+                    note: "⚠️ Perdita aderenze cheratinocitarie (acantolisi). Cellule rotonde, isolate.",
+                    colorazioni: ["IHC: Desmogleina 3 - Desmogleina 1 se mucosa", "VERO DIAGNOSTICO: Anticorpi circolanti IgG"],
+                    workup_molecolare: "Sierologia: anticorpi anti-desmogleina - ELISA/immunoblot",
+                    bibliografia: "Stanley JR, 1989"
+                },
+                dermatite_erpetiforme: {
+                    nome: "Dermatite erpetiforme",
+                    categoria: "Bolloso Subcorneo",
+                    criteri_maggiori: {
+                        pattern_primario: "subcorneo",
+                        infiltrato_neutrofili_pustole: true,
+                        spongiosi: ["lieve", "moderata"]
+                    },
+                    criteri_minori: {
+                        eosinofili: "presenti",
+                        microascessi_munro: false
+                    },
+                    note: "Pustole subcornee con neutrofili. Clinicamente: vescicolette pruriginose. ⚠️ Associata a celiachia.",
+                    colorazioni: ["PAS - escludere funghi", "FONDAMENTALE: IF dermale → IgA LINEARE alla giunzione"],
+                    workup_molecolare: "Immunofluorescenza: IgA granulare/lineare giunzione dermo-epidermica",
+                    bibliografia: "Reunala T, 2002"
+                },
+                pemfigoide_bolloso: {
+                    nome: "Pemfigoide bolloso",
+                    categoria: "Bolloso Subepidermico",
+                    criteri_maggiori: {
+                        pattern_primario: "subepidermico_bolloso",
+                        bolle_subepidermiche: true,
+                        infiltrato_distribuzione: "giunzione_dermoepidermica"
+                    },
+                    criteri_minori: {
+                        eosinofili: ["presenti", "abbondanti"],
+                        neutrofili: "presenti"
+                    },
+                    note: "⚠️ Bolle subepidermiche con epidermide intatta sopra. Infiltrato eosinofilo/neutrofilo. DIVERSO da pemfigo.",
+                    colorazioni: ["IHC: antigeni membrana basale", "DIAGNOSTICO: IF → IgG + C3 LINEARI giunzione"],
+                    workup_molecolare: "Immunofluorescenza: IgG + C3 lineari sulla membrana basale",
+                    bibliografia: "Tóth GF et al, 2015"
                 }
             };
 
             const calculateDiagnoses = () => {
                 const results = [];
 
+                // Controlla red flags
+                const activeRedFlags = redFlags.filter(rf => {
+                    if (rf.flag === "microascessi_munro") return patternData.microascessi_munro === true;
+                    if (rf.flag === "infiltrato_banda") return patternData.infiltrato_distribuzione === "banda_lichenoide";
+                    if (rf.flag === "corpi_civatte") return patternData.necrosi_keratinociti === "presente" && patternData.infiltrato_distribuzione === "banda_lichenoide";
+                    if (rf.flag === "eosinofili_marcati_edema") return patternData.eosinofili === "abbondanti" && patternData.edema_dermico === "marcato";
+                    if (rf.flag === "pustole_subcornee_neutrofili") return patternData.pattern_primario === "subcorneo" && patternData.neutrofili === "abbondanti";
+                    if (rf.flag === "palisading_necrosi_mucina") return patternData.palisading_necrosi_mucina === true;
+                    if (rf.flag === "spongiosi_microvescicole") return patternData.spongiosi === "marcata" && patternData.microvescicole === true;
+                    if (rf.flag === "epidermotropismo_alone") return patternData.epidermotropismo === "presente" && patternData.alone_chiaro === true;
+                    if (rf.flag === "acantolisi_bolloso") return patternData.acantolisi === true && patternData.bolle_intraepidermiche === true;
+                    if (rf.flag === "pustole_subcornee_heip") return patternData.pattern_primario === "subcorneo" && patternData.infiltrato_neutrofili_pustole === true && patternData.spongiosi !== "marcata";
+                    if (rf.flag === "bolle_subepidermiche_eosinofili") return patternData.bolle_subepidermiche === true && (patternData.eosinofili === "presenti" || patternData.eosinofili === "abbondanti");
+                    return false;
+                });
+
                 Object.entries(diagnosticPatterns).forEach(([key, pattern]) => {
+                    // Se un red flag lo esclude, dai score basso ma non escludere completamente
+                    let excluded = activeRedFlags.some(rf => rf.escludi.includes(key));
+                    
                     let score = 0;
                     let maxScore = 0;
 
+                    // Criteri maggiori (peso 3)
                     Object.entries(pattern.criteri_maggiori).forEach(([criterio, valoreAtteso]) => {
                         maxScore += 3;
                         const valoreCorrente = patternData[criterio];
 
                         if (Array.isArray(valoreAtteso)) {
-                            if (valoreAtteso.includes(valoreCorrente)) score += 3;
+                            if (valoreAtteso.includes(valoreCorrente)) {
+                                score += 3;
+                            } else if (criterio === "spongiosi" && valoreCorrente === "moderata" && valoreAtteso.includes("marcata")) {
+                                score += 2.7;
+                            } else if (criterio === "acantosi" && valoreCorrente === "moderata" && valoreAtteso.includes("marcata")) {
+                                score += 2.7;
+                            } else if (criterio === "neutrofili" && valoreCorrente === "presenti" && valoreAtteso.includes("abbondanti")) {
+                                score += 2.7;
+                            } else if (criterio === "eosinofili" && valoreCorrente === "presenti" && valoreAtteso.includes("abbondanti")) {
+                                score += 2.7;
+                            }
                         } else if (typeof valoreAtteso === 'boolean') {
                             if (valoreCorrente === valoreAtteso) score += 3;
                         } else {
@@ -228,6 +351,7 @@
                         }
                     });
 
+                    // Criteri minori (peso 1, ma contano meno)
                     Object.entries(pattern.criteri_minori || {}).forEach(([criterio, valoreAtteso]) => {
                         maxScore += 1;
                         const valoreCorrente = patternData[criterio];
@@ -242,9 +366,10 @@
                     });
 
                     const percentuale = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+                    const percentualeFinale = excluded ? Math.max(5, percentuale - 25) : percentuale;
 
-                    if (percentuale >= 40) {
-                        results.push({ ...pattern, percentuale });
+                    if (percentualeFinale >= 50) {
+                        results.push({ ...pattern, percentuale: percentualeFinale, excluded });
                     }
                 });
 
@@ -263,7 +388,11 @@
                         eosinofili: '', neutrofili: '', linfociti_atipici: '',
                         epidermotropismo: '', alone_chiaro: false, cellule_cerebriformi: false,
                         cd30_positivi: false, microascessi_munro: false, vasculite: '',
-                        eritrociti_extravasati: '', sede_anatomica: '', note_cliniche: ''
+                        eritrociti_extravasati: '', sede_anatomica: '', note_cliniche: '',
+                        edema_dermico: '', palisading_necrosi_mucina: false, necrosi_collagenosa: '',
+                        mucina_dermica: '', microvescicole: false, corpi_civatte: false,
+                        acantolisi: false, bolle_intraepidermiche: false, bolle_subepidermiche: false,
+                        infiltrato_neutrofili_pustole: false
                     });
                     setStep(1);
                     setShowResults(false);
@@ -364,7 +493,11 @@ ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
                                                 { value: 'interfaccia_lichenoide', label: 'Interfaccia Lichenoide', desc: 'Infiltrato a banda' },
                                                 { value: 'interfaccia_vacuolare', label: 'Interfaccia Vacuolare', desc: 'Vacuoli basali' },
                                                 { value: 'perivascolare', label: 'Perivascolare', desc: 'Infiltrato attorno vasi' },
-                                                { value: 'vasculitico', label: 'Vasculitico', desc: 'Danno vascolare' }
+                                                { value: 'vasculitico', label: 'Vasculitico', desc: 'Danno vascolare' },
+                                                { value: 'granulomatoso', label: 'Granulomatoso', desc: 'Granulomi palisading' },
+                                                { value: 'subcorneo', label: 'Subcorneo', desc: 'Pustole sottocornee' },
+                                                { value: 'intraepidermico', label: 'Intraepidermico (Acantolisi)', desc: 'Perdita aderenze cheratinocitarie' },
+                                                { value: 'subepidermico_bolloso', label: 'Subepidermico Bolloso', desc: 'Bolle sotto epidermide intatta' }
                                             ].map(opt => (
                                                 <label key={opt.value} className={`flex items-start p-4 border-2 rounded-lg cursor-pointer ${
                                                     patternData.pattern_primario === opt.value 
@@ -667,6 +800,59 @@ ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
                                             </label>
 
                                             <div>
+                                                <label className="block font-semibold mb-2">🚩 Red Flags Specifici</label>
+                                                <label className="flex items-center p-3 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-50">
+                                                    <input type="checkbox" checked={patternData.palisading_necrosi_mucina}
+                                                        onChange={(e) => setPatternData({...patternData, palisading_necrosi_mucina: e.target.checked})}
+                                                        className="mr-3" />
+                                                    <span>Palisading + necrosi mucinosa (→ Granuloma anulare)</span>
+                                                </label>
+                                                <label className="flex items-center p-3 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-50 mt-2">
+                                                    <input type="checkbox" checked={patternData.microvescicole}
+                                                        onChange={(e) => setPatternData({...patternData, microvescicole: e.target.checked})}
+                                                        className="mr-3" />
+                                                    <span>Microvescicole intraepidermiche (→ Eczema acuto)</span>
+                                                </label>
+                                                <label className="flex items-center p-3 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-50 mt-2">
+                                                    <input type="checkbox" checked={patternData.corpi_civatte}
+                                                        onChange={(e) => setPatternData({...patternData, corpi_civatte: e.target.checked})}
+                                                        className="mr-3" />
+                                                    <span>Corpi di Civatte (→ Lichen planus)</span>
+                                                </label>
+                                                <label className="flex items-center p-3 border-2 border-red-300 rounded-lg cursor-pointer hover:bg-red-50 mt-2">
+                                                    <input type="checkbox" checked={patternData.acantolisi}
+                                                        onChange={(e) => setPatternData({...patternData, acantolisi: e.target.checked})}
+                                                        className="mr-3" />
+                                                    <span className="font-semibold">⚠️ Acantolisi (→ PEMFIGO - IHC OBBLIGATORIA)</span>
+                                                </label>
+                                                <label className="flex items-center p-3 border-2 border-red-300 rounded-lg cursor-pointer hover:bg-red-50 mt-2">
+                                                    <input type="checkbox" checked={patternData.bolle_intraepidermiche}
+                                                        onChange={(e) => setPatternData({...patternData, bolle_intraepidermiche: e.target.checked})}
+                                                        className="mr-3" />
+                                                    <span className="font-semibold">⚠️ Bolle intraepidermiche (→ PEMFIGO)</span>
+                                                </label>
+                                                <label className="flex items-center p-3 border-2 border-orange-400 rounded-lg cursor-pointer hover:bg-orange-50 mt-2">
+                                                    <input type="checkbox" checked={patternData.bolle_subepidermiche}
+                                                        onChange={(e) => setPatternData({...patternData, bolle_subepidermiche: e.target.checked})}
+                                                        className="mr-3" />
+                                                    <span className="font-semibold">⚠️ Bolle subepidermiche + eosinofili (→ PEMFIGOIDE - IF OBBLIGATORIA)</span>
+                                                </label>
+                                            </div>
+
+                                            <div>
+                                                <label className="block font-semibold mb-2">Edema dermico</label>
+                                                <select value={patternData.edema_dermico}
+                                                    onChange={(e) => setPatternData({...patternData, edema_dermico: e.target.value})}
+                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                                                    <option value="">- Seleziona -</option>
+                                                    <option value="assente">Assente</option>
+                                                    <option value="lieve">Lieve</option>
+                                                    <option value="moderato">Moderato</option>
+                                                    <option value="marcato">Marcato</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
                                                 <label className="block font-semibold mb-2">Sede anatomica</label>
                                                 <input type="text" value={patternData.sede_anatomica}
                                                     onChange={(e) => setPatternData({...patternData, sede_anatomica: e.target.value})}
@@ -721,16 +907,46 @@ ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
                                     </div>
                                 )}
 
-                                {diagnoses.some(d => d.categoria.includes('Linfoma')) && (
-                                    <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg">
-                                        <h3 className="text-lg font-bold text-red-900 mb-2">⚠️ SOSPETTO LINFOMA</h3>
-                                        <div className="text-sm text-red-800 space-y-1">
-                                            <p><strong>• IHC:</strong> CD3, CD4, CD8, CD20, CD30, CD7, Ki67</p>
-                                            <p><strong>• PCR:</strong> Riarrangiamento TCR o IgH</p>
-                                            <p><strong>• Staging:</strong> TC, emocromo, LDH</p>
-                                        </div>
-                                    </div>
-                                )}
+                                {(() => {
+                                    const activeRedFlags = redFlags.filter(rf => {
+                                        if (rf.flag === "microascessi_munro") return patternData.microascessi_munro === true;
+                                        if (rf.flag === "infiltrato_banda") return patternData.infiltrato_distribuzione === "banda_lichenoide";
+                                        if (rf.flag === "corpi_civatte") return patternData.corpi_civatte === true;
+                                        if (rf.flag === "eosinofili_marcati_edema") return patternData.eosinofili === "abbondanti" && patternData.edema_dermico === "marcato";
+                                        if (rf.flag === "pustole_subcornee_neutrofili") return patternData.pattern_primario === "subcorneo" && patternData.neutrofili === "abbondanti";
+                                        if (rf.flag === "palisading_necrosi_mucina") return patternData.palisading_necrosi_mucina === true;
+                                        if (rf.flag === "spongiosi_microvescicole") return patternData.spongiosi === "marcata" && patternData.microvescicole === true;
+                                        if (rf.flag === "epidermotropismo_alone") return patternData.epidermotropismo === "presente" && patternData.alone_chiaro === true;
+                                        return false;
+                                    });
+
+                                    return (
+                                        <>
+                                            {diagnoses.some(d => d.categoria.includes('Linfoma')) && (
+                                                <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg">
+                                                    <h3 className="text-lg font-bold text-red-900 mb-2">⚠️ SOSPETTO LINFOMA</h3>
+                                                    <div className="text-sm text-red-800 space-y-1">
+                                                        <p><strong>• IHC:</strong> CD3, CD4, CD8, CD20, CD30, CD7, Ki67</p>
+                                                        <p><strong>• PCR:</strong> Riarrangiamento TCR o IgH</p>
+                                                        <p><strong>• Staging:</strong> TC, emocromo, LDH</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {activeRedFlags.length > 0 && (
+                                                <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-500 rounded-lg">
+                                                    <h3 className="text-lg font-bold text-amber-900 mb-2">🚩 RED FLAGS ATTIVATI</h3>
+                                                    <div className="text-sm text-amber-800 space-y-1">
+                                                        {activeRedFlags.map((rf, idx) => (
+                                                            <p key={idx}>• <strong>{rf.diagnosi}</strong></p>
+                                                        ))}
+                                                        <p className="mt-2 italic">Questi pattern forti suggeriscono specifici workup</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
 
                                 <div className="space-y-4">
                                     {diagnoses.map((d, i) => {
@@ -785,9 +1001,13 @@ ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
                                 </div>
 
                                 <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                    <p className="text-sm text-blue-900">
-                                        <strong>💡 Nota:</strong> Diagnosi differenziale pattern-based. 
-                                        La diagnosi definitiva richiede correlazione clinico-patologica.
+                                    <p className="text-sm text-blue-900 mb-2">
+                                        <strong>💡 Nota importante:</strong> Diagnosi differenziale pattern-based. 
+                                        La diagnosi definitiva richiede <strong>sempre</strong> correlazione clinico-patologica completa.
+                                    </p>
+                                    <p className="text-xs text-blue-800 italic mt-2">
+                                        Questo strumento è supporto al ragionamento diagnostico, non sostitutivo della valutazione esperta. 
+                                        In caso di dubbio, consultare colleghi esperti.
                                     </p>
                                 </div>
                             </div>
