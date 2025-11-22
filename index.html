@@ -4,7 +4,158 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DermPath - Sistema Diagnostico</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Reset & Base */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; }
+        
+        /* Layout */
+        .min-h-screen { min-height: 100vh; }
+        .max-w-4xl { max-width: 56rem; margin-left: auto; margin-right: auto; }
+        .flex { display: flex; }
+        .flex-1 { flex: 1 1 0%; }
+        .grid { display: grid; }
+        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .items-center { align-items: center; }
+        .items-start { align-items: flex-start; }
+        .justify-between { justify-content: space-between; }
+        .block { display: block; }
+        
+        /* Spacing */
+        .p-3 { padding: 0.75rem; }
+        .p-4 { padding: 1rem; }
+        .p-5 { padding: 1.25rem; }
+        .p-6 { padding: 1.5rem; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-3 { margin-top: 0.75rem; }
+        .mt-6 { margin-top: 1.5rem; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-3 { margin-bottom: 0.75rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .ml-4 { margin-left: 1rem; }
+        .mr-3 { margin-right: 0.75rem; }
+        .mx-2 { margin-left: 0.5rem; margin-right: 0.5rem; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+        .space-y-1 > * + * { margin-top: 0.25rem; }
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+        .space-y-3 > * + * { margin-top: 0.75rem; }
+        .space-y-4 > * + * { margin-top: 1rem; }
+        
+        /* Sizing */
+        .w-full { width: 100%; }
+        .w-10 { width: 2.5rem; }
+        .h-1 { height: 0.25rem; }
+        .h-10 { height: 2.5rem; }
+        .h-24 { height: 6rem; }
+        
+        /* Typography */
+        .text-xs { font-size: 0.75rem; line-height: 1rem; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+        .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+        .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .italic { font-style: italic; }
+        .text-center { text-align: center; }
+        
+        /* Colors - Text */
+        .text-white { color: #fff; }
+        .text-slate-500 { color: #64748b; }
+        .text-slate-600 { color: #475569; }
+        .text-slate-800 { color: #1e293b; }
+        .text-blue-600 { color: #2563eb; }
+        .text-blue-800 { color: #1e40af; }
+        .text-blue-900 { color: #1e3a8a; }
+        .text-red-800 { color: #991b1b; }
+        .text-red-900 { color: #7f1d1d; }
+        .text-amber-800 { color: #92400e; }
+        .text-amber-900 { color: #78350f; }
+        
+        /* Colors - Background */
+        .bg-white { background-color: #fff; }
+        .bg-slate-100 { background-color: #f1f5f9; }
+        .bg-slate-200 { background-color: #e2e8f0; }
+        .bg-slate-300 { background-color: #cbd5e1; }
+        .bg-blue-50 { background-color: #eff6ff; }
+        .bg-blue-600 { background-color: #2563eb; }
+        .bg-blue-700 { background-color: #1d4ed8; }
+        .bg-green-50 { background-color: #f0fdf4; }
+        .bg-green-600 { background-color: #16a34a; }
+        .bg-green-700 { background-color: #15803d; }
+        .bg-red-50 { background-color: #fef2f2; }
+        .bg-red-100 { background-color: #fee2e2; }
+        .bg-red-600 { background-color: #dc2626; }
+        .bg-amber-50 { background-color: #fffbeb; }
+        .bg-amber-100 { background-color: #fef3c7; }
+        .bg-purple-50 { background-color: #faf5ff; }
+        .bg-gradient-to-br { background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)); }
+        .from-blue-50 { --tw-gradient-from: #eff6ff; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, transparent); }
+        .to-indigo-100 { --tw-gradient-to: #e0e7ff; }
+        
+        /* Border */
+        .border { border-width: 1px; }
+        .border-2 { border-width: 2px; }
+        .border-slate-200 { border-color: #e2e8f0; }
+        .border-blue-200 { border-color: #bfdbfe; }
+        .border-blue-600 { border-color: #2563eb; }
+        .border-green-500 { border-color: #22c55e; }
+        .border-red-200 { border-color: #fecaca; }
+        .border-red-300 { border-color: #fca5a5; }
+        .border-red-500 { border-color: #ef4444; }
+        .border-amber-200 { border-color: #fde68a; }
+        .border-amber-500 { border-color: #f59e0b; }
+        .rounded { border-radius: 0.25rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-full { border-radius: 9999px; }
+        
+        /* Effects */
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); }
+        
+        /* Interactive */
+        .cursor-pointer { cursor: pointer; }
+        button, select, input[type="checkbox"] { cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .hover\:bg-blue-300:hover { background-color: #93c5fd; }
+        .hover\:bg-blue-700:hover { background-color: #1d4ed8; }
+        .hover\:bg-slate-50:hover { background-color: #f8fafc; }
+        .hover\:bg-slate-200:hover { background-color: #e2e8f0; }
+        .hover\:bg-slate-300:hover { background-color: #cbd5e1; }
+        .hover\:bg-green-700:hover { background-color: #15803d; }
+        .hover\:bg-amber-50:hover { background-color: #fffbeb; }
+        .hover\:bg-amber-100:hover { background-color: #fef3c7; }
+        .hover\:bg-red-50:hover { background-color: #fef2f2; }
+        .hover\:bg-red-100:hover { background-color: #fee2e2; }
+        .hover\:border-blue-300:hover { border-color: #93c5fd; }
+        .focus\:border-blue-500:focus { border-color: #3b82f6; outline: none; }
+        .focus\:outline-none:focus { outline: 2px solid transparent; outline-offset: 2px; }
+        
+        /* Form Elements */
+        select, input[type="text"], textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+        select:focus, input[type="text"]:focus, textarea:focus {
+            border-color: #3b82f6;
+            outline: none;
+        }
+        input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -13,395 +164,1030 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useMemo, useCallback, memo } = React;
 
-        const DermPathDiagnostic = () => {
-            const [step, setStep] = useState(1);
-            const [patternData, setPatternData] = useState({
-                pattern_primario: '',
-                spongiosi: '',
-                esocitosi: '',
-                acantosi: '',
-                paracheratosi: '',
-                ipergranulosi: '',
-                ipogranulosi: '',
-                vacuolizzazione_basale: '',
-                necrosi_keratinociti: '',
-                infiltrato_distribuzione: '',
-                infiltrato_densita: '',
-                eosinofili: '',
-                neutrofili: '',
-                linfociti_atipici: '',
-                epidermotropismo: '',
-                alone_chiaro: false,
-                cellule_cerebriformi: false,
-                cd30_positivi: false,
-                microascessi_munro: false,
-                vasculite: '',
-                eritrociti_extravasati: '',
-                sede_anatomica: '',
-                note_cliniche: '',
-                edema_dermico: '',
-                palisading_necrosi_mucina: false,
-                necrosi_collagenosa: '',
-                mucina_dermica: '',
-                microvescicole: false,
-                corpi_civatte: false,
-                acantolisi: false,
-                bolle_intraepidermiche: false,
-                bolle_subepidermiche: false,
-                infiltrato_neutrofili_pustole: false
-            });
+        // ============================================================================
+        // CONSTANTS & CONFIGURATION
+        // ============================================================================
 
-            const [diagnoses, setDiagnoses] = useState([]);
-            const [showResults, setShowResults] = useState(false);
+        const SCORING_CONFIG = {
+            MAJOR_WEIGHT: 3,
+            MINOR_WEIGHT: 1,
+            SOFT_MATCH_PENALTY: 0.9,
+            RED_FLAG_PENALTY: 25,
+            MIN_SCORE_AFTER_EXCLUSION: 5,
+            THRESHOLD_PERCENTAGE: 50
+        };
 
-            // Red flags discriminanti (esclusioni/indicatori forti)
-            const redFlags = [
-                { flag: "microascessi_munro", diagnosi: "Psoriasi", escludi: ["dermatite_allergica_contatto", "dermatite_atopica_acuta"] },
-                { flag: "infiltrato_banda", diagnosi: "Lichen planus o GVHD", escludi: ["dermatite_allergica_contatto", "dermatite_atopica_acuta"] },
-                { flag: "corpi_civatte", diagnosi: "Lichen planus", escludi: ["psoriasi_vulgaris", "dermatite_allergica_contatto"] },
-                { flag: "eosinofili_marcati_edema", diagnosi: "Dermatite da contatto", escludi: ["dermatite_atopica_cronica", "psoriasi_vulgaris"] },
-                { flag: "pustole_subcornee_neutrofili", diagnosi: "Pustolosi subcornea", escludi: ["psoriasi_vulgaris", "dermatite_allergica_contatto"] },
-                { flag: "palisading_necrosi_mucina", diagnosi: "Granuloma anulare", escludi: ["dermatite_allergica_contatto", "dermatite_atopica_acuta"] },
-                { flag: "spongiosi_microvescicole", diagnosi: "Dermatite eczematosa acuta", escludi: [] },
-                { flag: "epidermotropismo_alone", diagnosi: "Linfoma cutaneo", escludi: ["dermatite_allergica_contatto", "lichen_planus"] },
-                { flag: "acantolisi_bolloso", diagnosi: "Pemfigo volgare - IHC MANDATORIA", escludi: ["dermatite_erpetiforme", "pemfigoide_bolloso"] },
-                { flag: "pustole_subcornee_heip", diagnosi: "Dermatite erpetiforme - IF MANDATORIA", escludi: ["pemfigo_volgare", "pemfigoide_bolloso"] },
-                { flag: "bolle_subepidermiche_eosinofili", diagnosi: "Pemfigoide bolloso - IF MANDATORIA", escludi: ["pemfigo_volgare", "dermatite_erpetiforme"] }
-            ];
+        const INITIAL_STATE = {
+            pattern_primario: '', spongiosi: '', esocitosi: '', acantosi: '',
+            paracheratosi: '', ipergranulosi: '', ipogranulosi: '',
+            vacuolizzazione_basale: '', necrosi_keratinociti: '',
+            infiltrato_distribuzione: '', infiltrato_densita: '',
+            eosinofili: '', neutrofili: '', linfociti_atipici: '',
+            epidermotropismo: '', alone_chiaro: false, cellule_cerebriformi: false,
+            cd30_positivi: false, microascessi_munro: false, vasculite: '',
+            eritrociti_extravasati: '', sede_anatomica: '', note_cliniche: '',
+            edema_dermico: '', palisading_necrosi_mucina: false, necrosi_collagenosa: '',
+            mucina_dermica: '', microvescicole: false, corpi_civatte: false,
+            acantolisi: false, bolle_intraepidermiche: false, bolle_subepidermiche: false,
+            infiltrato_neutrofili_pustole: false
+        };
 
-            const diagnosticPatterns = {
-                dermatite_allergica_contatto: {
-                    nome: "Dermatite allergica da contatto (fase acuta)",
-                    categoria: "Spongotico",
-                    criteri_maggiori: {
-                        pattern_primario: "spongotico",
-                        spongiosi: ["moderata", "marcata"],
-                        esocitosi: "presente"
-                    },
-                    criteri_minori: {
-                        eosinofili: ["presenti", "abbondanti"],
-                        infiltrato_distribuzione: "perivascolare_superficiale",
-                        edema_dermico: ["moderato", "marcato"]
-                    },
-                    note: "Pattern classico da ipersensibilità tipo IV. Correlazione con patch test.",
-                    colorazioni: ["Nessuna colorazione speciale necessaria"],
-                    bibliografia: "Ackerman AB, 2005"
+        const PATTERN_OPTIONS = [
+            { value: 'spongotico', label: 'Spongotico', desc: 'Edema intercellulare' },
+            { value: 'psoriasiforme', label: 'Psoriasiforme', desc: 'Allungamento rete ridges' },
+            { value: 'interfaccia_lichenoide', label: 'Interfaccia Lichenoide', desc: 'Infiltrato a banda' },
+            { value: 'interfaccia_vacuolare', label: 'Interfaccia Vacuolare', desc: 'Vacuoli basali' },
+            { value: 'perivascolare', label: 'Perivascolare', desc: 'Infiltrato attorno vasi' },
+            { value: 'vasculitico', label: 'Vasculitico', desc: 'Danno vascolare' },
+            { value: 'granulomatoso', label: 'Granulomatoso', desc: 'Granulomi palisading' },
+            { value: 'subcorneo', label: 'Subcorneo', desc: 'Pustole sottocornee' },
+            { value: 'intraepidermico', label: 'Intraepidermico (Acantolisi)', desc: 'Perdita aderenze cheratinocitarie' },
+            { value: 'subepidermico_bolloso', label: 'Subepidermico Bolloso', desc: 'Bolle sotto epidermide intatta' }
+        ];
+
+        const RED_FLAGS = [
+            { flag: "microascessi_munro", diagnosi: "Psoriasi", escludi: ["dermatite_allergica_contatto", "dermatite_atopica_acuta"] },
+            { flag: "infiltrato_banda", diagnosi: "Lichen planus o GVHD", escludi: ["dermatite_allergica_contatto", "dermatite_atopica_acuta"] },
+            { flag: "corpi_civatte", diagnosi: "Lichen planus", escludi: ["psoriasi_vulgaris", "dermatite_allergica_contatto"] },
+            { flag: "eosinofili_marcati_edema", diagnosi: "Dermatite da contatto", escludi: ["dermatite_atopica_cronica", "psoriasi_vulgaris"] },
+            { flag: "pustole_subcornee_neutrofili", diagnosi: "Pustolosi subcornea", escludi: ["psoriasi_vulgaris", "dermatite_allergica_contatto"] },
+            { flag: "palisading_necrosi_mucina", diagnosi: "Granuloma anulare", escludi: ["dermatite_allergica_contatto", "dermatite_atopica_acuta"] },
+            { flag: "spongiosi_microvescicole", diagnosi: "Dermatite eczematosa acuta", escludi: [] },
+            { flag: "epidermotropismo_alone", diagnosi: "Linfoma cutaneo", escludi: ["dermatite_allergica_contatto", "lichen_planus"] },
+            { flag: "acantolisi_bolloso", diagnosi: "Pemfigo volgare - IHC MANDATORIA", escludi: ["dermatite_erpetiforme", "pemfigoide_bolloso"] },
+            { flag: "pustole_subcornee_heip", diagnosi: "Dermatite erpetiforme - IF MANDATORIA", escludi: ["pemfigo_volgare", "pemfigoide_bolloso"] },
+            { flag: "bolle_subepidermiche_eosinofili", diagnosi: "Pemfigoide bolloso - IF MANDATORIA", escludi: ["pemfigo_volgare", "dermatite_erpetiforme"] }
+        ];
+
+        const DIAGNOSTIC_PATTERNS = {
+            dermatite_allergica_contatto: {
+                nome: "Dermatite allergica da contatto (fase acuta)",
+                categoria: "Spongotico",
+                criteri_maggiori: {
+                    pattern_primario: "spongotico",
+                    spongiosi: ["moderata", "marcata"],
+                    esocitosi: "presente"
                 },
-                dermatite_atopica_acuta: {
-                    nome: "Dermatite atopica (fase acuta)",
-                    categoria: "Spongotico",
-                    criteri_maggiori: {
-                        pattern_primario: "spongotico",
-                        spongiosi: ["moderata", "marcata"],
-                        esocitosi: "presente"
-                    },
-                    criteri_minori: {
-                        eosinofili: ["presenti", "abbondanti"],
-                        paracheratosi: "focale"
-                    },
-                    note: "Fase acuta/subacuta. Se cronicizzata: acantosi, ipergranulosi.",
-                    colorazioni: ["PAS (escludere dermatofitosi)"],
-                    bibliografia: "Elder DE, 2020"
+                criteri_minori: {
+                    eosinofili: ["presenti", "abbondanti"],
+                    infiltrato_distribuzione: "perivascolare_superficiale",
+                    edema_dermico: ["moderato", "marcato"]
                 },
-                psoriasi_vulgaris: {
-                    nome: "Psoriasi vulgaris",
-                    categoria: "Psoriasiforme",
-                    criteri_maggiori: {
-                        pattern_primario: "psoriasiforme",
-                        acantosi: "marcata",
-                        paracheratosi: ["moderata", "marcata"],
-                        ipogranulosi: "si"
-                    },
-                    criteri_minori: {
+                note: "Pattern classico da ipersensibilità tipo IV. Correlazione con patch test.",
+                colorazioni: ["Nessuna colorazione speciale necessaria"],
+                bibliografia: "Ackerman AB, 2005"
+            },
+            dermatite_atopica_acuta: {
+                nome: "Dermatite atopica (fase acuta)",
+                categoria: "Spongotico",
+                criteri_maggiori: {
+                    pattern_primario: "spongotico",
+                    spongiosi: ["moderata", "marcata"],
+                    esocitosi: "presente"
+                },
+                criteri_minori: {
+                    eosinofili: ["presenti", "abbondanti"],
+                    paracheratosi: "focale"
+                },
+                note: "Fase acuta/subacuta. Se cronicizzata: acantosi, ipergranulosi.",
+                colorazioni: ["PAS (escludere dermatofitosi)"],
+                bibliografia: "Elder DE, 2020"
+            },
+            psoriasi_vulgaris: {
+                nome: "Psoriasi vulgaris",
+                categoria: "Psoriasiforme",
+                criteri_maggiori: {
+                    pattern_primario: "psoriasiforme",
+                    acantosi: "marcata",
+                    paracheratosi: ["moderata", "marcata"],
+                    ipogranulosi: "si"
+                },
+                criteri_minori: {
+                    neutrofili: ["presenti", "abbondanti"],
+                    microascessi_munro: true
+                },
+                note: "Allungamento regolare rete ridges. Capillari dilatati.",
+                colorazioni: ["PAS per escludere tinea"],
+                bibliografia: "Nestle FO, 2009"
+            },
+            lichen_planus: {
+                nome: "Lichen planus",
+                categoria: "Interfaccia/Lichenoide",
+                criteri_maggiori: {
+                    pattern_primario: "interfaccia_lichenoide",
+                    infiltrato_distribuzione: "banda_lichenoide",
+                    vacuolizzazione_basale: "presente"
+                },
+                criteri_minori: {
+                    necrosi_keratinociti: "presente",
+                    ipergranulosi: "si"
+                },
+                note: "Infiltrato a banda. Corpi di Civatte (cheratinociti necrotici).",
+                colorazioni: ["PAS per escludere GVHD"],
+                bibliografia: "Shiohara T, 2012"
+            },
+            lupus_discoide: {
+                nome: "Lupus eritematoso cutaneo cronico (discoide)",
+                categoria: "Interfaccia",
+                criteri_maggiori: {
+                    pattern_primario: "interfaccia_vacuolare",
+                    vacuolizzazione_basale: "presente",
+                    infiltrato_distribuzione: "perivascolare_perianessiale"
+                },
+                criteri_minori: {
+                    ipergranulosi: "si"
+                },
+                note: "Tappi folliculari. Mucina dermica. Membrana basale ispessita.",
+                colorazioni: ["PAS (membrana basale)", "Alcian blue (mucina)"],
+                bibliografia: "Kuhn A, 2007"
+            },
+            eritema_multiforme: {
+                nome: "Eritema multiforme",
+                categoria: "Interfaccia",
+                criteri_maggiori: {
+                    pattern_primario: "interfaccia_lichenoide",
+                    necrosi_keratinociti: "marcata",
+                    vacuolizzazione_basale: "presente"
+                },
+                criteri_minori: {
+                    eosinofili: "presenti"
+                },
+                note: "Necrosi cheratinocitaria massiva. Spesso post-HSV o farmaci.",
+                colorazioni: [],
+                bibliografia: "Bastuji-Garin S, 1993"
+            },
+            vasculite_leucocitoclastica: {
+                nome: "Vasculite leucocitoclastica",
+                categoria: "Vasculitico",
+                criteri_maggiori: {
+                    pattern_primario: "perivascolare",
+                    vasculite: "si",
+                    neutrofili: "abbondanti"
+                },
+                criteri_minori: {
+                    eritrociti_extravasati: "presenti"
+                },
+                note: "Porpora palpabile. Indagare: infezioni, farmaci, connettiviti.",
+                colorazioni: ["PAS/Alcian blue per depositi vascolari"],
+                bibliografia: "Carlson JA, 2006"
+            },
+            micosi_fungoide_early: {
+                nome: "Micosi fungoide (early patch/plaque)",
+                categoria: "Linfoma cutaneo T",
+                criteri_maggiori: {
+                    pattern_primario: ["spongotico", "interfaccia_lichenoide"],
+                    infiltrato_distribuzione: ["perivascolare_superficiale", "banda_lichenoide"],
+                    linfociti_atipici: "presenti"
+                },
+                criteri_minori: {
+                    epidermotropismo: "presente",
+                    alone_chiaro: true
+                },
+                note: "⚠️ LINFOMA! Linfociti atipici epidermotropi con alone chiaro.",
+                colorazioni: ["IHC MANDATORIA: CD3+, CD4+>CD8+, CD7 loss"],
+                workup_molecolare: "PCR riarrangiamento TCR (clonalità T)",
+                bibliografia: "Willemze R, 2019"
+            },
+            micosi_fungoide_tumor: {
+                nome: "Micosi fungoide (tumor stage)",
+                categoria: "Linfoma cutaneo T",
+                criteri_maggiori: {
+                    pattern_primario: "perivascolare",
+                    infiltrato_distribuzione: "perivascolare_profondo",
+                    infiltrato_densita: "denso",
+                    linfociti_atipici: "abbondanti"
+                },
+                criteri_minori: {
+                    cellule_cerebriformi: true
+                },
+                note: "⚠️ LINFOMA AVANZATO! Noduli/tumori. Rischio trasformazione.",
+                colorazioni: ["IHC: CD3+, CD4+, perdita CD7", "Ki67", "CD30 se trasformazione"],
+                workup_molecolare: "PCR TCR + staging",
+                bibliografia: "Guitart J, 2018"
+            },
+            linfoma_anaplastico_cutaneo: {
+                nome: "Linfoma anaplastico cutaneo primitivo (pcALCL)",
+                categoria: "Linfoma cutaneo CD30+",
+                criteri_maggiori: {
+                    pattern_primario: "perivascolare",
+                    infiltrato_distribuzione: "perivascolare_profondo",
+                    infiltrato_densita: "denso",
+                    linfociti_atipici: "abbondanti",
+                    cd30_positivi: true
+                },
+                note: "⚠️ LINFOMA! CD30+ anaplastiche. Buona prognosi se confinato.",
+                colorazioni: ["IHC: CD30+ diffuso", "ALK negativo", "CD3+"],
+                workup_molecolare: "Staging TC, biopsia linfonodo sentinella",
+                bibliografia: "Kadin ME, 2018"
+            },
+            granuloma_anulare: {
+                nome: "Granuloma anulare",
+                categoria: "Granulomatoso",
+                criteri_maggiori: {
+                    pattern_primario: "granulomatoso",
+                    palisading_necrosi_mucina: true,
+                    infiltrato_distribuzione: "derma_medio_profondo"
+                },
+                criteri_minori: {
+                    necrosi_collagenosa: "presente",
+                    mucina_dermica: "presente"
+                },
+                note: "Palisading granulomi con necrosi mucinosa centrale. Clinicamente: papule anulari.",
+                colorazioni: ["PAS (escludere infezioni)", "Alcian blue (mucina)"],
+                bibliografia: "Dabski K, 1989"
+            },
+            pemfigo_volgare: {
+                nome: "Pemfigo volgare",
+                categoria: "Bolloso Intraepidermico",
+                criteri_maggiori: {
+                    pattern_primario: "intraepidermico",
+                    acantolisi: true,
+                    bolle_intraepidermiche: true
+                },
+                criteri_minori: {
+                    necrosi_keratinociti: "presente",
+                    infiltrato_densita: "moderato"
+                },
+                note: "⚠️ Perdita aderenze cheratinocitarie (acantolisi). Cellule rotonde, isolate.",
+                colorazioni: ["IHC: Desmogleina 3 - Desmogleina 1 se mucosa", "VERO DIAGNOSTICO: Anticorpi circolanti IgG"],
+                workup_molecolare: "Sierologia: anticorpi anti-desmogleina - ELISA/immunoblot",
+                bibliografia: "Stanley JR, 1989"
+            },
+            dermatite_erpetiforme: {
+                nome: "Dermatite erpetiforme",
+                categoria: "Bolloso Subcorneo",
+                criteri_maggiori: {
+                    pattern_primario: "subcorneo",
+                    infiltrato_neutrofili_pustole: true,
+                    spongiosi: ["lieve", "moderata"]
+                },
+                criteri_minori: {
+                    eosinofili: "presenti",
+                    microascessi_munro: false
+                },
+                note: "Pustole subcornee con neutrofili. Clinicamente: vescicolette pruriginose. ⚠️ Associata a celiachia.",
+                colorazioni: ["PAS - escludere funghi", "FONDAMENTALE: IF dermale → IgA LINEARE alla giunzione"],
+                workup_molecolare: "Immunofluorescenza: IgA granulare/lineare giunzione dermo-epidermica",
+                bibliografia: "Reunala T, 2002"
+            },
+            pemfigoide_bolloso: {
+                nome: "Pemfigoide bolloso",
+                categoria: "Bolloso Subepidermico",
+                criteri_maggiori: {
+                    pattern_primario: "subepidermico_bolloso",
+                    bolle_subepidermiche: true,
+                    infiltrato_distribuzione: "giunzione_dermoepidermica"
+                },
+                criteri_minori: {
+                    eosinofili: ["presenti", "abbondanti"],
+                    neutrofili: "presenti"
+                },
+                note: "⚠️ Bolle subepidermiche con epidermide intatta sopra. Infiltrato eosinofilo/neutrofilo. DIVERSO da pemfigo.",
+                colorazioni: ["IHC: antigeni membrana basale", "DIAGNOSTICO: IF → IgG + C3 LINEARI giunzione"],
+                workup_molecolare: "Immunofluorescenza: IgG + C3 lineari sulla membrana basale",
+                bibliografia: "Tóth GF et al, 2015"
+            }
+        };
+
+        // ============================================================================
+        // BUSINESS LOGIC - DIAGNOSTIC ENGINE
+        // ============================================================================
+
+        const DiagnosticEngine = {
+            evaluateRedFlag(flag, data) {
+                const checks = {
+                    microascessi_munro: () => data.microascessi_munro === true,
+                    infiltrato_banda: () => data.infiltrato_distribuzione === "banda_lichenoide",
+                    corpi_civatte: () => data.corpi_civatte === true,
+                    eosinofili_marcati_edema: () => data.eosinofili === "abbondanti" && data.edema_dermico === "marcato",
+                    pustole_subcornee_neutrofili: () => data.pattern_primario === "subcorneo" && data.neutrofili === "abbondanti",
+                    palisading_necrosi_mucina: () => data.palisading_necrosi_mucina === true,
+                    spongiosi_microvescicole: () => data.spongiosi === "marcata" && data.microvescicole === true,
+                    epidermotropismo_alone: () => data.epidermotropismo === "presente" && data.alone_chiaro === true,
+                    acantolisi_bolloso: () => data.acantolisi === true && data.bolle_intraepidermiche === true,
+                    pustole_subcornee_heip: () => data.pattern_primario === "subcorneo" && data.infiltrato_neutrofili_pustole === true && data.spongiosi !== "marcata",
+                    bolle_subepidermiche_eosinofili: () => data.bolle_subepidermiche === true && (data.eosinofili === "presenti" || data.eosinofili === "abbondanti")
+                };
+                return checks[flag] ? checks[flag]() : false;
+            },
+
+            calculateCriteriaScore(criterio, valoreAtteso, valoreCorrente, weight) {
+                if (Array.isArray(valoreAtteso)) {
+                    if (valoreAtteso.includes(valoreCorrente)) return weight;
+                    
+                    const softMatches = {
+                        spongiosi: ["moderata", "marcata"],
+                        acantosi: ["moderata", "marcata"],
                         neutrofili: ["presenti", "abbondanti"],
-                        microascessi_munro: true
-                    },
-                    note: "Allungamento regolare rete ridges. Capillari dilatati.",
-                    colorazioni: ["PAS per escludere tinea"],
-                    bibliografia: "Nestle FO, 2009"
-                },
-                lichen_planus: {
-                    nome: "Lichen planus",
-                    categoria: "Interfaccia/Lichenoide",
-                    criteri_maggiori: {
-                        pattern_primario: "interfaccia_lichenoide",
-                        infiltrato_distribuzione: "banda_lichenoide",
-                        vacuolizzazione_basale: "presente"
-                    },
-                    criteri_minori: {
-                        necrosi_keratinociti: "presente",
-                        ipergranulosi: "si"
-                    },
-                    note: "Infiltrato a banda. Corpi di Civatte (cheratinociti necrotici).",
-                    colorazioni: ["PAS per escludere GVHD"],
-                    bibliografia: "Shiohara T, 2012"
-                },
-                lupus_discoide: {
-                    nome: "Lupus eritematoso cutaneo cronico (discoide)",
-                    categoria: "Interfaccia",
-                    criteri_maggiori: {
-                        pattern_primario: "interfaccia_vacuolare",
-                        vacuolizzazione_basale: "presente",
-                        infiltrato_distribuzione: "perivascolare_perianessiale"
-                    },
-                    criteri_minori: {
-                        ipergranulosi: "si"
-                    },
-                    note: "Tappi folliculari. Mucina dermica. Membrana basale ispessita.",
-                    colorazioni: ["PAS (membrana basale)", "Alcian blue (mucina)"],
-                    bibliografia: "Kuhn A, 2007"
-                },
-                eritema_multiforme: {
-                    nome: "Eritema multiforme",
-                    categoria: "Interfaccia",
-                    criteri_maggiori: {
-                        pattern_primario: "interfaccia_lichenoide",
-                        necrosi_keratinociti: "marcata",
-                        vacuolizzazione_basale: "presente"
-                    },
-                    criteri_minori: {
-                        eosinofili: "presenti"
-                    },
-                    note: "Necrosi cheratinocitaria massiva. Spesso post-HSV o farmaci.",
-                    colorazioni: [],
-                    bibliografia: "Bastuji-Garin S, 1993"
-                },
-                vasculite_leucocitoclastica: {
-                    nome: "Vasculite leucocitoclastica",
-                    categoria: "Vasculitico",
-                    criteri_maggiori: {
-                        pattern_primario: "perivascolare",
-                        vasculite: "si",
-                        neutrofili: "abbondanti"
-                    },
-                    criteri_minori: {
-                        eritrociti_extravasati: "presenti"
-                    },
-                    note: "Porpora palpabile. Indagare: infezioni, farmaci, connettiviti.",
-                    colorazioni: ["PAS/Alcian blue per depositi vascolari"],
-                    bibliografia: "Carlson JA, 2006"
-                },
-                micosi_fungoide_early: {
-                    nome: "Micosi fungoide (early patch/plaque)",
-                    categoria: "Linfoma cutaneo T",
-                    criteri_maggiori: {
-                        pattern_primario: ["spongotico", "interfaccia_lichenoide"],
-                        infiltrato_distribuzione: ["perivascolare_superficiale", "banda_lichenoide"],
-                        linfociti_atipici: "presenti"
-                    },
-                    criteri_minori: {
-                        epidermotropismo: "presente",
-                        alone_chiaro: true
-                    },
-                    note: "⚠️ LINFOMA! Linfociti atipici epidermotropi con alone chiaro.",
-                    colorazioni: ["IHC MANDATORIA: CD3+, CD4+>CD8+, CD7 loss"],
-                    workup_molecolare: "PCR riarrangiamento TCR (clonalità T)",
-                    bibliografia: "Willemze R, 2019"
-                },
-                micosi_fungoide_tumor: {
-                    nome: "Micosi fungoide (tumor stage)",
-                    categoria: "Linfoma cutaneo T",
-                    criteri_maggiori: {
-                        pattern_primario: "perivascolare",
-                        infiltrato_distribuzione: "perivascolare_profondo",
-                        infiltrato_densita: "denso",
-                        linfociti_atipici: "abbondanti"
-                    },
-                    criteri_minori: {
-                        cellule_cerebriformi: true
-                    },
-                    note: "⚠️ LINFOMA AVANZATO! Noduli/tumori. Rischio trasformazione.",
-                    colorazioni: ["IHC: CD3+, CD4+, perdita CD7", "Ki67", "CD30 se trasformazione"],
-                    workup_molecolare: "PCR TCR + staging",
-                    bibliografia: "Guitart J, 2018"
-                },
-                linfoma_anaplastico_cutaneo: {
-                    nome: "Linfoma anaplastico cutaneo primitivo (pcALCL)",
-                    categoria: "Linfoma cutaneo CD30+",
-                    criteri_maggiori: {
-                        pattern_primario: "perivascolare",
-                        infiltrato_distribuzione: "perivascolare_profondo",
-                        infiltrato_densita: "denso",
-                        linfociti_atipici: "abbondanti",
-                        cd30_positivi: true
-                    },
-                    note: "⚠️ LINFOMA! CD30+ anaplastiche. Buona prognosi se confinato.",
-                    colorazioni: ["IHC: CD30+ diffuso", "ALK negativo", "CD3+"],
-                    workup_molecolare: "Staging TC, biopsia linfonodo sentinella",
-                    bibliografia: "Kadin ME, 2018"
-                },
-                granuloma_anulare: {
-                    nome: "Granuloma anulare",
-                    categoria: "Granulomatoso",
-                    criteri_maggiori: {
-                        pattern_primario: "granulomatoso",
-                        palisading_necrosi_mucina: true,
-                        infiltrato_distribuzione: "derma_medio_profondo"
-                    },
-                    criteri_minori: {
-                        necrosi_collagenosa: "presente",
-                        mucina_dermica: "presente"
-                    },
-                    note: "Palisading granulomi con necrosi mucinosa centrale. Clinicamente: papule anulari.",
-                    colorazioni: ["PAS (escludere infezioni)", "Alcian blue (mucina)"],
-                    bibliografia: "Dabski K, 1989"
-                },
-                pemfigo_volgare: {
-                    nome: "Pemfigo volgare",
-                    categoria: "Bolloso Intraepidermico",
-                    criteri_maggiori: {
-                        pattern_primario: "intraepidermico",
-                        acantolisi: true,
-                        bolle_intraepidermiche: true
-                    },
-                    criteri_minori: {
-                        necrosi_keratinociti: "presente",
-                        infiltrato_densita: "moderato"
-                    },
-                    note: "⚠️ Perdita aderenze cheratinocitarie (acantolisi). Cellule rotonde, isolate.",
-                    colorazioni: ["IHC: Desmogleina 3 - Desmogleina 1 se mucosa", "VERO DIAGNOSTICO: Anticorpi circolanti IgG"],
-                    workup_molecolare: "Sierologia: anticorpi anti-desmogleina - ELISA/immunoblot",
-                    bibliografia: "Stanley JR, 1989"
-                },
-                dermatite_erpetiforme: {
-                    nome: "Dermatite erpetiforme",
-                    categoria: "Bolloso Subcorneo",
-                    criteri_maggiori: {
-                        pattern_primario: "subcorneo",
-                        infiltrato_neutrofili_pustole: true,
-                        spongiosi: ["lieve", "moderata"]
-                    },
-                    criteri_minori: {
-                        eosinofili: "presenti",
-                        microascessi_munro: false
-                    },
-                    note: "Pustole subcornee con neutrofili. Clinicamente: vescicolette pruriginose. ⚠️ Associata a celiachia.",
-                    colorazioni: ["PAS - escludere funghi", "FONDAMENTALE: IF dermale → IgA LINEARE alla giunzione"],
-                    workup_molecolare: "Immunofluorescenza: IgA granulare/lineare giunzione dermo-epidermica",
-                    bibliografia: "Reunala T, 2002"
-                },
-                pemfigoide_bolloso: {
-                    nome: "Pemfigoide bolloso",
-                    categoria: "Bolloso Subepidermico",
-                    criteri_maggiori: {
-                        pattern_primario: "subepidermico_bolloso",
-                        bolle_subepidermiche: true,
-                        infiltrato_distribuzione: "giunzione_dermoepidermica"
-                    },
-                    criteri_minori: {
-                        eosinofili: ["presenti", "abbondanti"],
-                        neutrofili: "presenti"
-                    },
-                    note: "⚠️ Bolle subepidermiche con epidermide intatta sopra. Infiltrato eosinofilo/neutrofilo. DIVERSO da pemfigo.",
-                    colorazioni: ["IHC: antigeni membrana basale", "DIAGNOSTICO: IF → IgG + C3 LINEARI giunzione"],
-                    workup_molecolare: "Immunofluorescenza: IgG + C3 lineari sulla membrana basale",
-                    bibliografia: "Tóth GF et al, 2015"
+                        eosinofili: ["presenti", "abbondanti"]
+                    };
+
+                    if (softMatches[criterio]) {
+                        const [lower, upper] = softMatches[criterio];
+                        if (valoreCorrente === lower && valoreAtteso.includes(upper)) {
+                            return weight * SCORING_CONFIG.SOFT_MATCH_PENALTY;
+                        }
+                    }
+                    return 0;
                 }
-            };
 
-            const calculateDiagnoses = () => {
-                const results = [];
+                if (typeof valoreAtteso === 'boolean') {
+                    return valoreCorrente === valoreAtteso ? weight : 0;
+                }
 
-                // Controlla red flags
-                const activeRedFlags = redFlags.filter(rf => {
-                    if (rf.flag === "microascessi_munro") return patternData.microascessi_munro === true;
-                    if (rf.flag === "infiltrato_banda") return patternData.infiltrato_distribuzione === "banda_lichenoide";
-                    if (rf.flag === "corpi_civatte") return patternData.necrosi_keratinociti === "presente" && patternData.infiltrato_distribuzione === "banda_lichenoide";
-                    if (rf.flag === "eosinofili_marcati_edema") return patternData.eosinofili === "abbondanti" && patternData.edema_dermico === "marcato";
-                    if (rf.flag === "pustole_subcornee_neutrofili") return patternData.pattern_primario === "subcorneo" && patternData.neutrofili === "abbondanti";
-                    if (rf.flag === "palisading_necrosi_mucina") return patternData.palisading_necrosi_mucina === true;
-                    if (rf.flag === "spongiosi_microvescicole") return patternData.spongiosi === "marcata" && patternData.microvescicole === true;
-                    if (rf.flag === "epidermotropismo_alone") return patternData.epidermotropismo === "presente" && patternData.alone_chiaro === true;
-                    if (rf.flag === "acantolisi_bolloso") return patternData.acantolisi === true && patternData.bolle_intraepidermiche === true;
-                    if (rf.flag === "pustole_subcornee_heip") return patternData.pattern_primario === "subcorneo" && patternData.infiltrato_neutrofili_pustole === true && patternData.spongiosi !== "marcata";
-                    if (rf.flag === "bolle_subepidermiche_eosinofili") return patternData.bolle_subepidermiche === true && (patternData.eosinofili === "presenti" || patternData.eosinofili === "abbondanti");
-                    return false;
+                return valoreCorrente === valoreAtteso ? weight : 0;
+            },
+
+            scorePattern(patternKey, pattern, data, isExcluded) {
+                let score = 0;
+                let maxScore = 0;
+
+                Object.entries(pattern.criteri_maggiori).forEach(([criterio, valoreAtteso]) => {
+                    maxScore += SCORING_CONFIG.MAJOR_WEIGHT;
+                    score += this.calculateCriteriaScore(
+                        criterio, 
+                        valoreAtteso, 
+                        data[criterio], 
+                        SCORING_CONFIG.MAJOR_WEIGHT
+                    );
                 });
 
-                Object.entries(diagnosticPatterns).forEach(([key, pattern]) => {
-                    // Se un red flag lo esclude, dai score basso ma non escludere completamente
-                    let excluded = activeRedFlags.some(rf => rf.escludi.includes(key));
-                    
-                    let score = 0;
-                    let maxScore = 0;
-
-                    // Criteri maggiori (peso 3)
-                    Object.entries(pattern.criteri_maggiori).forEach(([criterio, valoreAtteso]) => {
-                        maxScore += 3;
-                        const valoreCorrente = patternData[criterio];
-
-                        if (Array.isArray(valoreAtteso)) {
-                            if (valoreAtteso.includes(valoreCorrente)) {
-                                score += 3;
-                            } else if (criterio === "spongiosi" && valoreCorrente === "moderata" && valoreAtteso.includes("marcata")) {
-                                score += 2.7;
-                            } else if (criterio === "acantosi" && valoreCorrente === "moderata" && valoreAtteso.includes("marcata")) {
-                                score += 2.7;
-                            } else if (criterio === "neutrofili" && valoreCorrente === "presenti" && valoreAtteso.includes("abbondanti")) {
-                                score += 2.7;
-                            } else if (criterio === "eosinofili" && valoreCorrente === "presenti" && valoreAtteso.includes("abbondanti")) {
-                                score += 2.7;
-                            }
-                        } else if (typeof valoreAtteso === 'boolean') {
-                            if (valoreCorrente === valoreAtteso) score += 3;
-                        } else {
-                            if (valoreCorrente === valoreAtteso) score += 3;
-                        }
+                if (pattern.criteri_minori) {
+                    Object.entries(pattern.criteri_minori).forEach(([criterio, valoreAtteso]) => {
+                        maxScore += SCORING_CONFIG.MINOR_WEIGHT;
+                        score += this.calculateCriteriaScore(
+                            criterio, 
+                            valoreAtteso, 
+                            data[criterio], 
+                            SCORING_CONFIG.MINOR_WEIGHT
+                        );
                     });
+                }
 
-                    // Criteri minori (peso 1, ma contano meno)
-                    Object.entries(pattern.criteri_minori || {}).forEach(([criterio, valoreAtteso]) => {
-                        maxScore += 1;
-                        const valoreCorrente = patternData[criterio];
+                const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+                const finalPercentage = isExcluded 
+                    ? Math.max(SCORING_CONFIG.MIN_SCORE_AFTER_EXCLUSION, percentage - SCORING_CONFIG.RED_FLAG_PENALTY)
+                    : percentage;
 
-                        if (Array.isArray(valoreAtteso)) {
-                            if (valoreAtteso.includes(valoreCorrente)) score += 1;
-                        } else if (typeof valoreAtteso === 'boolean') {
-                            if (valoreCorrente === valoreAtteso) score += 1;
-                        } else {
-                            if (valoreCorrente === valoreAtteso) score += 1;
-                        }
-                    });
+                return { percentage: finalPercentage, excluded: isExcluded };
+            },
 
-                    const percentuale = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-                    const percentualeFinale = excluded ? Math.max(5, percentuale - 25) : percentuale;
+            calculate(data) {
+                const activeFlags = RED_FLAGS.filter(rf => this.evaluateRedFlag(rf.flag, data));
+                const results = [];
 
-                    if (percentualeFinale >= 50) {
-                        results.push({ ...pattern, percentuale: percentualeFinale, excluded });
+                Object.entries(DIAGNOSTIC_PATTERNS).forEach(([key, pattern]) => {
+                    const isExcluded = activeFlags.some(rf => rf.escludi.includes(key));
+                    const { percentage, excluded } = this.scorePattern(key, pattern, data, isExcluded);
+
+                    if (percentage >= SCORING_CONFIG.THRESHOLD_PERCENTAGE) {
+                        results.push({ 
+                            key,
+                            ...pattern, 
+                            percentuale: percentage, 
+                            excluded 
+                        });
                     }
                 });
 
                 results.sort((a, b) => b.percentuale - a.percentuale);
-                setDiagnoses(results);
-                setShowResults(true);
+                return { diagnoses: results, activeFlags };
+            }
+        };
+
+        // ============================================================================
+        // CUSTOM HOOKS
+        // ============================================================================
+
+        const useMultiStepForm = (initialStep = 1) => {
+            const [step, setStep] = useState(initialStep);
+            
+            const nextStep = useCallback(() => setStep(s => s + 1), []);
+            const prevStep = useCallback(() => setStep(s => s - 1), []);
+            const goToStep = useCallback((s) => setStep(s), []);
+            const reset = useCallback(() => setStep(initialStep), [initialStep]);
+
+            return { step, nextStep, prevStep, goToStep, reset };
+        };
+
+        const useDiagnosticData = () => {
+            const [data, setData] = useState(INITIAL_STATE);
+
+            const updateField = useCallback((field, value) => {
+                setData(prev => ({ ...prev, [field]: value }));
+            }, []);
+
+            const updateFields = useCallback((updates) => {
+                setData(prev => ({ ...prev, ...updates }));
+            }, []);
+
+            const reset = useCallback(() => {
+                setData(INITIAL_STATE);
+            }, []);
+
+            return { data, updateField, updateFields, reset };
+        };
+
+        // ============================================================================
+        // ATOMIC COMPONENTS (MEMOIZED)
+        // ============================================================================
+
+        const SelectField = memo(({ label, value, onChange, options, className = "" }) => (
+            <div className={className}>
+                <label className="block font-semibold mb-2">{label}</label>
+                <select 
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                >
+                    <option value="">Seleziona...</option>
+                    {options.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                </select>
+            </div>
+        ));
+
+        const CheckboxField = memo(({ label, checked, onChange, variant = "default" }) => {
+            const borderColors = {
+                default: "border-slate-200 hover:bg-slate-50",
+                warning: "border-amber-200 hover:bg-amber-50",
+                danger: "border-red-300 hover:bg-red-50"
             };
 
-            const handleReset = () => {
+            return (
+                <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer ${borderColors[variant]}`}>
+                    <input 
+                        type="checkbox" 
+                        checked={checked}
+                        onChange={(e) => onChange(e.target.checked)}
+                        className="mr-3" 
+                    />
+                    <span className={variant === "danger" ? "font-semibold" : ""}>{label}</span>
+                </label>
+            );
+        });
+
+        const RadioOption = memo(({ option, selected, onSelect }) => (
+            <label className={`flex items-start p-4 border-2 rounded-lg cursor-pointer ${
+                selected ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-blue-300'
+            }`}>
+                <input 
+                    type="radio" 
+                    value={option.value}
+                    checked={selected}
+                    onChange={() => onSelect(option.value)}
+                    className="mt-1 mr-3" 
+                />
+                <div>
+                    <div className="font-semibold">{option.label}</div>
+                    <div className="text-sm text-slate-600">{option.desc}</div>
+                </div>
+            </label>
+        ));
+
+        const StepIndicator = memo(({ currentStep, totalSteps = 4 }) => (
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div className="flex items-center justify-between mb-2">
+                    {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
+                        <div key={s} className="flex items-center flex-1">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-between font-bold ${
+                                currentStep >= s ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                            }`} style={{justifyContent: 'center'}}>{s}</div>
+                            {s < totalSteps && (
+                                <div className={`flex-1 h-1 mx-2 ${currentStep > s ? 'bg-blue-600' : 'bg-slate-200'}`} />
+                            )}
+                        </div>
+                    ))}
+                </div>
+                <div className="flex justify-between text-xs text-slate-600 mt-2">
+                    <span>Pattern</span>
+                    <span>Epidermide</span>
+                    <span>Infiltrato</span>
+                    <span>Finalizza</span>
+                </div>
+            </div>
+        ));
+
+        const NavigationButtons = memo(({ onBack, onNext, canGoNext = true, nextLabel = "Avanti →" }) => (
+            <div className="flex gap-4 mt-6">
+                {onBack && (
+                    <button 
+                        onClick={onBack}
+                        className="flex-1 bg-slate-200 py-3 rounded-lg font-semibold hover:bg-slate-300"
+                    >
+                        ← Indietro
+                    </button>
+                )}
+                <button 
+                    onClick={onNext}
+                    disabled={!canGoNext}
+                    className={`flex-1 py-3 rounded-lg font-semibold ${
+                        nextLabel.includes('Genera') 
+                            ? 'bg-green-600 hover:bg-green-700' 
+                            : 'bg-blue-600 hover:bg-blue-700'
+                    } text-white`}
+                    style={!canGoNext ? {opacity: 0.5, cursor: 'not-allowed'} : {}}
+                >
+                    {nextLabel}
+                </button>
+            </div>
+        ));
+
+        // ============================================================================
+        // STEP COMPONENTS
+        // ============================================================================
+
+        const PatternStep = memo(({ data, updateField, onNext }) => (
+            <div>
+                <h2 className="text-2xl font-bold mb-4">Pattern Architetturale</h2>
+                <div className="space-y-3">
+                    {PATTERN_OPTIONS.map(opt => (
+                        <RadioOption
+                            key={opt.value}
+                            option={opt}
+                            selected={data.pattern_primario === opt.value}
+                            onSelect={(value) => updateField('pattern_primario', value)}
+                        />
+                    ))}
+                </div>
+                <NavigationButtons 
+                    onNext={onNext}
+                    canGoNext={!!data.pattern_primario}
+                />
+            </div>
+        ));
+
+        const EpidermalStep = memo(({ data, updateField, onBack, onNext }) => (
+            <div>
+                <h2 className="text-2xl font-bold mb-4">Epidermide</h2>
+                <div className="space-y-4">
+                    <SelectField 
+                        label="Spongiosi"
+                        value={data.spongiosi}
+                        onChange={(v) => updateField('spongiosi', v)}
+                        options={[
+                            { value: 'assente', label: 'Assente' },
+                            { value: 'lieve', label: 'Lieve' },
+                            { value: 'moderata', label: 'Moderata' },
+                            { value: 'marcata', label: 'Marcata' }
+                        ]}
+                    />
+                    <SelectField 
+                        label="Esocitosi"
+                        value={data.esocitosi}
+                        onChange={(v) => updateField('esocitosi', v)}
+                        options={[
+                            { value: 'assente', label: 'Assente' },
+                            { value: 'lieve', label: 'Lieve' },
+                            { value: 'presente', label: 'Presente' },
+                            { value: 'marcata', label: 'Marcata' }
+                        ]}
+                    />
+                    <SelectField 
+                        label="Acantosi"
+                        value={data.acantosi}
+                        onChange={(v) => updateField('acantosi', v)}
+                        options={[
+                            { value: 'assente', label: 'Assente' },
+                            { value: 'lieve', label: 'Lieve' },
+                            { value: 'moderata', label: 'Moderata' },
+                            { value: 'marcata', label: 'Marcata' }
+                        ]}
+                    />
+                    <SelectField 
+                        label="Paracheratosi"
+                        value={data.paracheratosi}
+                        onChange={(v) => updateField('paracheratosi', v)}
+                        options={[
+                            { value: 'assente', label: 'Assente' },
+                            { value: 'focale', label: 'Focale' },
+                            { value: 'moderata', label: 'Moderata' },
+                            { value: 'marcata', label: 'Marcata' }
+                        ]}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                        <SelectField 
+                            label="Ipergranulosi"
+                            value={data.ipergranulosi}
+                            onChange={(v) => updateField('ipergranulosi', v)}
+                            options={[
+                                { value: 'no', label: 'No' },
+                                { value: 'si', label: 'Sì' }
+                            ]}
+                        />
+                        <SelectField 
+                            label="Ipogranulosi"
+                            value={data.ipogranulosi}
+                            onChange={(v) => updateField('ipogranulosi', v)}
+                            options={[
+                                { value: 'no', label: 'No' },
+                                { value: 'si', label: 'Sì' }
+                            ]}
+                        />
+                    </div>
+                    <SelectField 
+                        label="Vacuolizzazione basale"
+                        value={data.vacuolizzazione_basale}
+                        onChange={(v) => updateField('vacuolizzazione_basale', v)}
+                        options={[
+                            { value: 'assente', label: 'Assente' },
+                            { value: 'presente', label: 'Presente' },
+                            { value: 'marcata', label: 'Marcata' }
+                        ]}
+                    />
+                    <SelectField 
+                        label="Necrosi cheratinociti"
+                        value={data.necrosi_keratinociti}
+                        onChange={(v) => updateField('necrosi_keratinociti', v)}
+                        options={[
+                            { value: 'assente', label: 'Assente' },
+                            { value: 'presente', label: 'Presente' },
+                            { value: 'marcata', label: 'Marcata' }
+                        ]}
+                    />
+                </div>
+                <NavigationButtons onBack={onBack} onNext={onNext} />
+            </div>
+        ));
+
+        const InfiltrateStep = memo(({ data, updateField, onBack, onNext }) => (
+            <div>
+                <h2 className="text-2xl font-bold mb-4">Derma e Infiltrato</h2>
+                <div className="space-y-4">
+                    <SelectField 
+                        label="Distribuzione infiltrato"
+                        value={data.infiltrato_distribuzione}
+                        onChange={(v) => updateField('infiltrato_distribuzione', v)}
+                        options={[
+                            { value: 'perivascolare_superficiale', label: 'Perivascolare superficiale' },
+                            { value: 'perivascolare_profondo', label: 'Perivascolare profondo' },
+                            { value: 'banda_lichenoide', label: 'A banda lichenoide' },
+                            { value: 'interstiziale', label: 'Interstiziale' },
+                            { value: 'perivascolare_perianessiale', label: 'Perivascolare e perianessiale' },
+                            { value: 'derma_medio_profondo', label: 'Derma medio-profondo' },
+                            { value: 'giunzione_dermoepidermica', label: 'Giunzione dermo-epidermica' }
+                        ]}
+                    />
+                    <SelectField 
+                        label="Densità infiltrato"
+                        value={data.infiltrato_densita}
+                        onChange={(v) => updateField('infiltrato_densita', v)}
+                        options={[
+                            { value: 'scarso', label: 'Scarso' },
+                            { value: 'moderato', label: 'Moderato' },
+                            { value: 'denso', label: 'Denso' }
+                        ]}
+                    />
+                    <SelectField 
+                        label="Eosinofili"
+                        value={data.eosinofili}
+                        onChange={(v) => updateField('eosinofili', v)}
+                        options={[
+                            { value: 'assenti', label: 'Assenti' },
+                            { value: 'rari', label: 'Rari' },
+                            { value: 'presenti', label: 'Presenti' },
+                            { value: 'abbondanti', label: 'Abbondanti' }
+                        ]}
+                    />
+                    <SelectField 
+                        label="Neutrofili"
+                        value={data.neutrofili}
+                        onChange={(v) => updateField('neutrofili', v)}
+                        options={[
+                            { value: 'assenti', label: 'Assenti' },
+                            { value: 'rari', label: 'Rari' },
+                            { value: 'presenti', label: 'Presenti' },
+                            { value: 'abbondanti', label: 'Abbondanti' }
+                        ]}
+                    />
+                    <SelectField 
+                        label="Eritrociti extravasati"
+                        value={data.eritrociti_extravasati}
+                        onChange={(v) => updateField('eritrociti_extravasati', v)}
+                        options={[
+                            { value: 'assenti', label: 'Assenti' },
+                            { value: 'presenti', label: 'Presenti' },
+                            { value: 'abbondanti', label: 'Abbondanti' }
+                        ]}
+                    />
+
+                    <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg mt-4">
+                        <h3 className="font-bold text-red-900 mb-3">⚠️ Sospetto Linfoma?</h3>
+                        <div className="space-y-3">
+                            <SelectField 
+                                label="Linfociti atipici"
+                                value={data.linfociti_atipici}
+                                onChange={(v) => updateField('linfociti_atipici', v)}
+                                options={[
+                                    { value: 'assenti', label: 'Assenti' },
+                                    { value: 'presenti', label: 'Presenti' },
+                                    { value: 'abbondanti', label: 'Abbondanti' }
+                                ]}
+                            />
+                            <SelectField 
+                                label="Epidermotropismo"
+                                value={data.epidermotropismo}
+                                onChange={(v) => updateField('epidermotropismo', v)}
+                                options={[
+                                    { value: 'assente', label: 'Assente' },
+                                    { value: 'presente', label: 'Presente' },
+                                    { value: 'marcato', label: 'Marcato' }
+                                ]}
+                            />
+                            <CheckboxField 
+                                label="Alone chiaro perinucleare"
+                                checked={data.alone_chiaro}
+                                onChange={(v) => updateField('alone_chiaro', v)}
+                                variant="danger"
+                            />
+                            <CheckboxField 
+                                label="Cellule cerebriformi"
+                                checked={data.cellule_cerebriformi}
+                                onChange={(v) => updateField('cellule_cerebriformi', v)}
+                                variant="danger"
+                            />
+                            <CheckboxField 
+                                label="CD30+ (se IHC disponibile)"
+                                checked={data.cd30_positivi}
+                                onChange={(v) => updateField('cd30_positivi', v)}
+                                variant="danger"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <NavigationButtons onBack={onBack} onNext={onNext} />
+            </div>
+        ));
+
+        const CompletionStep = memo(({ data, updateField, onBack, onGenerate }) => (
+            <div>
+                <h2 className="text-2xl font-bold mb-4">Completamento</h2>
+                <div className="space-y-4">
+                    <SelectField 
+                        label="Vasculite"
+                        value={data.vasculite}
+                        onChange={(v) => updateField('vasculite', v)}
+                        options={[
+                            { value: 'no', label: 'No' },
+                            { value: 'si', label: 'Sì' }
+                        ]}
+                    />
+
+                    <CheckboxField 
+                        label="Microascessi di Munro"
+                        checked={data.microascessi_munro}
+                        onChange={(v) => updateField('microascessi_munro', v)}
+                    />
+
+                    <div>
+                        <label className="block font-semibold mb-2">🚩 Red Flags Specifici</label>
+                        <div className="space-y-2">
+                            <CheckboxField 
+                                label="Palisading + necrosi mucinosa (→ Granuloma anulare)"
+                                checked={data.palisading_necrosi_mucina}
+                                onChange={(v) => updateField('palisading_necrosi_mucina', v)}
+                                variant="warning"
+                            />
+                            <CheckboxField 
+                                label="Microvescicole intraepidermiche (→ Eczema acuto)"
+                                checked={data.microvescicole}
+                                onChange={(v) => updateField('microvescicole', v)}
+                                variant="warning"
+                            />
+                            <CheckboxField 
+                                label="Corpi di Civatte (→ Lichen planus)"
+                                checked={data.corpi_civatte}
+                                onChange={(v) => updateField('corpi_civatte', v)}
+                                variant="warning"
+                            />
+                            <CheckboxField 
+                                label="⚠️ Acantolisi (→ PEMFIGO - IHC OBBLIGATORIA)"
+                                checked={data.acantolisi}
+                                onChange={(v) => updateField('acantolisi', v)}
+                                variant="danger"
+                            />
+                            <CheckboxField 
+                                label="⚠️ Bolle intraepidermiche (→ PEMFIGO)"
+                                checked={data.bolle_intraepidermiche}
+                                onChange={(v) => updateField('bolle_intraepidermiche', v)}
+                                variant="danger"
+                            />
+                            <CheckboxField 
+                                label="⚠️ Bolle subepidermiche + eosinofili (→ PEMFIGOIDE - IF OBBLIGATORIA)"
+                                checked={data.bolle_subepidermiche}
+                                onChange={(v) => updateField('bolle_subepidermiche', v)}
+                                variant="danger"
+                            />
+                            <CheckboxField 
+                                label="⚠️ Pustole subcornee + neutrofili (→ Dermatite erpetiforme - IF MANDATORIA)"
+                                checked={data.infiltrato_neutrofili_pustole}
+                                onChange={(v) => updateField('infiltrato_neutrofili_pustole', v)}
+                                variant="danger"
+                            />
+                        </div>
+                    </div>
+
+                    <SelectField 
+                        label="Edema dermico"
+                        value={data.edema_dermico}
+                        onChange={(v) => updateField('edema_dermico', v)}
+                        options={[
+                            { value: 'assente', label: 'Assente' },
+                            { value: 'lieve', label: 'Lieve' },
+                            { value: 'moderato', label: 'Moderato' },
+                            { value: 'marcato', label: 'Marcato' }
+                        ]}
+                    />
+
+                    <div>
+                        <label className="block font-semibold mb-2">Sede anatomica</label>
+                        <input 
+                            type="text" 
+                            value={data.sede_anatomica}
+                            onChange={(e) => updateField('sede_anatomica', e.target.value)}
+                            placeholder="es. avambraccio sinistro"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block font-semibold mb-2">Note cliniche</label>
+                        <textarea 
+                            value={data.note_cliniche}
+                            onChange={(e) => updateField('note_cliniche', e.target.value)}
+                            placeholder="Contesto clinico, durata, terapie..."
+                        />
+                    </div>
+                </div>
+                <NavigationButtons 
+                    onBack={onBack} 
+                    onNext={onGenerate}
+                    nextLabel="✓ Genera Diagnosi"
+                />
+            </div>
+        ));
+
+        // ============================================================================
+        // RESULTS COMPONENTS
+        // ============================================================================
+
+        const DiagnosisCard = memo(({ diagnosis, index, isLymphoma }) => (
+            <div className={`border-2 rounded-lg p-5 ${
+                isLymphoma ? 'border-red-500 bg-red-50' :
+                index === 0 ? 'border-green-500 bg-green-50' : 
+                'border-slate-200'
+            }`}>
+                <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-xl font-bold">{diagnosis.nome}</h3>
+                            {isLymphoma && (
+                                <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">
+                                    LINFOMA
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-sm text-slate-600">{diagnosis.categoria}</p>
+                    </div>
+                    <div className="text-3xl font-bold text-blue-600 ml-4">
+                        {diagnosis.percentuale}%
+                    </div>
+                </div>
+
+                <p className="text-sm mb-3 bg-white rounded p-3">{diagnosis.note}</p>
+
+                {diagnosis.colorazioni.length > 0 && (
+                    <div className={`rounded p-3 mb-2 ${isLymphoma ? 'bg-red-100' : 'bg-amber-50'}`}>
+                        <p className="text-sm font-semibold mb-1">
+                            🔬 {isLymphoma ? 'IHC OBBLIGATORIA' : 'Colorazioni'}:
+                        </p>
+                        <ul className="text-sm space-y-1">
+                            {diagnosis.colorazioni.map((c, idx) => <li key={idx}>• {c}</li>)}
+                        </ul>
+                    </div>
+                )}
+
+                {diagnosis.workup_molecolare && (
+                    <div className="bg-purple-50 rounded p-3">
+                        <p className="text-sm">
+                            <strong>🧬 Molecolare:</strong> {diagnosis.workup_molecolare}
+                        </p>
+                    </div>
+                )}
+
+                <p className="text-xs text-slate-500 italic mt-3">📚 {diagnosis.bibliografia}</p>
+            </div>
+        ));
+
+        const ResultsView = memo(({ diagnoses, activeFlags, onModify, onExport }) => {
+            const hasLymphoma = useMemo(
+                () => diagnoses.some(d => d.categoria.includes('Linfoma')), 
+                [diagnoses]
+            );
+
+            return (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-2xl font-bold">📋 Diagnosi Differenziale</h2>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={onExport}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
+                            >
+                                💾 Esporta
+                            </button>
+                            <button 
+                                onClick={onModify}
+                                className="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300 text-sm font-semibold"
+                            >
+                                ← Modifica
+                            </button>
+                        </div>
+                    </div>
+
+                    {diagnoses.length === 0 && (
+                        <div className="p-6 bg-amber-50 border-2 border-amber-200 rounded-lg text-center">
+                            <p className="font-semibold text-amber-900">⚠️ Nessuna diagnosi compatibile</p>
+                            <p className="text-sm text-amber-800 mt-2">Rivedi i parametri inseriti</p>
+                        </div>
+                    )}
+
+                    {hasLymphoma && (
+                        <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg">
+                            <h3 className="text-lg font-bold text-red-900 mb-2">⚠️ SOSPETTO LINFOMA</h3>
+                            <div className="text-sm text-red-800 space-y-1">
+                                <p><strong>• IHC:</strong> CD3, CD4, CD8, CD20, CD30, CD7, Ki67</p>
+                                <p><strong>• PCR:</strong> Riarrangiamento TCR o IgH</p>
+                                <p><strong>• Staging:</strong> TC, emocromo, LDH</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeFlags.length > 0 && (
+                        <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-500 rounded-lg">
+                            <h3 className="text-lg font-bold text-amber-900 mb-2">🚩 RED FLAGS ATTIVATI</h3>
+                            <div className="text-sm text-amber-800 space-y-1">
+                                {activeFlags.map((rf, idx) => (
+                                    <p key={idx}>• <strong>{rf.diagnosi}</strong></p>
+                                ))}
+                                <p className="mt-2 italic">Questi pattern forti suggeriscono specifici workup</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        {diagnoses.map((d, i) => (
+                            <DiagnosisCard 
+                                key={d.key}
+                                diagnosis={d}
+                                index={i}
+                                isLymphoma={d.categoria.includes('Linfoma')}
+                            />
+                        ))}
+                    </div>
+
+                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-900 mb-2">
+                            <strong>💡 Nota importante:</strong> Diagnosi differenziale pattern-based. 
+                            La diagnosi definitiva richiede <strong>sempre</strong> correlazione clinico-patologica completa.
+                        </p>
+                        <p className="text-xs text-blue-800 italic mt-2">
+                            Questo strumento è supporto al ragionamento diagnostico, non sostitutivo della valutazione esperta. 
+                            In caso di dubbio, consultare colleghi esperti.
+                        </p>
+                    </div>
+                </div>
+            );
+        });
+
+        // ============================================================================
+        // MAIN APP COMPONENT
+        // ============================================================================
+
+        const DermPathDiagnostic = () => {
+            const { step, nextStep, prevStep, reset: resetStep } = useMultiStepForm(1);
+            const { data, updateField, updateFields, reset: resetData } = useDiagnosticData();
+            const [showResults, setShowResults] = useState(false);
+            const [results, setResults] = useState({ diagnoses: [], activeFlags: [] });
+
+            const handleReset = useCallback(() => {
                 if (confirm('Resettare tutti i dati?')) {
-                    setPatternData({
-                        pattern_primario: '', spongiosi: '', esocitosi: '', acantosi: '',
-                        paracheratosi: '', ipergranulosi: '', ipogranulosi: '',
-                        vacuolizzazione_basale: '', necrosi_keratinociti: '',
-                        infiltrato_distribuzione: '', infiltrato_densita: '',
-                        eosinofili: '', neutrofili: '', linfociti_atipici: '',
-                        epidermotropismo: '', alone_chiaro: false, cellule_cerebriformi: false,
-                        cd30_positivi: false, microascessi_munro: false, vasculite: '',
-                        eritrociti_extravasati: '', sede_anatomica: '', note_cliniche: '',
-                        edema_dermico: '', palisading_necrosi_mucina: false, necrosi_collagenosa: '',
-                        mucina_dermica: '', microvescicole: false, corpi_civatte: false,
-                        acantolisi: false, bolle_intraepidermiche: false, bolle_subepidermiche: false,
-                        infiltrato_neutrofili_pustole: false
-                    });
-                    setStep(1);
+                    resetData();
+                    resetStep();
                     setShowResults(false);
-                    setDiagnoses([]);
+                    setResults({ diagnoses: [], activeFlags: [] });
                 }
-            };
+            }, [resetData, resetStep]);
 
-            const generateReport = () => {
-                const hasLymphoma = diagnoses.some(d => d.categoria.includes('Linfoma'));
+            const handleCalculate = useCallback(() => {
+                const calculated = DiagnosticEngine.calculate(data);
+                setResults(calculated);
+                setShowResults(true);
+            }, [data]);
+
+            const handleExport = useCallback(() => {
+                const hasLymphoma = results.diagnoses.some(d => d.categoria.includes('Linfoma'));
                 
                 const reportContent = `
 ================================================================================
@@ -409,31 +1195,30 @@ REFERTO ANATOMOPATOLOGICO - DERMATOPATOLOGIA
 ================================================================================
 Data: ${new Date().toLocaleDateString('it-IT')}
 
-PATTERN: ${patternData.pattern_primario.toUpperCase().replace(/_/g, ' ')}
+PATTERN: ${data.pattern_primario.toUpperCase().replace(/_/g, ' ')}
 
 EPIDERMIDE:
-- Spongiosi: ${patternData.spongiosi || 'non valutata'}
-- Acantosi: ${patternData.acantosi || 'assente'}
-- Paracheratosi: ${patternData.paracheratosi || 'assente'}
+- Spongiosi: ${data.spongiosi || 'non valutata'}
+- Acantosi: ${data.acantosi || 'assente'}
+- Paracheratosi: ${data.paracheratosi || 'assente'}
 
 DERMA:
-- Distribuzione infiltrato: ${patternData.infiltrato_distribuzione || 'non specificata'}
-- Linfociti atipici: ${patternData.linfociti_atipici || 'non valutati'}
+- Distribuzione infiltrato: ${data.infiltrato_distribuzione || 'non specificata'}
+- Linfociti atipici: ${data.linfociti_atipici || 'non valutati'}
 
-Sede: ${patternData.sede_anatomica || 'non specificata'}
+Sede: ${data.sede_anatomica || 'non specificata'}
 
 ================================================================================
 DIAGNOSI DIFFERENZIALE:
 ================================================================================
 
-${diagnoses.map((d, i) => `${i + 1}. ${d.nome.toUpperCase()} (${d.percentuale}%)
+${results.diagnoses.map((d, i) => `${i + 1}. ${d.nome.toUpperCase()} (${d.percentuale}%)
    ${d.note}
    ${d.colorazioni.length > 0 ? `IHC: ${d.colorazioni.join(', ')}` : ''}`).join('\n\n')}
 
 ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
 ================================================================================
 `;
-
                 const blob = new Blob([reportContent], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -441,7 +1226,22 @@ ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
                 a.download = `referto_dermpath_${Date.now()}.txt`;
                 a.click();
                 URL.revokeObjectURL(url);
-            };
+            }, [data, results]);
+
+            const renderStep = useMemo(() => {
+                switch(step) {
+                    case 1:
+                        return <PatternStep data={data} updateField={updateField} onNext={nextStep} />;
+                    case 2:
+                        return <EpidermalStep data={data} updateField={updateField} onBack={prevStep} onNext={nextStep} />;
+                    case 3:
+                        return <InfiltrateStep data={data} updateField={updateField} onBack={prevStep} onNext={nextStep} />;
+                    case 4:
+                        return <CompletionStep data={data} updateField={updateField} onBack={prevStep} onGenerate={handleCalculate} />;
+                    default:
+                        return null;
+                }
+            }, [step, data, updateField, nextStep, prevStep, handleCalculate]);
 
             return (
                 <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -452,569 +1252,32 @@ ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
                                     <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath</h1>
                                     <p className="text-slate-600 mt-1">Sistema diagnostico pattern-based</p>
                                 </div>
-                                <button onClick={handleReset} 
-                                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-semibold">
+                                <button 
+                                    onClick={handleReset} 
+                                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-semibold"
+                                >
                                     🔄 Reset
                                 </button>
                             </div>
                         </div>
 
-                        {!showResults && (
-                            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-                                <div className="flex items-center justify-between mb-2">
-                                    {[1, 2, 3, 4].map((s) => (
-                                        <div key={s} className="flex items-center flex-1">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                                                step >= s ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
-                                            }`}>{s}</div>
-                                            {s < 4 && <div className={`flex-1 h-1 mx-2 ${step > s ? 'bg-blue-600' : 'bg-slate-200'}`} />}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex justify-between text-xs text-slate-600 mt-2">
-                                    <span>Pattern</span>
-                                    <span>Epidermide</span>
-                                    <span>Infiltrato</span>
-                                    <span>Finalizza</span>
-                                </div>
-                            </div>
-                        )}
+                        {!showResults && <StepIndicator currentStep={step} />}
 
-                        {!showResults && (
+                        {!showResults ? (
                             <div className="bg-white rounded-xl shadow-lg p-6">
-                                {step === 1 && (
-                                    <div>
-                                        <h2 className="text-2xl font-bold mb-4">Pattern Architetturale</h2>
-                                        
-                                        <div className="space-y-3">
-                                            {[
-                                                { value: 'spongotico', label: 'Spongotico', desc: 'Edema intercellulare' },
-                                                { value: 'psoriasiforme', label: 'Psoriasiforme', desc: 'Allungamento rete ridges' },
-                                                { value: 'interfaccia_lichenoide', label: 'Interfaccia Lichenoide', desc: 'Infiltrato a banda' },
-                                                { value: 'interfaccia_vacuolare', label: 'Interfaccia Vacuolare', desc: 'Vacuoli basali' },
-                                                { value: 'perivascolare', label: 'Perivascolare', desc: 'Infiltrato attorno vasi' },
-                                                { value: 'vasculitico', label: 'Vasculitico', desc: 'Danno vascolare' },
-                                                { value: 'granulomatoso', label: 'Granulomatoso', desc: 'Granulomi palisading' },
-                                                { value: 'subcorneo', label: 'Subcorneo', desc: 'Pustole sottocornee' },
-                                                { value: 'intraepidermico', label: 'Intraepidermico (Acantolisi)', desc: 'Perdita aderenze cheratinocitarie' },
-                                                { value: 'subepidermico_bolloso', label: 'Subepidermico Bolloso', desc: 'Bolle sotto epidermide intatta' }
-                                            ].map(opt => (
-                                                <label key={opt.value} className={`flex items-start p-4 border-2 rounded-lg cursor-pointer ${
-                                                    patternData.pattern_primario === opt.value 
-                                                        ? 'border-blue-600 bg-blue-50' 
-                                                        : 'border-slate-200 hover:border-blue-300'
-                                                }`}>
-                                                    <input type="radio" name="pattern" value={opt.value}
-                                                        checked={patternData.pattern_primario === opt.value}
-                                                        onChange={(e) => setPatternData({...patternData, pattern_primario: e.target.value})}
-                                                        className="mt-1 mr-3" />
-                                                    <div>
-                                                        <div className="font-semibold">{opt.label}</div>
-                                                        <div className="text-sm text-slate-600">{opt.desc}</div>
-                                                    </div>
-                                                </label>
-                                            ))}
-                                        </div>
-
-                                        <button onClick={() => setStep(2)} disabled={!patternData.pattern_primario}
-                                            className="mt-6 w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-slate-300">
-                                            Avanti →
-                                        </button>
-                                    </div>
-                                )}
-
-                                {step === 2 && (
-                                    <div>
-                                        <h2 className="text-2xl font-bold mb-4">Epidermide</h2>
-                                        
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block font-semibold mb-2">Spongiosi</label>
-                                                <select value={patternData.spongiosi}
-                                                    onChange={(e) => setPatternData({...patternData, spongiosi: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="assente">Assente</option>
-                                                    <option value="lieve">Lieve</option>
-                                                    <option value="moderata">Moderata</option>
-                                                    <option value="marcata">Marcata</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Esocitosi</label>
-                                                <select value={patternData.esocitosi}
-                                                    onChange={(e) => setPatternData({...patternData, esocitosi: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="assente">Assente</option>
-                                                    <option value="lieve">Lieve</option>
-                                                    <option value="presente">Presente</option>
-                                                    <option value="marcata">Marcata</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Acantosi</label>
-                                                <select value={patternData.acantosi}
-                                                    onChange={(e) => setPatternData({...patternData, acantosi: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="assente">Assente</option>
-                                                    <option value="lieve">Lieve</option>
-                                                    <option value="moderata">Moderata</option>
-                                                    <option value="marcata">Marcata</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Paracheratosi</label>
-                                                <select value={patternData.paracheratosi}
-                                                    onChange={(e) => setPatternData({...patternData, paracheratosi: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="assente">Assente</option>
-                                                    <option value="focale">Focale</option>
-                                                    <option value="moderata">Moderata</option>
-                                                    <option value="marcata">Marcata</option>
-                                                </select>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block font-semibold mb-2">Ipergranulosi</label>
-                                                    <select value={patternData.ipergranulosi}
-                                                        onChange={(e) => setPatternData({...patternData, ipergranulosi: e.target.value})}
-                                                        className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                        <option value="">Seleziona...</option>
-                                                        <option value="no">No</option>
-                                                        <option value="si">Sì</option>
-                                                    </select>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block font-semibold mb-2">Ipogranulosi</label>
-                                                    <select value={patternData.ipogranulosi}
-                                                        onChange={(e) => setPatternData({...patternData, ipogranulosi: e.target.value})}
-                                                        className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                        <option value="">Seleziona...</option>
-                                                        <option value="no">No</option>
-                                                        <option value="si">Sì</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Vacuolizzazione basale</label>
-                                                <select value={patternData.vacuolizzazione_basale}
-                                                    onChange={(e) => setPatternData({...patternData, vacuolizzazione_basale: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="assente">Assente</option>
-                                                    <option value="presente">Presente</option>
-                                                    <option value="marcata">Marcata</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Necrosi cheratinociti</label>
-                                                <select value={patternData.necrosi_keratinociti}
-                                                    onChange={(e) => setPatternData({...patternData, necrosi_keratinociti: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="assente">Assente</option>
-                                                    <option value="presente">Presente</option>
-                                                    <option value="marcata">Marcata</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-4 mt-6">
-                                            <button onClick={() => setStep(1)}
-                                                className="flex-1 bg-slate-200 py-3 rounded-lg font-semibold">
-                                                ← Indietro
-                                            </button>
-                                            <button onClick={() => setStep(3)}
-                                                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold">
-                                                Avanti →
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {step === 3 && (
-                                    <div>
-                                        <h2 className="text-2xl font-bold mb-4">Derma e Infiltrato</h2>
-                                        
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block font-semibold mb-2">Distribuzione infiltrato</label>
-                                                <select value={patternData.infiltrato_distribuzione}
-                                                    onChange={(e) => setPatternData({...patternData, infiltrato_distribuzione: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="perivascolare_superficiale">Perivascolare superficiale</option>
-                                                    <option value="perivascolare_profondo">Perivascolare profondo</option>
-                                                    <option value="banda_lichenoide">A banda lichenoide</option>
-                                                    <option value="interstiziale">Interstiziale</option>
-                                                    <option value="perivascolare_perianessiale">Perivascolare e perianessiale</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Densità infiltrato</label>
-                                                <select value={patternData.infiltrato_densita}
-                                                    onChange={(e) => setPatternData({...patternData, infiltrato_densita: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="scarso">Scarso</option>
-                                                    <option value="moderato">Moderato</option>
-                                                    <option value="denso">Denso</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Eosinofili</label>
-                                                <select value={patternData.eosinofili}
-                                                    onChange={(e) => setPatternData({...patternData, eosinofili: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="assenti">Assenti</option>
-                                                    <option value="rari">Rari</option>
-                                                    <option value="presenti">Presenti</option>
-                                                    <option value="abbondanti">Abbondanti</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Neutrofili</label>
-                                                <select value={patternData.neutrofili}
-                                                    onChange={(e) => setPatternData({...patternData, neutrofili: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="assenti">Assenti</option>
-                                                    <option value="rari">Rari</option>
-                                                    <option value="presenti">Presenti</option>
-                                                    <option value="abbondanti">Abbondanti</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Eritrociti extravasati</label>
-                                                <select value={patternData.eritrociti_extravasati}
-                                                    onChange={(e) => setPatternData({...patternData, eritrociti_extravasati: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="assenti">Assenti</option>
-                                                    <option value="presenti">Presenti</option>
-                                                    <option value="abbondanti">Abbondanti</option>
-                                                </select>
-                                            </div>
-
-                                            <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg mt-4">
-                                                <h3 className="font-bold text-red-900 mb-3">⚠️ Sospetto Linfoma?</h3>
-                                                
-                                                <div className="space-y-3">
-                                                    <div>
-                                                        <label className="block font-semibold mb-2">Linfociti atipici</label>
-                                                        <select value={patternData.linfociti_atipici}
-                                                            onChange={(e) => setPatternData({...patternData, linfociti_atipici: e.target.value})}
-                                                            className="w-full p-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none">
-                                                            <option value="">Seleziona...</option>
-                                                            <option value="assenti">Assenti</option>
-                                                            <option value="presenti">Presenti</option>
-                                                            <option value="abbondanti">Abbondanti</option>
-                                                        </select>
-                                                    </div>
-
-                                                    <div>
-                                                        <label className="block font-semibold mb-2">Epidermotropismo</label>
-                                                        <select value={patternData.epidermotropismo}
-                                                            onChange={(e) => setPatternData({...patternData, epidermotropismo: e.target.value})}
-                                                            className="w-full p-3 border-2 border-red-200 rounded-lg focus:border-red-500 focus:outline-none">
-                                                            <option value="">Seleziona...</option>
-                                                            <option value="assente">Assente</option>
-                                                            <option value="presente">Presente</option>
-                                                            <option value="marcato">Marcato</option>
-                                                        </select>
-                                                    </div>
-
-                                                    <label className="flex items-center p-3 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-100">
-                                                        <input type="checkbox" checked={patternData.alone_chiaro}
-                                                            onChange={(e) => setPatternData({...patternData, alone_chiaro: e.target.checked})}
-                                                            className="mr-3" />
-                                                        <span>Alone chiaro perinucleare</span>
-                                                    </label>
-
-                                                    <label className="flex items-center p-3 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-100">
-                                                        <input type="checkbox" checked={patternData.cellule_cerebriformi}
-                                                            onChange={(e) => setPatternData({...patternData, cellule_cerebriformi: e.target.checked})}
-                                                            className="mr-3" />
-                                                        <span>Cellule cerebriformi</span>
-                                                    </label>
-
-                                                    <label className="flex items-center p-3 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-100">
-                                                        <input type="checkbox" checked={patternData.cd30_positivi}
-                                                            onChange={(e) => setPatternData({...patternData, cd30_positivi: e.target.checked})}
-                                                            className="mr-3" />
-                                                        <span>CD30+ (se IHC disponibile)</span>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-4 mt-6">
-                                            <button onClick={() => setStep(2)}
-                                                className="flex-1 bg-slate-200 py-3 rounded-lg font-semibold">
-                                                ← Indietro
-                                            </button>
-                                            <button onClick={() => setStep(4)}
-                                                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold">
-                                                Avanti →
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {step === 4 && (
-                                    <div>
-                                        <h2 className="text-2xl font-bold mb-4">Completamento</h2>
-                                        
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block font-semibold mb-2">Vasculite</label>
-                                                <select value={patternData.vasculite}
-                                                    onChange={(e) => setPatternData({...patternData, vasculite: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">Seleziona...</option>
-                                                    <option value="no">No</option>
-                                                    <option value="si">Sì</option>
-                                                </select>
-                                            </div>
-
-                                            <label className="flex items-center p-3 border-2 border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-                                                <input type="checkbox" checked={patternData.microascessi_munro}
-                                                    onChange={(e) => setPatternData({...patternData, microascessi_munro: e.target.checked})}
-                                                    className="mr-3" />
-                                                <span>Microascessi di Munro</span>
-                                            </label>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">🚩 Red Flags Specifici</label>
-                                                <label className="flex items-center p-3 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-50">
-                                                    <input type="checkbox" checked={patternData.palisading_necrosi_mucina}
-                                                        onChange={(e) => setPatternData({...patternData, palisading_necrosi_mucina: e.target.checked})}
-                                                        className="mr-3" />
-                                                    <span>Palisading + necrosi mucinosa (→ Granuloma anulare)</span>
-                                                </label>
-                                                <label className="flex items-center p-3 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-50 mt-2">
-                                                    <input type="checkbox" checked={patternData.microvescicole}
-                                                        onChange={(e) => setPatternData({...patternData, microvescicole: e.target.checked})}
-                                                        className="mr-3" />
-                                                    <span>Microvescicole intraepidermiche (→ Eczema acuto)</span>
-                                                </label>
-                                                <label className="flex items-center p-3 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-50 mt-2">
-                                                    <input type="checkbox" checked={patternData.corpi_civatte}
-                                                        onChange={(e) => setPatternData({...patternData, corpi_civatte: e.target.checked})}
-                                                        className="mr-3" />
-                                                    <span>Corpi di Civatte (→ Lichen planus)</span>
-                                                </label>
-                                                <label className="flex items-center p-3 border-2 border-red-300 rounded-lg cursor-pointer hover:bg-red-50 mt-2">
-                                                    <input type="checkbox" checked={patternData.acantolisi}
-                                                        onChange={(e) => setPatternData({...patternData, acantolisi: e.target.checked})}
-                                                        className="mr-3" />
-                                                    <span className="font-semibold">⚠️ Acantolisi (→ PEMFIGO - IHC OBBLIGATORIA)</span>
-                                                </label>
-                                                <label className="flex items-center p-3 border-2 border-red-300 rounded-lg cursor-pointer hover:bg-red-50 mt-2">
-                                                    <input type="checkbox" checked={patternData.bolle_intraepidermiche}
-                                                        onChange={(e) => setPatternData({...patternData, bolle_intraepidermiche: e.target.checked})}
-                                                        className="mr-3" />
-                                                    <span className="font-semibold">⚠️ Bolle intraepidermiche (→ PEMFIGO)</span>
-                                                </label>
-                                                <label className="flex items-center p-3 border-2 border-orange-400 rounded-lg cursor-pointer hover:bg-orange-50 mt-2">
-                                                    <input type="checkbox" checked={patternData.bolle_subepidermiche}
-                                                        onChange={(e) => setPatternData({...patternData, bolle_subepidermiche: e.target.checked})}
-                                                        className="mr-3" />
-                                                    <span className="font-semibold">⚠️ Bolle subepidermiche + eosinofili (→ PEMFIGOIDE - IF OBBLIGATORIA)</span>
-                                                </label>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Edema dermico</label>
-                                                <select value={patternData.edema_dermico}
-                                                    onChange={(e) => setPatternData({...patternData, edema_dermico: e.target.value})}
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none">
-                                                    <option value="">- Seleziona -</option>
-                                                    <option value="assente">Assente</option>
-                                                    <option value="lieve">Lieve</option>
-                                                    <option value="moderato">Moderato</option>
-                                                    <option value="marcato">Marcato</option>
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Sede anatomica</label>
-                                                <input type="text" value={patternData.sede_anatomica}
-                                                    onChange={(e) => setPatternData({...patternData, sede_anatomica: e.target.value})}
-                                                    placeholder="es. avambraccio sinistro"
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none" />
-                                            </div>
-
-                                            <div>
-                                                <label className="block font-semibold mb-2">Note cliniche</label>
-                                                <textarea value={patternData.note_cliniche}
-                                                    onChange={(e) => setPatternData({...patternData, note_cliniche: e.target.value})}
-                                                    placeholder="Contesto clinico, durata, terapie..."
-                                                    className="w-full p-3 border-2 border-slate-200 rounded-lg focus:border-blue-500 focus:outline-none h-24" />
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-4 mt-6">
-                                            <button onClick={() => setStep(3)}
-                                                className="flex-1 bg-slate-200 py-3 rounded-lg font-semibold">
-                                                ← Indietro
-                                            </button>
-                                            <button onClick={calculateDiagnoses}
-                                                className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
-                                                ✓ Genera Diagnosi
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
+                                {renderStep}
                             </div>
-                        )}
-
-                        {showResults && (
-                            <div className="bg-white rounded-xl shadow-lg p-6">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-2xl font-bold">📋 Diagnosi Differenziale</h2>
-                                    <div className="flex gap-2">
-                                        <button onClick={generateReport}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold">
-                                            💾 Esporta
-                                        </button>
-                                        <button onClick={() => setShowResults(false)}
-                                            className="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300 text-sm font-semibold">
-                                            ← Modifica
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {diagnoses.length === 0 && (
-                                    <div className="p-6 bg-amber-50 border-2 border-amber-200 rounded-lg text-center">
-                                        <p className="font-semibold text-amber-900">⚠️ Nessuna diagnosi compatibile</p>
-                                        <p className="text-sm text-amber-800 mt-2">Rivedi i parametri inseriti</p>
-                                    </div>
-                                )}
-
-                                {(() => {
-                                    const activeRedFlags = redFlags.filter(rf => {
-                                        if (rf.flag === "microascessi_munro") return patternData.microascessi_munro === true;
-                                        if (rf.flag === "infiltrato_banda") return patternData.infiltrato_distribuzione === "banda_lichenoide";
-                                        if (rf.flag === "corpi_civatte") return patternData.corpi_civatte === true;
-                                        if (rf.flag === "eosinofili_marcati_edema") return patternData.eosinofili === "abbondanti" && patternData.edema_dermico === "marcato";
-                                        if (rf.flag === "pustole_subcornee_neutrofili") return patternData.pattern_primario === "subcorneo" && patternData.neutrofili === "abbondanti";
-                                        if (rf.flag === "palisading_necrosi_mucina") return patternData.palisading_necrosi_mucina === true;
-                                        if (rf.flag === "spongiosi_microvescicole") return patternData.spongiosi === "marcata" && patternData.microvescicole === true;
-                                        if (rf.flag === "epidermotropismo_alone") return patternData.epidermotropismo === "presente" && patternData.alone_chiaro === true;
-                                        return false;
-                                    });
-
-                                    return (
-                                        <>
-                                            {diagnoses.some(d => d.categoria.includes('Linfoma')) && (
-                                                <div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg">
-                                                    <h3 className="text-lg font-bold text-red-900 mb-2">⚠️ SOSPETTO LINFOMA</h3>
-                                                    <div className="text-sm text-red-800 space-y-1">
-                                                        <p><strong>• IHC:</strong> CD3, CD4, CD8, CD20, CD30, CD7, Ki67</p>
-                                                        <p><strong>• PCR:</strong> Riarrangiamento TCR o IgH</p>
-                                                        <p><strong>• Staging:</strong> TC, emocromo, LDH</p>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {activeRedFlags.length > 0 && (
-                                                <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-500 rounded-lg">
-                                                    <h3 className="text-lg font-bold text-amber-900 mb-2">🚩 RED FLAGS ATTIVATI</h3>
-                                                    <div className="text-sm text-amber-800 space-y-1">
-                                                        {activeRedFlags.map((rf, idx) => (
-                                                            <p key={idx}>• <strong>{rf.diagnosi}</strong></p>
-                                                        ))}
-                                                        <p className="mt-2 italic">Questi pattern forti suggeriscono specifici workup</p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    );
-                                })()}
-
-                                <div className="space-y-4">
-                                    {diagnoses.map((d, i) => {
-                                        const isLymphoma = d.categoria.includes('Linfoma');
-                                        
-                                        return (
-                                            <div key={i} className={`border-2 rounded-lg p-5 ${
-                                                isLymphoma ? 'border-red-500 bg-red-50' :
-                                                i === 0 ? 'border-green-500 bg-green-50' : 
-                                                'border-slate-200'
-                                            }`}>
-                                                <div className="flex justify-between items-start mb-3">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <h3 className="text-xl font-bold">{d.nome}</h3>
-                                                            {isLymphoma && (
-                                                                <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">
-                                                                    LINFOMA
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-sm text-slate-600">{d.categoria}</p>
-                                                    </div>
-                                                    <div className="text-3xl font-bold text-blue-600 ml-4">
-                                                        {d.percentuale}%
-                                                    </div>
-                                                </div>
-
-                                                <p className="text-sm mb-3 bg-white rounded p-3">{d.note}</p>
-
-                                                {d.colorazioni.length > 0 && (
-                                                    <div className={`rounded p-3 mb-2 ${
-                                                        isLymphoma ? 'bg-red-100' : 'bg-amber-50'
-                                                    }`}>
-                                                        <p className="text-sm font-semibold mb-1">🔬 {isLymphoma ? 'IHC OBBLIGATORIA' : 'Colorazioni'}:</p>
-                                                        <ul className="text-sm space-y-1">
-                                                            {d.colorazioni.map((c, idx) => <li key={idx}>• {c}</li>)}
-                                                        </ul>
-                                                    </div>
-                                                )}
-
-                                                {d.workup_molecolare && (
-                                                    <div className="bg-purple-50 rounded p-3">
-                                                        <p className="text-sm"><strong>🧬 Molecolare:</strong> {d.workup_molecolare}</p>
-                                                    </div>
-                                                )}
-
-                                                <p className="text-xs text-slate-500 italic mt-3">📚 {d.bibliografia}</p>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                    <p className="text-sm text-blue-900 mb-2">
-                                        <strong>💡 Nota importante:</strong> Diagnosi differenziale pattern-based. 
-                                        La diagnosi definitiva richiede <strong>sempre</strong> correlazione clinico-patologica completa.
-                                    </p>
-                                    <p className="text-xs text-blue-800 italic mt-2">
-                                        Questo strumento è supporto al ragionamento diagnostico, non sostitutivo della valutazione esperta. 
-                                        In caso di dubbio, consultare colleghi esperti.
-                                    </p>
-                                </div>
-                            </div>
+                        ) : (
+                            <ResultsView 
+                                diagnoses={results.diagnoses}
+                                activeFlags={results.activeFlags}
+                                onModify={() => setShowResults(false)}
+                                onExport={handleExport}
+                            />
                         )}
 
                         <div className="mt-6 text-center text-sm text-slate-600">
-                            <p>DermPath v1.0 - Pattern-based diagnostic system</p>
+                            <p>DermPath v1.3 - Production ready</p>
                         </div>
                     </div>
                 </div>
