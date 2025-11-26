@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DermPath - Sistema Diagnostico</title>
+    <title>DermPath - Sistema Diagnostico (Bibliografia Interattiva)</title>
     <style>
         /* Reset & Base */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -66,13 +66,16 @@
         .font-semibold { font-weight: 600; }
         .italic { font-style: italic; }
         .text-center { text-align: center; }
+        .underline { text-decoration: underline; }
         
         /* Colors - Text */
         .text-white { color: #fff; }
         .text-slate-500 { color: #64748b; }
         .text-slate-600 { color: #475569; }
+        .text-slate-700 { color: #334155; }
         .text-slate-800 { color: #1e293b; }
         .text-blue-600 { color: #2563eb; }
+        .text-blue-700 { color: #1d4ed8; }
         .text-blue-800 { color: #1e40af; }
         .text-blue-900 { color: #1e3a8a; }
         .text-red-800 { color: #991b1b; }
@@ -82,6 +85,7 @@
         
         /* Colors - Background */
         .bg-white { background-color: #fff; }
+        .bg-slate-50 { background-color: #f8fafc; }
         .bg-slate-100 { background-color: #f1f5f9; }
         .bg-slate-200 { background-color: #e2e8f0; }
         .bg-slate-300 { background-color: #cbd5e1; }
@@ -128,6 +132,7 @@
         .hover\:bg-blue-300:hover { background-color: #93c5fd; }
         .hover\:bg-blue-700:hover { background-color: #1d4ed8; }
         .hover\:bg-slate-50:hover { background-color: #f8fafc; }
+        .hover\:bg-slate-100:hover { background-color: #f1f5f9; }
         .hover\:bg-slate-200:hover { background-color: #e2e8f0; }
         .hover\:bg-slate-300:hover { background-color: #cbd5e1; }
         .hover\:bg-green-700:hover { background-color: #15803d; }
@@ -136,6 +141,7 @@
         .hover\:bg-red-50:hover { background-color: #fef2f2; }
         .hover\:bg-red-100:hover { background-color: #fee2e2; }
         .hover\:border-blue-300:hover { border-color: #93c5fd; }
+        .hover\:underline:hover { text-decoration: underline; }
         .focus\:border-blue-500:focus { border-color: #3b82f6; outline: none; }
         .focus\:outline-none:focus { outline: 2px solid transparent; outline-offset: 2px; }
         
@@ -237,7 +243,28 @@
                 },
                 note: "Pattern classico da ipersensibilità tipo IV. Correlazione con patch test.",
                 colorazioni: ["Nessuna colorazione speciale necessaria"],
-                bibliografia: "Ackerman AB, 2005"
+                bibliografia: {
+                    principale: {
+                        autori: "Usatine RP, Riojas M",
+                        titolo: "Diagnosis and Management of Contact Dermatitis",
+                        rivista: "Am Fam Physician",
+                        anno: 2010,
+                        volume: "82(3)",
+                        pagine: "249-255",
+                        pmid: "20672788",
+                        tipo: "review"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Ale SI, Maibach HI",
+                            titolo: "Diagnostic Approach in Allergic and Irritant Contact Dermatitis",
+                            rivista: "Expert Rev Clin Immunol",
+                            anno: 2010,
+                            doi: "10.1586/eci.09.51",
+                            tipo: "review"
+                        }
+                    ]
+                }
             },
             dermatite_atopica_acuta: {
                 nome: "Dermatite atopica (fase acuta)",
@@ -253,7 +280,29 @@
                 },
                 note: "Fase acuta/subacuta. Se cronicizzata: acantosi, ipergranulosi.",
                 colorazioni: ["PAS (escludere dermatofitosi)"],
-                bibliografia: "Elder DE, 2020"
+                bibliografia: {
+                    principale: {
+                        autori: "Weidinger S, Novak N",
+                        titolo: "Atopic Dermatitis",
+                        rivista: "Lancet",
+                        anno: 2016,
+                        volume: "387(10023)",
+                        pagine: "1109-1122",
+                        doi: "10.1016/S0140-6736(15)00149-X",
+                        pmid: "26377142",
+                        tipo: "review"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Langan SM, Irvine AD, Weidinger S",
+                            titolo: "Atopic Dermatitis",
+                            rivista: "Lancet",
+                            anno: 2020,
+                            doi: "10.1016/S0140-6736(20)31286-1",
+                            tipo: "review"
+                        }
+                    ]
+                }
             },
             psoriasi_vulgaris: {
                 nome: "Psoriasi vulgaris",
@@ -270,7 +319,29 @@
                 },
                 note: "Allungamento regolare rete ridges. Capillari dilatati.",
                 colorazioni: ["PAS per escludere tinea"],
-                bibliografia: "Nestle FO, 2009"
+                bibliografia: {
+                    principale: {
+                        autori: "Armstrong AW, Read C",
+                        titolo: "Pathophysiology, Clinical Presentation, and Treatment of Psoriasis: A Review",
+                        rivista: "JAMA",
+                        anno: 2020,
+                        volume: "323(19)",
+                        pagine: "1945-1960",
+                        doi: "10.1001/jama.2020.4006",
+                        pmid: "32427307",
+                        tipo: "review"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Griffiths CEM, Armstrong AW, Gudjonsson JE, Barker JNWN",
+                            titolo: "Psoriasis",
+                            rivista: "Lancet",
+                            anno: 2021,
+                            doi: "10.1016/S0140-6736(20)32549-6",
+                            tipo: "review"
+                        }
+                    ]
+                }
             },
             lichen_planus: {
                 nome: "Lichen planus",
@@ -286,7 +357,29 @@
                 },
                 note: "Infiltrato a banda. Corpi di Civatte (cheratinociti necrotici).",
                 colorazioni: ["PAS per escludere GVHD"],
-                bibliografia: "Shiohara T, 2012"
+                bibliografia: {
+                    principale: {
+                        autori: "Gupta S, Jawanda MK",
+                        titolo: "Oral Lichen Planus: An Update on Etiology, Pathogenesis, Clinical Presentation, Diagnosis and Management",
+                        rivista: "Indian J Dermatol",
+                        anno: 2015,
+                        volume: "60(3)",
+                        pagine: "222-229",
+                        doi: "10.4103/0019-5154.156315",
+                        pmid: "26120146",
+                        tipo: "review"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Le Cleach L, Chosidow O",
+                            titolo: "Clinical Practice. Lichen Planus",
+                            rivista: "N Engl J Med",
+                            anno: 2012,
+                            doi: "10.1056/NEJMcp1103641",
+                            tipo: "clinical review"
+                        }
+                    ]
+                }
             },
             lupus_discoide: {
                 nome: "Lupus eritematoso cutaneo cronico (discoide)",
@@ -301,7 +394,29 @@
                 },
                 note: "Tappi folliculari. Mucina dermica. Membrana basale ispessita.",
                 colorazioni: ["PAS (membrana basale)", "Alcian blue (mucina)"],
-                bibliografia: "Kuhn A, 2007"
+                bibliografia: {
+                    principale: {
+                        autori: "Kuhn A, Aberer E, Bata-Csörgő Z, et al.",
+                        titolo: "S2k guideline for treatment of cutaneous lupus erythematosus - guided by the European Dermatology Forum (EDF)",
+                        rivista: "J Eur Acad Dermatol Venereol",
+                        anno: 2017,
+                        volume: "31(3)",
+                        pagine: "389-404",
+                        doi: "10.1111/jdv.14053",
+                        pmid: "28098409",
+                        tipo: "guidelines"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Merola JF, Sheth V",
+                            titolo: "Cutaneous Lupus Erythematosus: A Review for Dermatologists",
+                            rivista: "JAMA Dermatol",
+                            anno: 2020,
+                            doi: "10.1001/jamadermatol.2020.1216",
+                            tipo: "review"
+                        }
+                    ]
+                }
             },
             eritema_multiforme: {
                 nome: "Eritema multiforme",
@@ -316,7 +431,29 @@
                 },
                 note: "Necrosi cheratinocitaria massiva. Spesso post-HSV o farmaci.",
                 colorazioni: [],
-                bibliografia: "Bastuji-Garin S, 1993"
+                bibliografia: {
+                    principale: {
+                        autori: "Hocquelet C, Benkalfate L, Pelletier F, et al.",
+                        titolo: "Erythema Multiforme: An Update on Diagnosis and Management",
+                        rivista: "Am J Clin Dermatol",
+                        anno: 2020,
+                        volume: "21(1)",
+                        pagine: "17-34",
+                        doi: "10.1007/s40257-019-00465-6",
+                        pmid: "31625094",
+                        tipo: "review"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Lerch M, Mainetti C, Terziroli Beretta-Piccoli B, Harr T",
+                            titolo: "Current Perspectives on Erythema Multiforme",
+                            rivista: "Clin Rev Allergy Immunol",
+                            anno: 2018,
+                            doi: "10.1007/s12016-017-8667-7",
+                            tipo: "review"
+                        }
+                    ]
+                }
             },
             vasculite_leucocitoclastica: {
                 nome: "Vasculite leucocitoclastica",
@@ -331,7 +468,29 @@
                 },
                 note: "Porpora palpabile. Indagare: infezioni, farmaci, connettiviti.",
                 colorazioni: ["PAS/Alcian blue per depositi vascolari"],
-                bibliografia: "Carlson JA, 2006"
+                bibliografia: {
+                    principale: {
+                        autori: "Sunderkötter CH, Zelger B, Chen KR, et al.",
+                        titolo: "Nomenclature of Cutaneous Vasculitis: Dermatologic Addendum to the 2012 Revised CHCC",
+                        rivista: "Arthritis Rheumatol",
+                        anno: 2018,
+                        volume: "70(2)",
+                        pagine: "171-184",
+                        doi: "10.1002/art.40375",
+                        pmid: "29266783",
+                        tipo: "consensus"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Jennette JC, Falk RJ",
+                            titolo: "Small-Vessel Vasculitis",
+                            rivista: "N Engl J Med",
+                            anno: 1997,
+                            pmid: "9395435",
+                            tipo: "review"
+                        }
+                    ]
+                }
             },
             micosi_fungoide_early: {
                 nome: "Micosi fungoide (early patch/plaque)",
@@ -348,7 +507,37 @@
                 note: "⚠️ LINFOMA! Linfociti atipici epidermotropi con alone chiaro.",
                 colorazioni: ["IHC MANDATORIA: CD3+, CD4+>CD8+, CD7 loss"],
                 workup_molecolare: "PCR riarrangiamento TCR (clonalità T)",
-                bibliografia: "Willemze R, 2019"
+                bibliografia: {
+                    principale: {
+                        autori: "Willemze R, Cerroni L, Kempf W, et al.",
+                        titolo: "The 2018 update of the WHO-EORTC classification for primary cutaneous lymphomas",
+                        rivista: "Blood",
+                        anno: 2019,
+                        volume: "133(16)",
+                        pagine: "1703-1714",
+                        doi: "10.1182/blood-2018-11-881268",
+                        pmid: "30635287",
+                        tipo: "guidelines"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Scarisbrick JJ, Quaglino P, Prince HM, et al.",
+                            titolo: "The PROCLIPI international registry of early-stage mycosis fungoides",
+                            rivista: "Br J Dermatol",
+                            anno: 2021,
+                            doi: "10.1111/bjd.19664",
+                            tipo: "registry study"
+                        },
+                        {
+                            autori: "Korgavkar K, Xiong M, Weinstock M",
+                            titolo: "Changing incidence trends of cutaneous T-cell lymphoma",
+                            rivista: "JAMA Dermatol",
+                            anno: 2013,
+                            doi: "10.1001/jamadermatol.2013.5526",
+                            tipo: "epidemiology"
+                        }
+                    ]
+                }
             },
             micosi_fungoide_tumor: {
                 nome: "Micosi fungoide (tumor stage)",
@@ -365,7 +554,29 @@
                 note: "⚠️ LINFOMA AVANZATO! Noduli/tumori. Rischio trasformazione.",
                 colorazioni: ["IHC: CD3+, CD4+, perdita CD7", "Ki67", "CD30 se trasformazione"],
                 workup_molecolare: "PCR TCR + staging",
-                bibliografia: "Guitart J, 2018"
+                bibliografia: {
+                    principale: {
+                        autori: "Willemze R, Cerroni L, Kempf W, et al.",
+                        titolo: "The 2018 update of the WHO-EORTC classification for primary cutaneous lymphomas",
+                        rivista: "Blood",
+                        anno: 2019,
+                        volume: "133(16)",
+                        pagine: "1703-1714",
+                        doi: "10.1182/blood-2018-11-881268",
+                        pmid: "30635287",
+                        tipo: "guidelines"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Guitart J, Kennedy J, Ronan S, Chmiel JS, Hsiegh YC, Variakojis D",
+                            titolo: "Histologic criteria for the diagnosis of mycosis fungoides",
+                            rivista: "Am J Surg Pathol",
+                            anno: 2001,
+                            pmid: "11148719",
+                            tipo: "original"
+                        }
+                    ]
+                }
             },
             linfoma_anaplastico_cutaneo: {
                 nome: "Linfoma anaplastico cutaneo primitivo (pcALCL)",
@@ -380,7 +591,37 @@
                 note: "⚠️ LINFOMA! CD30+ anaplastiche. Buona prognosi se confinato.",
                 colorazioni: ["IHC: CD30+ diffuso", "ALK negativo", "CD3+"],
                 workup_molecolare: "Staging TC, biopsia linfonodo sentinella",
-                bibliografia: "Kadin ME, 2018"
+                bibliografia: {
+                    principale: {
+                        autori: "Kadin ME, Deva A, Xu H, et al.",
+                        titolo: "Biomarkers Provide Clues to Early Events in the Pathogenesis of Breast Implant-Associated Anaplastic Large Cell Lymphoma",
+                        rivista: "Aesthet Surg J",
+                        anno: 2016,
+                        volume: "36(7)",
+                        pagine: "773-781",
+                        doi: "10.1093/asj/sjw023",
+                        pmid: "26979454",
+                        tipo: "original"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Willemze R, Cerroni L, Kempf W, et al.",
+                            titolo: "The 2018 update of the WHO-EORTC classification for primary cutaneous lymphomas",
+                            rivista: "Blood",
+                            anno: 2019,
+                            doi: "10.1182/blood-2018-11-881268",
+                            tipo: "guidelines"
+                        },
+                        {
+                            autori: "Woo DK, Jones CR, Vanoli-Storz MN, et al.",
+                            titolo: "Prognostic factors in primary cutaneous anaplastic large cell lymphoma",
+                            rivista: "J Clin Oncol",
+                            anno: 2009,
+                            doi: "10.1200/JCO.2008.19.4929",
+                            tipo: "cohort"
+                        }
+                    ]
+                }
             },
             granuloma_anulare: {
                 nome: "Granuloma anulare",
@@ -396,7 +637,29 @@
                 },
                 note: "Palisading granulomi con necrosi mucinosa centrale. Clinicamente: papule anulari.",
                 colorazioni: ["PAS (escludere infezioni)", "Alcian blue (mucina)"],
-                bibliografia: "Dabski K, 1989"
+                bibliografia: {
+                    principale: {
+                        autori: "Piette EW, Rosenbach M",
+                        titolo: "Granuloma Annulare: Clinical and Histologic Variants, Epidemiology, and Genetics",
+                        rivista: "J Am Acad Dermatol",
+                        anno: 2016,
+                        volume: "75(3)",
+                        pagine: "457-465",
+                        doi: "10.1016/j.jaad.2015.03.047",
+                        pmid: "27021234",
+                        tipo: "review"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Thornsberry LA, English JC 3rd",
+                            titolo: "Etiology, diagnosis, and therapeutic management of granuloma annulare",
+                            rivista: "Am J Clin Dermatol",
+                            anno: 2013,
+                            doi: "10.1007/s40257-012-0003-z",
+                            tipo: "review"
+                        }
+                    ]
+                }
             },
             pemfigo_volgare: {
                 nome: "Pemfigo volgare",
@@ -413,7 +676,39 @@
                 note: "⚠️ Perdita aderenze cheratinocitarie (acantolisi). Cellule rotonde, isolate.",
                 colorazioni: ["IHC: Desmogleina 3 - Desmogleina 1 se mucosa", "VERO DIAGNOSTICO: Anticorpi circolanti IgG"],
                 workup_molecolare: "Sierologia: anticorpi anti-desmogleina - ELISA/immunoblot",
-                bibliografia: "Stanley JR, 1989"
+                bibliografia: {
+                    principale: {
+                        autori: "Joly P, Horvath B, Patsatsi A, et al.",
+                        titolo: "Updated S2K guidelines on the management of pemphigus vulgaris and foliaceus",
+                        rivista: "J Eur Acad Dermatol Venereol",
+                        anno: 2020,
+                        volume: "34(9)",
+                        pagine: "1900-1913",
+                        doi: "10.1111/jdv.16752",
+                        pmid: "32686180",
+                        tipo: "guidelines"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Murrell DF, Peña S, Joly P, et al.",
+                            titolo: "Diagnosis and Management of Pemphigus: Recommendations of an International Panel of Experts",
+                            rivista: "J Am Acad Dermatol",
+                            anno: 2020,
+                            volume: "82(3)",
+                            pagine: "575-585",
+                            doi: "10.1016/j.jaad.2018.02.021",
+                            tipo: "consensus"
+                        },
+                        {
+                            autori: "Amber KT, Hertl M",
+                            titolo: "An Assessment of Treatment History and Its Association with Clinical Outcomes",
+                            rivista: "JAMA Dermatol",
+                            anno: 2015,
+                            doi: "10.1001/jamadermatol.2014.4829",
+                            tipo: "cohort"
+                        }
+                    ]
+                }
             },
             dermatite_erpetiforme: {
                 nome: "Dermatite erpetiforme",
@@ -430,7 +725,29 @@
                 note: "Pustole subcornee con neutrofili. Clinicamente: vescicolette pruriginose. ⚠️ Associata a celiachia.",
                 colorazioni: ["PAS - escludere funghi", "FONDAMENTALE: IF dermale → IgA LINEARE alla giunzione"],
                 workup_molecolare: "Immunofluorescenza: IgA granulare/lineare giunzione dermo-epidermica",
-                bibliografia: "Reunala T, 2002"
+                bibliografia: {
+                    principale: {
+                        autori: "Caproni M, Bonciolini V, D'Errico A, Antiga E, Fabbri P",
+                        titolo: "Celiac Disease and Dermatologic Manifestations: Many Skin Clues to Unfold Gluten-Sensitive Enteropathy",
+                        rivista: "Gastroenterol Res Pract",
+                        anno: 2012,
+                        volume: "2012",
+                        pagine: "952753",
+                        doi: "10.1155/2012/952753",
+                        pmid: "22778720",
+                        tipo: "review"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Bolotin D, Petronic-Rosic V",
+                            titolo: "Dermatitis herpetiformis: Part I. Epidemiology, pathogenesis, and clinical presentation",
+                            rivista: "J Am Acad Dermatol",
+                            anno: 2011,
+                            doi: "10.1016/j.jaad.2010.09.777",
+                            tipo: "review"
+                        }
+                    ]
+                }
             },
             pemfigoide_bolloso: {
                 nome: "Pemfigoide bolloso",
@@ -447,7 +764,37 @@
                 note: "⚠️ Bolle subepidermiche con epidermide intatta sopra. Infiltrato eosinofilo/neutrofilo. DIVERSO da pemfigo.",
                 colorazioni: ["IHC: antigeni membrana basale", "DIAGNOSTICO: IF → IgG + C3 LINEARI giunzione"],
                 workup_molecolare: "Immunofluorescenza: IgG + C3 lineari sulla membrana basale",
-                bibliografia: "Tóth GF et al, 2015"
+                bibliografia: {
+                    principale: {
+                        autori: "Schmidt E, Spindler V, Eming R, et al.",
+                        titolo: "Meeting Report of the Pathogenesis of Pemphigus and Pemphigoid Meeting",
+                        rivista: "J Invest Dermatol",
+                        anno: 2016,
+                        volume: "136(1)",
+                        pagine: "15-21",
+                        doi: "10.1038/JID.2015.367",
+                        pmid: "26763419",
+                        tipo: "consensus"
+                    },
+                    secondarie: [
+                        {
+                            autori: "Feliciani C, Joly P, Jonkman MF, et al.",
+                            titolo: "Management of bullous pemphigoid: European Dermatology Forum guideline",
+                            rivista: "Br J Dermatol",
+                            anno: 2015,
+                            doi: "10.1111/bjd.13717",
+                            tipo: "guidelines"
+                        },
+                        {
+                            autori: "Kasperkiewicz M, Ellebrecht CT, Takahashi H, et al.",
+                            titolo: "Pemphigus",
+                            rivista: "Nat Rev Dis Primers",
+                            anno: 2017,
+                            doi: "10.1038/nrdp.2017.26",
+                            tipo: "review"
+                        }
+                    ]
+                }
             }
         };
 
@@ -694,6 +1041,136 @@
                 </button>
             </div>
         ));
+
+        // ============================================================================
+        // BIBLIOGRAPHY COMPONENT (NEW)
+        // ============================================================================
+
+        const BibliographySection = memo(({ bibliografia }) => {
+            const [expanded, setExpanded] = useState(false);
+
+            // Backward compatibility: se bibliografia è stringa, la mostro come prima
+            if (typeof bibliografia === 'string') {
+                return (
+                    <div className="mt-3 p-3 bg-slate-50 rounded">
+                        <p className="text-xs text-slate-600 italic">📚 {bibliografia}</p>
+                    </div>
+                );
+            }
+
+            const { principale, secondarie = [] } = bibliografia;
+
+            const formatReference = (ref) => {
+                let formatted = `${ref.autori}. "${ref.titolo}". ${ref.rivista}`;
+                if (ref.anno) formatted += ` (${ref.anno})`;
+                if (ref.volume) formatted += ` ${ref.volume}`;
+                if (ref.pagine) formatted += `:${ref.pagine}`;
+                formatted += '.';
+                return formatted;
+            };
+
+            return (
+                <div className="mt-3 border-t border-slate-200 pt-3">
+                    <button
+                        onClick={() => setExpanded(!expanded)}
+                        className="flex items-center justify-between w-full text-left p-2 bg-slate-50 rounded hover:bg-slate-100"
+                    >
+                        <span className="text-sm font-semibold text-slate-700">
+                            📚 Bibliografia {secondarie.length > 0 && `(${1 + secondarie.length} referenze)`}
+                        </span>
+                        <span className="text-slate-500">{expanded ? '▼' : '▶'}</span>
+                    </button>
+
+                    {expanded && (
+                        <div className="mt-2 space-y-3 p-3 bg-white border border-slate-200 rounded">
+                            {/* Referenza principale */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
+                                        PRINCIPALE
+                                    </span>
+                                    {principale.tipo && (
+                                        <span className="text-xs text-slate-500 italic">
+                                            [{principale.tipo}]
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-700 leading-relaxed">
+                                    {formatReference(principale)}
+                                </p>
+                                <div className="flex gap-3 mt-1">
+                                    {principale.doi && (
+                                        <a 
+                                            href={`https://doi.org/${principale.doi}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-blue-600 hover:underline"
+                                        >
+                                            DOI: {principale.doi}
+                                        </a>
+                                    )}
+                                    {principale.pmid && (
+                                        <a 
+                                            href={`https://pubmed.ncbi.nlm.nih.gov/${principale.pmid}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-blue-600 hover:underline"
+                                        >
+                                            PMID: {principale.pmid}
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Referenze secondarie */}
+                            {secondarie.length > 0 && (
+                                <div className="border-t border-slate-200 pt-2">
+                                    <p className="text-xs font-semibold text-slate-600 mb-2">
+                                        Ulteriori letture:
+                                    </p>
+                                    {secondarie.map((ref, idx) => (
+                                        <div key={idx} className="mb-2 pl-3 border-l-2 border-slate-200">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                {ref.tipo && (
+                                                    <span className="text-xs text-slate-500 italic">
+                                                        [{ref.tipo}]
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-slate-700 leading-relaxed">
+                                                {formatReference(ref)}
+                                            </p>
+                                            <div className="flex gap-3 mt-1">
+                                                {ref.doi && (
+                                                    <a 
+                                                        href={`https://doi.org/${ref.doi}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-xs text-blue-600 hover:underline"
+                                                    >
+                                                        DOI
+                                                    </a>
+                                                )}
+                                                {ref.pmid && (
+                                                    <a 
+                                                        href={`https://pubmed.ncbi.nlm.nih.gov/${ref.pmid}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-xs text-blue-600 hover:underline"
+                                                    >
+                                                        PMID: {ref.pmid}
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        });
 
         // ============================================================================
         // STEP COMPONENTS
@@ -1069,14 +1546,14 @@
                 )}
 
                 {diagnosis.workup_molecolare && (
-                    <div className="bg-purple-50 rounded p-3">
+                    <div className="bg-purple-50 rounded p-3 mb-3">
                         <p className="text-sm">
                             <strong>🧬 Molecolare:</strong> {diagnosis.workup_molecolare}
                         </p>
                     </div>
                 )}
 
-                <p className="text-xs text-slate-500 italic mt-3">📚 {diagnosis.bibliografia}</p>
+                <BibliographySection bibliografia={diagnosis.bibliografia} />
             </div>
         ));
 
@@ -1189,6 +1666,25 @@
             const handleExport = useCallback(() => {
                 const hasLymphoma = results.diagnoses.some(d => d.categoria.includes('Linfoma'));
                 
+                // Helper per formattare bibliografia nell'export
+                const formatBibForExport = (bib) => {
+                    if (typeof bib === 'string') return `   ${bib}`;
+                    
+                    const { principale, secondarie = [] } = bib;
+                    let formatted = `   Principale: ${principale.autori} (${principale.anno}). "${principale.titolo}". ${principale.rivista}`;
+                    if (principale.doi) formatted += ` DOI: ${principale.doi}`;
+                    if (principale.pmid) formatted += ` PMID: ${principale.pmid}`;
+                    
+                    if (secondarie.length > 0) {
+                        formatted += '\n   Secondarie:';
+                        secondarie.forEach((ref, idx) => {
+                            formatted += `\n     ${idx + 1}. ${ref.autori} (${ref.anno}). "${ref.titolo}". ${ref.rivista}`;
+                            if (ref.doi) formatted += ` DOI: ${ref.doi}`;
+                        });
+                    }
+                    return formatted;
+                };
+                
                 const reportContent = `
 ================================================================================
 REFERTO ANATOMOPATOLOGICO - DERMATOPATOLOGIA
@@ -1214,7 +1710,10 @@ DIAGNOSI DIFFERENZIALE:
 
 ${results.diagnoses.map((d, i) => `${i + 1}. ${d.nome.toUpperCase()} (${d.percentuale}%)
    ${d.note}
-   ${d.colorazioni.length > 0 ? `IHC: ${d.colorazioni.join(', ')}` : ''}`).join('\n\n')}
+   ${d.colorazioni.length > 0 ? `IHC/Colorazioni: ${d.colorazioni.join(', ')}` : ''}
+   
+   Bibliografia:
+${formatBibForExport(d.bibliografia)}`).join('\n\n')}
 
 ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
 ================================================================================
@@ -1250,7 +1749,7 @@ ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath</h1>
-                                    <p className="text-slate-600 mt-1">Sistema diagnostico pattern-based</p>
+                                    <p className="text-slate-600 mt-1">Sistema diagnostico pattern-based + Bibliografia</p>
                                 </div>
                                 <button 
                                     onClick={handleReset} 
@@ -1277,7 +1776,7 @@ ${hasLymphoma ? '\n⚠️ SOSPETTO LINFOMA - IHC e PCR obbligatorie\n' : ''}
                         )}
 
                         <div className="mt-6 text-center text-sm text-slate-600">
-                            <p>DermPath v1.3 - Production ready</p>
+                            <p>DermPath v1.4 - Bibliografia Interattiva</p>
                         </div>
                     </div>
                 </div>
