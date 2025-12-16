@@ -162,7 +162,9 @@
             infiltrato_neutrofili_pustole: false,
             flame_figures: false, infiltrato_wedge_shaped: false,
             eosinofili_perivascolari_profondi: false, degranulazione_eosinofila: false,
-            necrosi_epidermica_focale: false, storia_farmaci: false, storia_puntura_insetto: false
+            necrosi_epidermica_focale: false, storia_farmaci: false, storia_puntura_insetto: false,
+            fibrosi_dermica: false, iperplasia_neurale: false,
+            infiltrato_follicolare: false, spongiosi_follicolare: false, pustole_follicolari: false
         };
 
         const PATTERN_OPTIONS = [
@@ -275,6 +277,34 @@
                 colorazioni: ["Nessuna necessaria"],
                 workup_molecolare: "Correlazione anamnesi farmacologica. Patch test farmaco sospetto.",
                 bibliografia: { principale: { autori: "Mockenhaupt M", titolo: "Epidemiology of cutaneous adverse drug reactions", rivista: "Allergol Select", anno: 2017, pmid: "30402608", tipo: "review" }, secondarie: [{ autori: "Weyers W, Metze D", titolo: "Histopathology of drug eruptions", rivista: "Dermatol Pract Concept", anno: 2011, doi: "10.5826/dpc.0101a09", tipo: "review" }] }
+            },
+            orticaria: {
+                nome: "Orticaria",
+                categoria: "Eosinofilo",
+                criteri_maggiori: { pattern_primario: ["perivascolare_eosinofilo", "perivascolare"], edema_dermico: ["moderato", "marcato"], infiltrato_distribuzione: "perivascolare_superficiale" },
+                criteri_minori: { eosinofili: ["presenti", "abbondanti"], neutrofili: ["rari", "presenti"], spongiosi: "lieve" },
+                note: "Edema dermico marcato con scarso infiltrato perivascolare (linfociti, eosinofili, neutrofili). L'epidermide è tipicamente normale o con minima spongiosi. Pattern \"cell-poor\" con edema prominente. Clinica: pomfi evanescenti <24h.",
+                colorazioni: ["Nessuna necessaria"],
+                bibliografia: { principale: { autori: "Zuberbier T, Abdul Latiff AH, et al.", titolo: "The international EAACI/GA²LEN/EuroGuiDerm/APAAACI guideline for the definition, classification, diagnosis, and management of urticaria", rivista: "Allergy", anno: 2022, volume: "77(3)", pagine: "734-766", doi: "10.1111/all.15090", pmid: "34536239", tipo: "guidelines" }, secondarie: [{ autori: "Kaplan AP, Greaves M", titolo: "Pathogenesis of chronic urticaria", rivista: "Clin Exp Allergy", anno: 2009, doi: "10.1111/j.1365-2222.2009.03215.x", tipo: "review" }] }
+            },
+            prurigo_nodularis: {
+                nome: "Prurigo nodularis",
+                categoria: "Eosinofilo",
+                criteri_maggiori: { pattern_primario: ["perivascolare", "perivascolare_eosinofilo"], acantosi: ["moderata", "marcata"], ipergranulosi: "si" },
+                criteri_minori: { eosinofili: ["presenti", "abbondanti"], paracheratosi: ["focale", "moderata"], fibrosi_dermica: true, iperplasia_neurale: true },
+                note: "Epidermide iperplastica con ipergranulosi compatta e paracheratosi. Derma con fibrosi verticale e infiltrato perivascolare con eosinofili. Possibile iperplasia neurale. Pattern \"lichenificato\" cronico. Escludere dermatite atopica sottostante.",
+                colorazioni: ["S100 o PGP9.5 se sospetto iperplasia neurale"],
+                bibliografia: { principale: { autori: "Williams KA, Huang AH, Belzberg M, Kwatra SG", titolo: "Prurigo nodularis: Pathogenesis and management", rivista: "J Am Acad Dermatol", anno: 2020, volume: "83(6)", pagine: "1567-1575", doi: "10.1016/j.jaad.2020.04.182", pmid: "32461078", tipo: "review" }, secondarie: [{ autori: "Pereira MP, Ständer S", titolo: "Chronic Prurigo: Pathogenesis, Clinical Aspects and Treatment", rivista: "J Dtsch Dermatol Ges", anno: 2023, doi: "10.1111/ddg.15004", tipo: "review" }] }
+            },
+            follicolite_eosinofila: {
+                nome: "Follicolite eosinofila (Ofuji / HIV-associata)",
+                categoria: "Eosinofilo",
+                criteri_maggiori: { pattern_primario: ["perivascolare_eosinofilo", "interstiziale_eosinofilo"], eosinofili: "abbondanti", infiltrato_follicolare: true },
+                criteri_minori: { spongiosi_follicolare: true, pustole_follicolari: true, degranulazione_eosinofila: true },
+                note: "⚠️ Infiltrato eosinofilo centrato sui follicoli con spongiosi follicolare e possibili pustole. Variante classica (Ofuji): Giappone, recidivante, viso. Variante HIV: prurito intenso, CD4 <300, parte superiore tronco. Escludere altre follicoliti.",
+                colorazioni: ["PAS/Grocott per escludere funghi", "Gram per batteri"],
+                workup_molecolare: "Sierologia HIV se non nota. CD4 count.",
+                bibliografia: { principale: { autori: "Nervi SJ, Schwartz RA, Dmochowski M", titolo: "Eosinophilic pustular folliculitis: a 40 year retrospect", rivista: "J Am Acad Dermatol", anno: 2006, volume: "55(2)", pagine: "285-289", doi: "10.1016/j.jaad.2006.02.035", pmid: "16844513", tipo: "review" }, secondarie: [{ autori: "Ofuji S, Ogino A, Horio T, Oseko T, Uehara M", titolo: "Eosinophilic pustular folliculitis", rivista: "Acta Derm Venereol", anno: 1970, pmid: "4195865", tipo: "original" }, { autori: "Rosenthal D, LeBoit PE, Klumpp L, Berger TG", titolo: "Human immunodeficiency virus-associated eosinophilic folliculitis", rivista: "Arch Dermatol", anno: 1991, pmid: "1952969", tipo: "case series" }] }
             },
             micosi_fungoide_early: {
                 nome: "Micosi fungoide (early)",
@@ -509,6 +539,11 @@
                             <CheckboxField label="Eosinofili perivascolari profondi → Drug" checked={data.eosinofili_perivascolari_profondi} onChange={(v) => updateField('eosinofili_perivascolari_profondi', v)} variant="eosinophil" />
                             <CheckboxField label="Degranulazione eosinofila evidente" checked={data.degranulazione_eosinofila} onChange={(v) => updateField('degranulazione_eosinofila', v)} variant="eosinophil" />
                             <CheckboxField label="Necrosi epidermica focale (punto inoculo)" checked={data.necrosi_epidermica_focale} onChange={(v) => updateField('necrosi_epidermica_focale', v)} variant="eosinophil" />
+                            <CheckboxField label="Fibrosi dermica verticale → Prurigo" checked={data.fibrosi_dermica} onChange={(v) => updateField('fibrosi_dermica', v)} variant="eosinophil" />
+                            <CheckboxField label="Iperplasia neurale → Prurigo" checked={data.iperplasia_neurale} onChange={(v) => updateField('iperplasia_neurale', v)} variant="eosinophil" />
+                            <CheckboxField label="Infiltrato centrato sui follicoli → Follicolite eos." checked={data.infiltrato_follicolare} onChange={(v) => updateField('infiltrato_follicolare', v)} variant="eosinophil" />
+                            <CheckboxField label="Spongiosi follicolare" checked={data.spongiosi_follicolare} onChange={(v) => updateField('spongiosi_follicolare', v)} variant="eosinophil" />
+                            <CheckboxField label="Pustole follicolari" checked={data.pustole_follicolari} onChange={(v) => updateField('pustole_follicolari', v)} variant="eosinophil" />
                         </div>
                     </div>
                     
@@ -642,7 +677,7 @@
                         </div>
                         {!showResults && <StepIndicator currentStep={step} />}
                         {!showResults ? <div className="bg-white rounded-xl shadow-lg p-6">{renderStep}</div> : <ResultsView diagnoses={results.diagnoses} activeFlags={results.activeFlags} onModify={() => setShowResults(false)} onExport={handleExport} />}
-                        <div className="mt-6 text-center text-sm text-slate-600"><p>DermPath v1.5 - Bite | Wells | Drug Reaction</p></div>
+                        <div className="mt-6 text-center text-sm text-slate-600"><p>DermPath v1.5 - Eosinofile: Bite | Wells | Drug | Orticaria | Prurigo | Follicolite</p></div>
                     </div>
                 </div>
             );
