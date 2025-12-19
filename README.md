@@ -1,402 +1,151 @@
-# Bibliography Upgrade v1.3 → v1.4
+# 🔬 DermPath v1.9
 
-## 🎯 Obiettivo
-Trasformare il tool da "supporto diagnostico" a **"reference completa evidence-based"** con bibliografia scientifica strutturata e aggiornata.
+**Sistema diagnostico pattern-based per dermatiti infiammatorie e linfomi cutanei**
 
----
+App web standalone per la diagnosi differenziale istopatologica delle dermatiti, basata su pattern architetturali secondo l'approccio di Ackerman.
 
-## 📚 Cosa è cambiato
-
-### BEFORE (v1.3)
-```javascript
-bibliografia: "Ackerman AB, 2005"
-```
-- Citazione minimal (autore + anno)
-- Nessun link
-- Nessun contesto (tipo paper, rivista, etc.)
-- Difficile verificare o approfondire
-
-### AFTER (v1.4)
-```javascript
-bibliografia: {
-    principale: {
-        autori: "Armstrong AW, Read C",
-        titolo: "Pathophysiology, Clinical Presentation, and Treatment of Psoriasis: A Review",
-        rivista: "JAMA",
-        anno: 2020,
-        volume: "323(19)",
-        pagine: "1945-1960",
-        doi: "10.1001/jama.2020.4006",
-        pmid: "32427307",
-        tipo: "review"
-    },
-    secondarie: [
-        {
-            autori: "Griffiths CEM, et al.",
-            titolo: "Psoriasis",
-            rivista: "Lancet",
-            anno: 2021,
-            doi: "10.1016/S0140-6736(20)32549-6",
-            tipo: "review"
-        }
-    ]
-}
-```
-- **Citazione completa** Vancouver-style
-- **Link cliccabili** a DOI e PubMed
-- **Tipo paper** esplicito (review, guidelines, original)
-- **Referenze multiple** per approfondimento
+🔗 **Live:** [https://infingardo.github.io/dermatiti/](https://infingardo.github.io/dermatiti/)
 
 ---
 
-## ✨ Features Nuove
+## ✨ Features
 
-### 1. Componente `BibliographySection` Interattivo
+### Pattern Supportati
+- **Spongotico** - ACD, AD, ICD, Pitiriasi rosea
+- **Psoriasiforme** - Psoriasi, Sifilide secondaria, LSC
+- **Interfaccia Lichenoide** - Lichen planus, Drug reaction lichenoide
+- **Interfaccia Vacuolare** - Lupus (DLE, SCLE), Dermatomiosite, EM
+- **Perivascolare/Eosinofilo** - Orticaria, Drug reaction, Wells, Bite, Follicolite eosinofila
+- **Vasculitico** - LCV, Vasculite IgA
+- **Vasculopatico** - Vasculopatia livedoide, Porpora pigmentaria
+- **Granulomatoso** - Sarcoidosi, GA, Necrobiosi lipoidica, Nodulo reumatoide
+- **Bolloso** - Pemfigo, Pemfigoide, Dermatite erpetiforme, EBA
+- **Panniculitico** - EN, Lupus panniculitis, Panniculite pancreatica, SPTCL, Vasculite nodulare
+- **Mastocitario** - Mastocitosi cutanea
 
-#### Collapsed (default)
-```
-📚 Bibliografia (3 referenze)  ▶
-```
-- Compatto, non invasivo
-- Conta automatica referenze
-- Click per espandere
+### Sistema Diagnostico
+- **Scoring pesato**: criteri maggiori (×3) e minori (×1)
+- **Red flags automatici**: esclusione diagnosi incompatibili
+- **Alert linfomi**: identificazione pattern sospetti (MF, SPTCL)
+- **Pannello IHC dinamico**: suggerimenti mirati per DD equivoche
 
-#### Expanded
-```
-📚 Bibliografia (3 referenze)  ▼
-
-┌──────────────────────────────────────────────────────────┐
-│ [PRINCIPALE] [review]                                    │
-│ Armstrong AW, Read C. "Pathophysiology, Clinical         │
-│ Presentation, and Treatment of Psoriasis: A Review".     │
-│ JAMA (2020) 323(19):1945-1960.                          │
-│                                                          │
-│ DOI: 10.1001/jama.2020.4006  PMID: 32427307            │
-├──────────────────────────────────────────────────────────┤
-│ Ulteriori letture:                                       │
-│                                                          │
-│ [review]                                                 │
-│ Griffiths CEM, et al. "Psoriasis". Lancet (2021)       │
-│ DOI: 10.1016/S0140-6736(20)32549-6                     │
-└──────────────────────────────────────────────────────────┘
-```
-
-**Interazioni:**
-- Click su DOI → Apre paper su publisher site
-- Click su PMID → Apre abstract su PubMed
-- Link si aprono in nuovo tab
-- Hover sui link → Underline
+### Marcatori IHC Integrati
+| Marcatore | Indicazione | Sens/Spec |
+|-----------|-------------|-----------|
+| PCR TCR dual-site | MF vs dermatite | 82.6%/95.7% |
+| DIF Lupus Band | Lupus cutaneo | 71-84%/>90% |
+| MxA | Lupus/DM vs altri | 85-95%/>90% |
+| CD123 clusters | Lupus vs MF | 70-80%/>90% |
+| Ki-67 soprabasale | Psoriasi vs eczema | ~83%/~70% |
+| IL-36γ | Psoriasi vs altri | alta/alta |
+| BP180 ELISA | Pemfigoide | 82-90%/94% |
+| CD117/CD25 | Mastocitosi | >95%/>95% |
 
 ---
 
-### 2. Export Potenziato
+## 🚀 Utilizzo
 
-#### Prima (v1.3)
-```
-1. Psoriasi vulgaris (95%)
-   ...
-   Bibliografia: Armstrong AW, 2020
-```
+### Workflow in 4 Step
 
-#### Dopo (v1.4)
-```
-1. PSORIASI VULGARIS (95%)
-   Pattern classico...
-   IHC/Colorazioni: PAS per escludere tinea
-   
-   Bibliografia:
-   Principale: Armstrong AW, Read C (2020). "Pathophysiology, Clinical Presentation, and Treatment of Psoriasis: A Review". JAMA DOI: 10.1001/jama.2020.4006 PMID: 32427307
-   Secondarie:
-     1. Griffiths CEM, et al. (2021). "Psoriasis". Lancet DOI: 10.1016/S0140-6736(20)32549-6
-```
+1. **Pattern** - Seleziona pattern architetturale predominante + fase lesione
+2. **Epidermide** - Caratteristiche epidermiche e clues morfologici
+3. **Derma** - Infiltrato, composizione cellulare, pattern speciali
+4. **Speciali** - Sospetto linfoma, marcatori IHC, contesto clinico
 
-**Vantaggi:**
-- Copia-incolla diretto per referto
-- Referenze verificabili
-- Citazioni Vancouver-compliant
+### Output
+- Diagnosi differenziale ranked per % compatibilità
+- Red flags con diagnosi escluse
+- Colorazioni/IHC suggerite per conferma
+- Bibliografia con PMID per ogni diagnosi
+- Export referto (.txt)
 
 ---
 
-## 📊 Referenze Aggiornate: Breakdown per Diagnosi
+## 📋 Changelog
 
-| Diagnosi | Principale | Anno | Tipo | Secondarie | Rationale |
-|----------|-----------|------|------|------------|-----------|
-| **Dermatite allergica contatto** | Usatine & Riojas | 2010 | Review | Ale & Maibach 2010 | Classici solidi, topic stabile |
-| **Dermatite atopica** | Weidinger & Novak | 2016 | Review (Lancet) | Langan 2020 | Lancet review = gold standard |
-| **Psoriasi** | Armstrong & Read | 2020 | Review (JAMA) | Griffiths 2021 (Lancet) | Aggiornamento triplo-A journals |
-| **Lichen planus** | Gupta & Jawanda | 2015 | Review | Le Cleach 2012 (NEJM) | Balance review recente + NEJM |
-| **Lupus discoide** | Kuhn et al. | 2017 | Guidelines (EDF) | Merola 2020 (JAMA) | Guidelines europee + US update |
-| **Eritema multiforme** | Hocquelet et al. | 2020 | Review | Lerch 2018 | Review recentissima + consensus |
-| **Vasculite leucocitoclastica** | Sunderkötter et al. | 2018 | Consensus | Jennette 1997 (NEJM) | CHCC nomenclature + classico |
-| **Micosi fungoide** | Willemze et al. | 2019 | Guidelines (WHO-EORTC) | Scarisbrick 2021, Korgavkar 2013 | WHO classification + registry |
-| **pcALCL** | Kadin et al. | 2016 | Original | Willemze 2019 (WHO), Woo 2009 | Patogenesi + classification + prognostico |
-| **Granuloma anulare** | Piette & Rosenbach | 2016 | Review (JAAD) | Thornsberry 2013 | JAAD comprehensive review |
-| **Pemfigo volgare** | Joly et al. | 2020 | Guidelines (S2K) | Murrell 2020 (consensus), Amber 2015 | Guidelines EU + international consensus |
-| **Dermatite erpetiforme** | Caproni et al. | 2012 | Review | Bolotin 2011 | Celiac disease link + comprehensive |
-| **Pemfigoide bolloso** | Schmidt et al. | 2016 | Consensus | Feliciani 2015 (EDF), Kasperkiewicz 2017 | Pathogenesis + guidelines + review |
+### v1.9 (Dicembre 2024)
+**+8 nuove diagnosi:**
+- Pitiriasi rosea (paracheratosi "a tumuli", infiltrato "a manicotto")
+- Dermatite irritativa (ICD) - necrosi cheratinociti superficiali
+- Dermatomiosite - vacuolare + mucina + MxA+
+- Vasculopatia livedoide - trombi senza leucocitoclasia
+- Porpora pigmentaria cronica
+- Panniculite pancreatica - ghost cells
+- Necrobiosi lipoidica - pattern "sandwich"
+- Mastocitosi cutanea - CD117/CD25
 
----
+**Nuovi marcatori:**
+- MxA (firma IFN tipo I)
+- CD123 clusters vs sparso
+- IL-36γ
+- Pannello mastocitosi
 
-## 🎓 Criteri di Selezione Referenze
+**Nuovi clues:**
+- Vasculite vs vasculopatia (leucocitoclasia)
+- Ghost cells panniculite
+- Follicoli germinativi (lupus panniculitis)
 
-### Referenza Principale (1 per diagnosi)
-**Must-have:**
-1. **Recente** (preferenza 2015+)
-2. **Autorevolezza**: Journal impact alto (JAMA, Lancet, NEJM, Blood) o Guidelines ufficiali (WHO, EDF, AAD)
-3. **Tipo**: Review comprehensive OR Guidelines internazionali
-4. **Accessibilità**: DOI/PMID disponibili
+### v1.8
+- Panniculiti complete (EN, Lupus, SPTCL, Vasculite nodulare)
+- Sistema pannello IHC psoriasi vs spongotico
+- Fase lesione (acuta/subacuta/cronica)
 
-**Evitati:**
-- Case report singoli (bassa evidence)
-- Pre-2010 a meno che classici insostituibili
-- Riviste predatorie
+### v1.7
+- Pattern eosinofilo completo (Wells, Bite, Drug, Follicolite)
+- Prurigo nodularis
+- Clues morfologici espansi
 
-### Referenze Secondarie (1-3 per diagnosi)
-**Purpose:** Approfondimento o prospettive complementari
-- Update recenti (2018+)
-- Guidelines alternative (es. US vs EU)
-- Paper epidemiologici/prognostici se rilevanti clinicamente
-- Studi originali se patogenesi rilevante
+### v1.6
+- Malattie bollose (Pemfigo, Pemfigoide, DH)
+- Granulomatosi (Sarcoidosi, GA)
+- Performance IHC con sensibilità/specificità
 
----
-
-## 📈 Valore Aggiunto Clinico
-
-### Per il Patologo Senior
-✅ **Validazione rapida**: Click su PubMed → Abstract in 5 secondi  
-✅ **Aggiornamento continuo**: Referenze 2015-2021 → No outdated info  
-✅ **Export referti**: Bibliografia completa in `.txt` → Copy-paste in referto ufficiale  
-
-### Per il Resident
-✅ **Educazione integrata**: Diagnosi + referenza → Studio approfondito immediato  
-✅ **Gerarchia knowledge**: Principale = start here, Secondarie = deep dive  
-✅ **Tipo paper chiaro**: [review] vs [guidelines] vs [original] → Sa cosa aspettarsi  
-
-### Per il Clinico (dermatologo)
-✅ **Correlazione clinico-patologica**: Referenze linkano management guidelines  
-✅ **Credibilità aumentata**: Journal prestigiosi → Fiducia in diagnosi suggerita  
+### v1.5
+- Alert linfomi automatico
+- Sifilide secondaria
+- Red flags system
 
 ---
 
-## 🔧 Implementazione Tecnica
+## 🛠️ Tecnologie
 
-### Backward Compatibility
-```javascript
-// OLD format (v1.3) continua a funzionare
-if (typeof bibliografia === 'string') {
-    return <p className="text-xs">📚 {bibliografia}</p>;
-}
-
-// NEW format (v1.4) triggers componente interattivo
-const { principale, secondarie } = bibliografia;
-// render espandibile
-```
-
-**Zero breaking changes** per eventuali diagnosi custom con formato vecchio.
+- React 18 (standalone via CDN)
+- CSS inline (zero dipendenze esterne)
+- Vanilla JavaScript
+- Single-file HTML (~60KB)
 
 ---
 
-### Performance
-- Componente `BibliographySection` **memoizzato** → Re-render solo se bibliografia cambia
-- Collapsed di default → Minimal DOM overhead
-- Lazy expansion → Render completo solo on-click
+## 📚 Bibliografia Principale
 
-**Benchmark:**
-- Time to Interactive: invariato (~200ms)
-- Memory: +2KB per diagnosis card (trascurabile)
-- File size: +12KB (75KB totale, ancora single-file portable)
+Ogni diagnosi include riferimenti PMID. Fonti principali:
 
----
-
-## 📦 File Size Impact
-
-| Versione | File Size | Δ |
-|----------|-----------|---|
-| v1.3 (Production) | 63 KB | Baseline |
-| v1.4 (Bibliografia) | 75 KB | **+12 KB (+19%)** |
-
-**Breakdown +12KB:**
-- Bibliografia strutturata (DIAGNOSTIC_PATTERNS): +8 KB
-- Componente BibliographySection: +3 KB
-- Styling aggiuntivo (collapsible): +1 KB
-
-**Trade-off:** +19% size per **300% information density** → Worth it.
+- Willemze R et al. WHO-EORTC classification. *Blood* 2019
+- Armstrong AW et al. Psoriasis. *JAMA* 2020
+- Weidinger S et al. Atopic Dermatitis. *Lancet* 2016
+- Requena L et al. Panniculitis I-II. *JAAD* 2001
+- Joly P et al. Pemphigus guidelines. *JEADV* 2020
+- Schmidt E et al. Pemphigoid. *J Invest Dermatol* 2016
+- Valent P et al. Mastocytosis WHO. *Blood* 2017
 
 ---
 
-## 🧪 Testing Checklist
+## ⚠️ Disclaimer
 
-### Functional
-- [x] Bibliografia si espande/collassa correttamente
-- [x] Link DOI funzionano (aprono publisher)
-- [x] Link PMID funzionano (aprono PubMed)
-- [x] Badge "PRINCIPALE" / tipo paper visibili
-- [x] Export include bibliografia completa
-- [x] Backward compatibility con string format
+**Strumento di supporto decisionale - NON sostituisce il giudizio clinico.**
 
-### UX
-- [x] Default collapsed non invade diagnosis card
-- [x] Hover sui link mostra underline
-- [x] Click espansione smooth (no jump)
-- [x] Font size leggibile (text-xs ma non troppo piccolo)
-- [x] Colori distinguibili (PRINCIPALE = blue, tipo = gray)
-
-### Performance
-- [x] Memo funziona (expand/collapse non re-render cards)
-- [x] Nessun lag su expand (anche con 3+ secondarie)
-- [x] Export veloce (<500ms anche con 10 diagnosi)
-
-### Cross-browser
-- [x] Chrome/Edge: Bibliografia espandibile ✅
-- [x] Firefox: Link cliccabili ✅
-- [x] Safari: Styling consistente ✅
-- [x] Mobile: Testo leggibile, touch-friendly ✅
+La diagnosi definitiva richiede sempre:
+- Correlazione clinico-patologica
+- Valutazione morfologica diretta
+- Indagini supplementari quando indicate
+- Consulenza con colleghi esperti in caso di dubbio
 
 ---
 
-## 🚀 Deployment
+## 📝 Licenza
 
-### Recommended Usage
-**File:** `index_bibliography.html` (v1.4)
-
-**Target users:**
-- ✅ Residents (massimo valore educativo)
-- ✅ Senoirs (validazione referenze)
-- ✅ Academic centers (teaching + export referti)
-
-**Alternative:**
-`index_production.html` (v1.3) se:
-- Bibliografia non critica
-- File size deve rimanere <65KB
-- Ambiente con bandwidth limitato
+Uso educativo e professionale. Non per scopi commerciali.
 
 ---
 
-## 📝 Future Enhancements (Optional)
-
-### Short-term (low-hanging fruit)
-- [ ] Tooltip su hover tipo paper (es. "Review = sintesi letteratura")
-- [ ] Icona 📖 su link esterni per chiarezza
-- [ ] "Copy citation" button (formato Vancouver)
-
-### Medium-term (nice-to-have)
-- [ ] Abstract brevi in tooltip hover (fetch da PubMed API)
-- [ ] Filtro bibliografia per anno (mostra solo 2020+)
-- [ ] "Evidence quality" score (consensus > review > case)
-
-### Long-term (overkill?)
-- [ ] Integration con Zotero/Mendeley (export .bib)
-- [ ] Auto-update referenze (PubMed API check per nuove review)
-- [ ] "Cited by" count da Google Scholar
-
-**Recommendation:** Stop here. v1.4 già oltre aspettative per clinical tool.
-
----
-
-## 🎯 Key Takeaways
-
-### Why This Upgrade Matters
-1. **Scientifically robust**: Non più "trust me", ma "ecco le fonti"
-2. **Educational value**: Da tool → Comprehensive learning resource
-3. **Professional export**: Referto con bibliografia citabile
-4. **Resident-friendly**: Link diretti per approfondimento
-5. **Future-proof**: Struttura dati scalabile (facile aggiungere ref)
-
-### What Makes It Special
-- ✅ **Single-file portable** (ancora ~75KB, no external deps)
-- ✅ **Backward compatible** (vecchio formato funziona)
-- ✅ **Performance-conscious** (memoizzato, lazy expansion)
-- ✅ **Production-ready** (zero external API, offline-capable)
-- ✅ **Clinically validated** (referenze 2015-2021, journals major)
-
----
-
-## ✅ Ready for Production
-
-**Status:** ✅ Production-ready  
-**Version:** v1.4-bibliography  
-**Recommended for:** Clinical deployment + Teaching  
-**File:** `index_bibliography.html` (75 KB)  
-
----
-
-**Upgrade completato. Da tool diagnostico a reference completa evidence-based in un file.**
-
----
-
-## 📖 Appendice: Sample Bibliografia Espansa
-
-<details>
-<summary><strong>Psoriasi Vulgaris - Full Bibliography</strong></summary>
-
-### Principale
-**Armstrong AW, Read C** (2020)  
-*"Pathophysiology, Clinical Presentation, and Treatment of Psoriasis: A Review"*  
-JAMA 323(19):1945-1960  
-**Type:** Review  
-**DOI:** 10.1001/jama.2020.4006  
-**PMID:** 32427307  
-
-**Why chosen:**
-- Comprehensive JAMA review (2020 = recent)
-- Covers pathophysiology + clinical + treatment
-- High-impact journal (IF ~157)
-- Accessible abstract via PMID
-- Cited by 400+ papers (Google Scholar)
-
-### Secondarie
-**Griffiths CEM, Armstrong AW, Gudjonsson JE, Barker JNWN** (2021)  
-*"Psoriasis"*  
-Lancet  
-**Type:** Review  
-**DOI:** 10.1016/S0140-6736(20)32549-6  
-
-**Why chosen:**
-- Most recent Lancet seminar (2021)
-- Complementary to JAMA (different perspective)
-- European authors (Griffiths = UK psoriasis authority)
-- Covers genetics + pathogenesis advances
-
-</details>
-
-<details>
-<summary><strong>Micosi Fungoide - Full Bibliography</strong></summary>
-
-### Principale
-**Willemze R, Cerroni L, Kempf W, et al.** (2019)  
-*"The 2018 update of the WHO-EORTC classification for primary cutaneous lymphomas"*  
-Blood 133(16):1703-1714  
-**Type:** Guidelines (WHO-EORTC)  
-**DOI:** 10.1182/blood-2018-11-881268  
-**PMID:** 30635287  
-
-**Why chosen:**
-- **Official WHO classification** (gold standard)
-- Most recent update (2018/2019)
-- Diagnostic criteria definitive
-- International consensus (WHO + EORTC)
-- Published in Blood (highest hematology journal)
-
-### Secondarie
-
-1. **Scarisbrick JJ, Quaglino P, Prince HM, et al.** (2021)  
-   *"The PROCLIPI international registry of early-stage mycosis fungoides"*  
-   Br J Dermatol  
-   **Type:** Registry study  
-   **DOI:** 10.1111/bjd.19664  
-   
-   **Why:** Prognostic data, early-stage focus
-
-2. **Korgavkar K, Xiong M, Weinstock M** (2013)  
-   *"Changing incidence trends of cutaneous T-cell lymphoma"*  
-   JAMA Dermatol  
-   **Type:** Epidemiology  
-   **DOI:** 10.1001/jamadermatol.2013.5526  
-   
-   **Why:** Epidemiology context, incidence trends
-
-</details>
-
----
-
-**Il tool è ora una reference library interattiva, non solo un calculator.**
+**DermPath v1.9** - Pattern-based diagnostic system for inflammatory dermatoses
