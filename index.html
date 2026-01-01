@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DermPath v1.9 - Complete Update</title>
+    <title>DermPath v2.0</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html{font-family:system-ui,-apple-system,sans-serif;line-height:1.5}
         .min-h-screen{min-height:100vh}.max-w-4xl{max-width:56rem;margin:0 auto}
         .flex{display:flex}.flex-1{flex:1}.grid{display:grid}
         .grid-cols-2{grid-template-columns:repeat(2,1fr)}
+        .grid-cols-3{grid-template-columns:repeat(3,1fr)}
         .items-center{align-items:center}.items-start{align-items:flex-start}
         .justify-between{justify-content:space-between}.block{display:block}
         .p-2{padding:.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}
@@ -27,29 +28,37 @@
         .text-orange-800{color:#9a3412}.text-green-700{color:#15803d}.text-green-800{color:#166534}
         .text-indigo-800{color:#3730a3}.text-indigo-900{color:#312e81}.text-violet-800{color:#5b21b6}
         .text-teal-800{color:#115e59}.text-teal-900{color:#134e4a}.text-pink-800{color:#9d174d}
+        .text-purple-800{color:#6b21a8}.text-purple-900{color:#581c87}
         .bg-white{background:#fff}.bg-slate-50{background:#f8fafc}.bg-slate-100{background:#f1f5f9}.bg-slate-200{background:#e2e8f0}.bg-slate-300{background:#cbd5e1}
         .bg-blue-50{background:#eff6ff}.bg-blue-600{background:#2563eb}.bg-blue-700{background:#1d4ed8}
         .bg-green-50{background:#f0fdf4}.bg-green-600{background:#16a34a}.bg-green-700{background:#15803d}
         .bg-red-50{background:#fef2f2}.bg-red-100{background:#fee2e2}.bg-amber-50{background:#fffbeb}.bg-amber-100{background:#fef3c7}
-        .bg-purple-50{background:#faf5ff}.bg-orange-50{background:#fff7ed}.bg-orange-100{background:#ffedd5}
+        .bg-purple-50{background:#faf5ff}.bg-purple-100{background:#f3e8ff}.bg-orange-50{background:#fff7ed}.bg-orange-100{background:#ffedd5}
         .bg-indigo-50{background:#eef2ff}.bg-indigo-100{background:#e0e7ff}.bg-violet-50{background:#f5f3ff}
         .bg-teal-50{background:#f0fdfa}.bg-teal-100{background:#ccfbf1}.bg-pink-50{background:#fdf2f8}
-        .border{border-width:1px}.border-2{border-width:2px}
+        .bg-cyan-50{background:#ecfeff}
+        .border{border-width:1px}.border-2{border-width:2px}.border-4{border-width:4px}
         .border-slate-200{border-color:#e2e8f0}.border-slate-300{border-color:#cbd5e1}
         .border-blue-200{border-color:#bfdbfe}.border-blue-300{border-color:#93c5fd}.border-blue-600{border-color:#2563eb}
-        .border-red-200{border-color:#fecaca}.border-red-300{border-color:#fca5a5}.border-red-500{border-color:#ef4444}
+        .border-red-200{border-color:#fecaca}.border-red-300{border-color:#fca5a5}.border-red-500{border-color:#ef4444}.border-red-600{border-color:#dc2626}
         .border-amber-200{border-color:#fde68a}.border-amber-500{border-color:#f59e0b}
         .border-orange-200{border-color:#fed7aa}.border-orange-500{border-color:#f97316}
-        .border-purple-200{border-color:#e9d5ff}.border-purple-300{border-color:#d8b4fe}
+        .border-purple-200{border-color:#e9d5ff}.border-purple-300{border-color:#d8b4fe}.border-purple-500{border-color:#a855f7}.border-purple-600{border-color:#9333ea}
         .border-indigo-200{border-color:#c7d2fe}.border-indigo-300{border-color:#a5b4fc}.border-indigo-500{border-color:#6366f1}
         .border-violet-300{border-color:#c4b5fd}.border-teal-300{border-color:#5eead4}.border-teal-500{border-color:#14b8a6}
-        .border-pink-300{border-color:#f9a8d4}
+        .border-pink-300{border-color:#f9a8d4}.border-cyan-200{border-color:#a5f3fc}
         .rounded{border-radius:.25rem}.rounded-lg{border-radius:.5rem}.rounded-xl{border-radius:.75rem}.rounded-full{border-radius:9999px}
         .shadow-lg{box-shadow:0 10px 15px -3px rgba(0,0,0,.1)}
         .overflow-x-auto{overflow-x:auto}.cursor-pointer{cursor:pointer}.border-dashed{border-style:dashed}
         select,input[type="text"],textarea{width:100%;padding:.75rem;border:2px solid #e2e8f0;border-radius:.5rem;font-size:1rem}
         select:focus,input:focus,textarea:focus{outline:none;border-color:#2563eb}
         table{width:100%;border-collapse:collapse}th,td{padding:.5rem;text-align:left;border-bottom:1px solid #e2e8f0}
+        .animate-pulse{animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+        .toggle-switch{position:relative;width:44px;height:24px;background:#cbd5e1;border-radius:12px;cursor:pointer;transition:background .2s}
+        .toggle-switch.active{background:#2563eb}
+        .toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:white;border-radius:50%;transition:transform .2s}
+        .toggle-switch.active::after{transform:translateX(20px)}
     </style>
 </head>
 <body>
@@ -59,7 +68,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="text/babel">
 const{useState,useMemo,useCallback,memo}=React;
-const SC={MAJOR:3,MINOR:1,SOFT:0.9,RED_PENALTY:25,MIN_EXCL:5,THRESH:50};
+const SC={MAJOR:3,MINOR:1,SOFT:0.9,RED_PENALTY:25,MIN_EXCL:5,THRESH:50,MF_SPONG_PENALTY:30};
 
 const INIT={
     pattern_primario:'',spongiosi:'',esocitosi:'',acantosi:'',paracheratosi:'',ipergranulosi:'',ipogranulosi:'',
@@ -75,12 +84,16 @@ const INIT={
     saw_toothing:false,ipergranulosi_cuneo:false,granulomi_miescher:false,plugging_follicolare:false,
     mucina_dermica:'',plasmacellule:'',infiltrato_perianessiale_profondo:false,necrosi_adipociti:false,emofagocitosi:false,
     panniculite_tipo:'',panniculite_vasculite:false,
-    // v1.9 nuovi campi
     fase_lesione:'',paracheratosi_mounds:false,infiltrato_manicotto:false,necrosi_cheratino_superficiale:false,
     ghost_cells:false,calcificazione_basofila:false,trombi_fibrina:false,leucocitoclasia:false,depositi_emosiderina:false,
     necrobiosi_sandwich:false,fibrina_centrale:false,mastociti_aggregati:false,cd117_pos:false,cd25_aberrante:false,
-    mxa_positivo:false,cd123_clusters:false,follicoli_germinativi:false,necrosi_ialina_grasso:false
+    mxa_positivo:false,cd123_clusters:false,follicoli_germinativi:false,necrosi_ialina_grasso:false,
+    // v2.0: nuovo campo critico per MF
+    spongiosi_proporzionata:''
 };
+
+// Quick mode: solo campi essenziali
+const QUICK_FIELDS=['pattern_primario','spongiosi','acantosi','paracheratosi','eosinofili','plasmacellule','epidermotropismo','spongiosi_proporzionata'];
 
 const PATTERNS=[
     {value:'spongotico',label:'Spongotico',desc:'Edema intercellulare'},
@@ -117,12 +130,13 @@ const RED_FLAGS=[
     {flag:"plasmacellule_psoriasiforme",diagnosi:"SIFILIDE SECONDARIA!",escludi:["psoriasi_vulgaris"]},
     {flag:"granulomi_miescher_en",diagnosi:"Eritema nodoso",escludi:["lupus_panniculitis"]},
     {flag:"emofagocitosi_lobulare",diagnosi:"SPTCL (linfoma)",escludi:["eritema_nodoso","lupus_panniculitis"]},
-    // v1.9 nuove red flags
     {flag:"ghost_cells_panniculite",diagnosi:"Panniculite PANCREATICA!",escludi:["lupus_panniculitis","eritema_nodoso"]},
     {flag:"trombi_no_lcv",diagnosi:"Vasculopatia (non vasculite)",escludi:["vasculite_leucocitoclastica"]},
     {flag:"mxa_cd123_lupus",diagnosi:"Lupus/Connettivite",escludi:["micosi_fungoide_early"]},
     {flag:"mastociti_cd25",diagnosi:"Mastocitosi sistemica",escludi:[]},
-    {flag:"paracheratosi_mounds_manicotto",diagnosi:"Pitiriasi rosea",escludi:["sifilide_secondaria"]}
+    {flag:"paracheratosi_mounds_manicotto",diagnosi:"Pitiriasi rosea",escludi:["sifilide_secondaria"]},
+    // v2.0: nuova red flag per spongiosi proporzionata
+    {flag:"spongiosi_proporzionata_mf",diagnosi:"Dermatite (MF improbabile)",escludi:["micosi_fungoide_early"]}
 ];
 
 const IHC_PERF={
@@ -131,9 +145,8 @@ const IHC_PERF={
     DIF_LP:{test:"DIF IgM fibrillar",ind:"Lichen planus",sens:"78.5",spec:">90"},
     CD123:{test:"CD123 ≥10 cellule",ind:"Lupus vs LPP",sens:"50",spec:"93"},
     BP180:{test:"ELISA BP180",ind:"Pemfigoide",sens:"82-90",spec:"94"},
-    Treponema:{test:"IHC Treponema",ind:"Sifilide",sens:"60-70",spec:"100"},
+    Treponema:{test:"IHC anti-Treponema",ind:"Sifilide",sens:"60-70",spec:"100"},
     SPTCL:{test:"CD3+CD8+βF1+CD56-",ind:"SPTCL",sens:">95",spec:">95"},
-    // v1.9 nuovi
     MxA:{test:"MxA (IFN type I)",ind:"Lupus/DM vs altri",sens:"85-95",spec:">90"},
     Ki67_pso:{test:"Ki-67 soprabasale",ind:"Psoriasi vs eczema",sens:"83",spec:"~70"},
     CD117:{test:"CD117 + Triptasi",ind:"Mastocitosi",sens:">95",spec:">95"},
@@ -155,7 +168,7 @@ const DX={
     dermatite_allergica_contatto:{
         nome:"Dermatite allergica da contatto",cat:"Spongotico",
         major:{pattern_primario:"spongotico",spongiosi:["moderata","marcata"],esocitosi:"presente"},
-        minor:{eosinofili:["presenti","abbondanti"],infiltrato_distribuzione:"perivascolare_superficiale"},
+        minor:{eosinofili:["presenti","abbondanti"],infiltrato_distribuzione:"perivascolare_superficiale",spongiosi_proporzionata:"si"},
         note:"Pattern ipersensibilità IV. Eosinofili dermici frequenti.",
         color:["PAS escludere dermatofiti"],ihc:null,
         bib:{autori:"Usatine RP",titolo:"Contact Dermatitis",riv:"Am Fam Physician",anno:2010,pmid:"20672788"}
@@ -163,7 +176,7 @@ const DX={
     dermatite_atopica_acuta:{
         nome:"Dermatite atopica (acuta)",cat:"Spongotico",
         major:{pattern_primario:"spongotico",spongiosi:["moderata","marcata"],esocitosi:"presente"},
-        minor:{eosinofili:["presenti","abbondanti"],paracheratosi:"focale"},
+        minor:{eosinofili:["presenti","abbondanti"],paracheratosi:"focale",spongiosi_proporzionata:"si"},
         note:"CLUE vs MF: spongiosi PROPORZIONATA all'esocitosi. Spongiosi follicolare nei fototipi scuri.",
         color:["PAS"],ihc:null,
         bib:{autori:"Weidinger S",titolo:"Atopic Dermatitis",riv:"Lancet",anno:2016,pmid:"26377142"}
@@ -315,8 +328,9 @@ const DX={
     micosi_fungoide_early:{
         nome:"Micosi fungoide (early)",cat:"Linfoma cutaneo T",
         major:{pattern_primario:["spongotico","interfaccia_lichenoide"],linfociti_atipici:"presenti"},
-        minor:{epidermotropismo:"presente",alone_chiaro:true},
-        note:"⚠️ LINFOMA! Epidermotropismo SENZA spongiosi. Alone chiaro. PCR TCR: sens 82.6%, spec 95.7%.",
+        // v2.0: spongiosi NON proporzionata è criterio maggiore per MF
+        minor:{epidermotropismo:"presente",alone_chiaro:true,spongiosi_proporzionata:"no"},
+        note:"⚠️ LINFOMA! Epidermotropismo SENZA spongiosi proporzionata. Alone chiaro. PCR TCR: sens 82.6%, spec 95.7%.",
         color:["CD3","CD4","CD8","CD7 loss","TOX","PD-1"],ihc:"PCR_TCR",
         bib:{autori:"Willemze R",titolo:"WHO-EORTC lymphomas",riv:"Blood",anno:2019,pmid:"30635287"}
     },
@@ -436,12 +450,13 @@ const Engine={
             plasmacellule_psoriasiforme:()=>["presenti","abbondanti"].includes(d.plasmacellule)&&d.pattern_primario==="psoriasiforme",
             granulomi_miescher_en:()=>d.granulomi_miescher&&d.pattern_primario==="panniculitico",
             emofagocitosi_lobulare:()=>d.emofagocitosi&&d.panniculite_tipo==="lobulare",
-            // v1.9 nuovi
             ghost_cells_panniculite:()=>d.ghost_cells&&d.pattern_primario==="panniculitico",
             trombi_no_lcv:()=>d.trombi_fibrina&&!d.leucocitoclasia,
             mxa_cd123_lupus:()=>d.mxa_positivo||d.cd123_clusters,
             mastociti_cd25:()=>d.mastociti_aggregati&&d.cd25_aberrante,
-            paracheratosi_mounds_manicotto:()=>d.paracheratosi_mounds&&d.infiltrato_manicotto
+            paracheratosi_mounds_manicotto:()=>d.paracheratosi_mounds&&d.infiltrato_manicotto,
+            // v2.0: spongiosi proporzionata penalizza MF
+            spongiosi_proporzionata_mf:()=>d.spongiosi_proporzionata==="si"&&d.epidermotropismo==="presente"
         };
         return chk[f]?chk[f]():false;
     },
@@ -454,6 +469,12 @@ const Engine={
         let s=0,m=0;
         Object.entries(p.major).forEach(([c,v])=>{m+=SC.MAJOR;s+=this.calcScore(c,v,d[c],SC.MAJOR);});
         if(p.minor)Object.entries(p.minor).forEach(([c,v])=>{m+=SC.MINOR;s+=this.calcScore(c,v,d[c],SC.MINOR);});
+        
+        // v2.0: penalità specifica MF se spongiosi proporzionata
+        if(k==='micosi_fungoide_early'&&d.spongiosi_proporzionata==='si'){
+            s=Math.max(0,s-SC.MF_SPONG_PENALTY);
+        }
+        
         const pct=m>0?Math.round((s/m)*100):0;
         return{pct:excl?Math.max(SC.MIN_EXCL,pct-SC.RED_PENALTY):pct,excl};
     },
@@ -469,7 +490,11 @@ const Engine={
         const high=scores.filter(x=>x.pct>=50);
         const low=scores.filter(x=>x.pct>=30&&x.pct<50).slice(0,3);
         const hints=this.hints(d);
-        return{diagnoses:high,lowConf:low,flags,hints};
+        
+        // v2.0: check sifilide warning
+        const syphilisWarning = ["presenti","abbondanti"].includes(d.plasmacellule) && d.pattern_primario==="psoriasiforme";
+        
+        return{diagnoses:high,lowConf:low,flags,hints,syphilisWarning};
     },
     hints(d){
         const p=d.pattern_primario;
@@ -498,14 +523,16 @@ const Engine={
 const useForm=(init=1)=>{const[s,setS]=useState(init);return{step:s,next:useCallback(()=>setS(x=>x+1),[]),prev:useCallback(()=>setS(x=>x-1),[]),reset:useCallback(()=>setS(init),[init])};};
 const useData=()=>{const[d,setD]=useState(INIT);return{data:d,upd:useCallback((f,v)=>setD(p=>({...p,[f]:v})),[]),reset:useCallback(()=>setD(INIT),[])};};
 
-const Sel=memo(({label,value,onChange,opts})=>(
-    <div><label className="block font-semibold mb-2">{label}</label>
-    <select value={value} onChange={e=>onChange(e.target.value)}><option value="">Seleziona...</option>{opts.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+const Sel=memo(({label,value,onChange,opts,highlight})=>(
+    <div><label className={`block font-semibold mb-2 ${highlight?'text-purple-800':''}`}>{label}</label>
+    <select value={value} onChange={e=>onChange(e.target.value)} className={highlight?'border-purple-500':''}>
+        <option value="">Seleziona...</option>{opts.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+    </select></div>
 ));
 
 const Chk=memo(({label,checked,onChange,variant="default"})=>{
-    const col={default:"border-slate-200 hover:bg-slate-50",warning:"border-amber-200 hover:bg-amber-50",danger:"border-red-300 hover:bg-red-50",eosinophil:"border-orange-200 hover:bg-orange-50",morpho:"border-indigo-300 hover:bg-indigo-50",teal:"border-teal-300 hover:bg-teal-50"};
-    return(<label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer ${col[variant]}`}><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} className="mr-3"/><span className={variant==="danger"?"font-semibold":""}>{label}</span></label>);
+    const col={default:"border-slate-200 hover:bg-slate-50",warning:"border-amber-200 hover:bg-amber-50",danger:"border-red-300 hover:bg-red-50",eosinophil:"border-orange-200 hover:bg-orange-50",morpho:"border-indigo-300 hover:bg-indigo-50",teal:"border-teal-300 hover:bg-teal-50",critical:"border-purple-500 bg-purple-50 hover:bg-purple-100"};
+    return(<label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer ${col[variant]}`}><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} className="mr-3"/><span className={variant==="danger"||variant==="critical"?"font-semibold":""}>{label}</span></label>);
 });
 
 const Radio=memo(({opt,sel,onSel})=>(
@@ -514,14 +541,15 @@ const Radio=memo(({opt,sel,onSel})=>(
     <div><div className="font-semibold">{opt.label}</div><div className="text-sm text-slate-600">{opt.desc}</div></div></label>
 ));
 
-const Steps=memo(({cur})=>(
+const Steps=memo(({cur,quick})=>(
     <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-    <div className="flex items-center justify-between mb-2">{[1,2,3,4].map(s=>(
+    <div className="flex items-center justify-between mb-2">{(quick?[1]:[1,2,3,4]).map(s=>(
         <div key={s} className="flex items-center flex-1">
         <div className={`w-10 h-10 rounded-full flex items-center font-bold ${cur>=s?'bg-blue-600 text-white':'bg-slate-200 text-slate-600'}`} style={{justifyContent:'center'}}>{s}</div>
-        {s<4&&<div className={`flex-1 h-1 mx-2 ${cur>s?'bg-blue-600':'bg-slate-200'}`}/>}</div>
+        {s<(quick?1:4)&&<div className={`flex-1 h-1 mx-2 ${cur>s?'bg-blue-600':'bg-slate-200'}`}/>}</div>
     ))}</div>
-    <div className="flex justify-between text-xs text-slate-600 mt-2"><span>Pattern</span><span>Epidermide</span><span>Infiltrato</span><span>Finalizza</span></div></div>
+    {!quick&&<div className="flex justify-between text-xs text-slate-600 mt-2"><span>Pattern</span><span>Epidermide</span><span>Infiltrato</span><span>Finalizza</span></div>}
+    {quick&&<div className="text-center text-xs text-slate-600 mt-2">Modalità Rapida</div>}</div>
 ));
 
 const Nav=memo(({onBack,onNext,canNext=true,nextLbl="Avanti →"})=>(
@@ -566,7 +594,7 @@ const DxCard=memo(({dx,idx})=>{
     const bg=isLymph?'bg-red-50 border-red-500':isEos?'bg-orange-50 border-orange-500':isPann?'bg-teal-50 border-teal-500':'bg-blue-50 border-blue-500';
     return(<div className={`${bg} border-2 rounded-lg p-4 mb-4`}>
     <div className="flex justify-between items-center mb-2"><div><span className="px-2 py-1 bg-white rounded text-sm font-bold">#{idx+1}</span><h3 className="text-xl font-bold mt-1">{dx.nome}</h3><p className="text-sm text-slate-600">{dx.cat}</p></div>
-    <div className="text-3xl font-bold text-blue-600 ml-4">{dx.pct}%</div></div>
+    <div className="text-right ml-4"><div className="text-3xl font-bold text-blue-600">{dx.pct}%</div><div className="text-xs text-slate-500">compatibilità istologica</div></div></div>
     <p className="text-sm mb-3 bg-white rounded p-3">{dx.note}</p>
     {dx.color&&dx.color.length>0&&(<div className={`rounded p-3 mb-2 ${isLymph?'bg-red-100':isEos?'bg-orange-100':isPann?'bg-teal-100':'bg-amber-50'}`}>
     <p className="text-sm font-semibold mb-1">🔬 {isLymph?'IHC OBBLIGATORIA':'Colorazioni'}:</p>
@@ -591,6 +619,64 @@ const HintsBox=memo(({hints})=>{
     <div><p className="text-sm font-semibold text-green-700 mb-1">✓ Considerare:</p><ul className="text-sm text-slate-700">{h.cons.map((c,i)=><li key={i}>• {c}</li>)}</ul></div></div>
     {h.col&&h.col.length>0&&<div className="bg-white rounded p-2 mt-3"><p className="text-sm"><strong>🔬 Colorazioni:</strong> {h.col.join(', ')}</p></div>}</div>);
 });
+
+// v2.0: Alert sifilide dedicato
+const SyphilisAlert=memo(()=>(
+    <div className="mb-6 p-6 bg-purple-100 border-4 border-purple-600 rounded-xl animate-pulse">
+    <h3 className="text-2xl font-bold text-purple-900 mb-3">🚨 PLASMACELLULE IN PSORIASIFORME</h3>
+    <p className="text-lg text-purple-800 font-semibold mb-4">→ ESCLUDERE SIFILIDE (sierologia obbligatoria)</p>
+    <div className="bg-white rounded-lg p-4">
+    <p className="text-sm text-purple-900 mb-2"><strong>Perché è critico:</strong></p>
+    <ul className="text-sm text-slate-700 space-y-1">
+    <li>• La sifilide è la "grande simulatrice" - mima psoriasi, LP, eczema</li>
+    <li>• Le plasmacellule sono ASSENTI nella psoriasi vera</li>
+    <li>• La diagnosi di psoriasi NON può essere emessa senza escludere lue</li>
+    </ul>
+    <div className="mt-3 p-3 bg-purple-50 rounded">
+    <p className="text-sm font-semibold text-purple-800">✓ AZIONE RICHIESTA:</p>
+    <p className="text-sm text-purple-700">Sierologia lue (VDRL/TPHA) + eventuale IHC anti-Treponema</p>
+    </div></div></div>
+));
+
+// v2.0: Quick Mode Form
+const QuickForm=memo(({data,upd,onGen})=>(
+    <div className="bg-white rounded-xl shadow-lg p-6">
+    <div className="mb-4 p-3 bg-purple-50 border-2 border-purple-300 rounded-lg">
+    <p className="text-sm text-purple-800">⚡ <strong>Modalità Rapida</strong> - Solo campi essenziali. Per analisi completa, disattiva Quick Mode.</p></div>
+    
+    <h2 className="text-xl font-bold mb-4">Pattern + Criteri Chiave</h2>
+    
+    <div className="space-y-4">
+    <div><label className="block font-semibold mb-2">Pattern Architetturale</label>
+    <select value={data.pattern_primario} onChange={e=>upd('pattern_primario',e.target.value)}>
+    <option value="">Seleziona...</option>
+    {PATTERNS.map(p=><option key={p.value} value={p.value}>{p.label}</option>)}
+    </select></div>
+    
+    <div className="grid grid-cols-2 gap-4">
+    <Sel label="Spongiosi" value={data.spongiosi} onChange={v=>upd('spongiosi',v)} opts={[{value:'assente',label:'Assente'},{value:'lieve',label:'Lieve'},{value:'moderata',label:'Moderata'},{value:'marcata',label:'Marcata'}]}/>
+    <Sel label="Acantosi" value={data.acantosi} onChange={v=>upd('acantosi',v)} opts={[{value:'assente',label:'Assente'},{value:'lieve',label:'Lieve'},{value:'moderata',label:'Moderata'},{value:'marcata',label:'Marcata'}]}/>
+    </div>
+    
+    <div className="grid grid-cols-2 gap-4">
+    <Sel label="Paracheratosi" value={data.paracheratosi} onChange={v=>upd('paracheratosi',v)} opts={[{value:'assente',label:'Assente'},{value:'focale',label:'Focale'},{value:'moderata',label:'Moderata'},{value:'marcata',label:'Marcata'}]}/>
+    <Sel label="Eosinofili" value={data.eosinofili} onChange={v=>upd('eosinofili',v)} opts={[{value:'assenti',label:'Assenti'},{value:'rari',label:'Rari'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
+    </div>
+    
+    <Sel label="⚠️ Plasmacellule" value={data.plasmacellule} onChange={v=>upd('plasmacellule',v)} highlight={true} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti → Sifilide?'},{value:'abbondanti',label:'Abbondanti → SIFILIDE!'}]}/>
+    
+    <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>upd('epidermotropismo',v)} opts={[{value:'assente',label:'Assente'},{value:'presente',label:'Presente'},{value:'marcato',label:'Marcato'}]}/>
+    
+    {data.epidermotropismo&&data.epidermotropismo!=='assente'&&(
+    <div className="p-4 bg-purple-50 border-2 border-purple-500 rounded-lg">
+    <Sel label="🔑 Spongiosi proporzionata all'esocitosi?" value={data.spongiosi_proporzionata} onChange={v=>upd('spongiosi_proporzionata',v)} highlight={true} opts={[{value:'si',label:'SÌ → Dermatite (MF improbabile)'},{value:'no',label:'NO → Sospetto MF!'}]}/>
+    <p className="text-xs text-purple-700 mt-2 italic">Criterio chiave: in MF l'epidermotropismo è SPROPORZIONATO rispetto alla spongiosi</p>
+    </div>)}
+    </div>
+    
+    <Nav onNext={onGen} canNext={!!data.pattern_primario} nextLabel="🔬 Genera Diagnosi"/>
+    </div>
+));
 
 const Step1=memo(({data,upd,onNext})=>(
     <div><h2 className="text-2xl font-bold mb-4">Pattern Architetturale</h2>
@@ -643,7 +729,7 @@ const Step3=memo(({data,upd,onBack,onNext})=>(
     <Sel label="Densità" value={data.infiltrato_densita} onChange={v=>upd('infiltrato_densita',v)} opts={[{value:'scarso',label:'Scarso'},{value:'moderato',label:'Moderato'},{value:'denso',label:'Denso'}]}/>
     <Sel label="Eosinofili" value={data.eosinofili} onChange={v=>upd('eosinofili',v)} opts={[{value:'assenti',label:'Assenti'},{value:'rari',label:'Rari'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
     <Sel label="Neutrofili" value={data.neutrofili} onChange={v=>upd('neutrofili',v)} opts={[{value:'assenti',label:'Assenti'},{value:'rari',label:'Rari'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
-    <Sel label="Plasmacellule" value={data.plasmacellule} onChange={v=>upd('plasmacellule',v)} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti → Sifilide?'},{value:'abbondanti',label:'Abbondanti → SIFILIDE!'}]}/>
+    <Sel label="⚠️ Plasmacellule" value={data.plasmacellule} onChange={v=>upd('plasmacellule',v)} highlight={true} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti → Sifilide?'},{value:'abbondanti',label:'Abbondanti → SIFILIDE!'}]}/>
     <Sel label="Mucina dermica" value={data.mucina_dermica} onChange={v=>upd('mucina_dermica',v)} opts={[{value:'assente',label:'Assente'},{value:'focale',label:'Focale'},{value:'abbondante',label:'Abbondante → Lupus/GA'}]}/>
     <Sel label="Eritrociti extravasati" value={data.eritrociti_extravasati} onChange={v=>upd('eritrociti_extravasati',v)} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
     <div className="p-4 bg-orange-50 border-2 border-orange-200 rounded-lg"><h3 className="font-bold text-orange-800 mb-3">🔶 Pattern Eosinofilo</h3>
@@ -662,10 +748,20 @@ const Step3=memo(({data,upd,onBack,onNext})=>(
     <div className="space-y-3">
     <Chk label="MxA+ (firma IFN tipo I) → Lupus/Dermatomiosite" checked={data.mxa_positivo} onChange={v=>upd('mxa_positivo',v)}/>
     <Chk label="CD123 clusters → Lupus (vs sparso in MF)" checked={data.cd123_clusters} onChange={v=>upd('cd123_clusters',v)}/></div></div>
+    
+    {/* v2.0: Sezione MF con campo spongiosi proporzionata */}
     <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg"><h3 className="font-bold text-red-900 mb-3">⚠️ Sospetto Linfoma/Panniculite</h3>
     <div className="space-y-3">
     <Sel label="Linfociti atipici" value={data.linfociti_atipici} onChange={v=>upd('linfociti_atipici',v)} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
     <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>upd('epidermotropismo',v)} opts={[{value:'assente',label:'Assente'},{value:'presente',label:'Presente'},{value:'marcato',label:'Marcato'}]}/>
+    
+    {/* v2.0: Campo critico per MF */}
+    {data.epidermotropismo&&data.epidermotropismo!=='assente'&&(
+    <div className="p-3 bg-purple-100 border-2 border-purple-500 rounded-lg mt-2">
+    <Sel label="🔑 Spongiosi PROPORZIONATA all'esocitosi?" value={data.spongiosi_proporzionata} onChange={v=>upd('spongiosi_proporzionata',v)} highlight={true} opts={[{value:'si',label:'SÌ, proporzionata → Dermatite (MF improbabile)'},{value:'no',label:'NO, sproporzionata → Sospetto MF!'}]}/>
+    <p className="text-xs text-purple-800 mt-2 italic">⚠️ CRITERIO CHIAVE: In MF l'epidermotropismo è SPROPORZIONATO rispetto alla spongiosi. Se c'è molta spongiosi, probabilmente è una dermatite.</p>
+    </div>)}
+    
     <Chk label="Alone chiaro → MF" checked={data.alone_chiaro} onChange={v=>upd('alone_chiaro',v)} variant="danger"/>
     <Chk label="Granulomi Miescher → EN" checked={data.granulomi_miescher} onChange={v=>upd('granulomi_miescher',v)} variant="danger"/>
     <Chk label="Necrosi adipociti → SPTCL" checked={data.necrosi_adipociti} onChange={v=>upd('necrosi_adipociti',v)} variant="danger"/>
@@ -703,7 +799,7 @@ const Step4=memo(({data,upd,onBack,onGen})=>(
     <Nav onBack={onBack} onNext={onGen} nextLabel="🔬 Genera Diagnosi"/></div>
 ));
 
-const Results=memo(({dx,lowConf,flags,hints,showIHC,onMod,onExp})=>{
+const Results=memo(({dx,lowConf,flags,hints,showIHC,syphilisWarning,onMod,onExp})=>{
     const hasLymph=dx.some(d=>d.cat.includes('Linfoma'));
     const hasEos=dx.some(d=>d.cat==='Eosinofilo');
     const hasPann=dx.some(d=>d.cat.includes('Panniculite'));
@@ -712,6 +808,14 @@ const Results=memo(({dx,lowConf,flags,hints,showIHC,onMod,onExp})=>{
     <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold">📋 Diagnosi Differenziale</h2>
     <div className="flex gap-2"><button onClick={onExp} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold">💾 Esporta</button>
     <button onClick={onMod} className="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300 text-sm font-semibold">← Modifica</button></div></div>
+    
+    {/* v2.0: Alert sifilide PRIMA di tutto */}
+    {syphilisWarning&&<SyphilisAlert/>}
+    
+    {/* Disclaimer punteggio */}
+    <div className="mb-4 p-3 bg-slate-100 border border-slate-300 rounded-lg">
+    <p className="text-xs text-slate-600">ℹ️ <strong>Nota:</strong> La percentuale indica la <em>compatibilità istologica</em> con i criteri selezionati, NON la probabilità clinica della diagnosi. Correlazione clinico-patologica sempre necessaria.</p></div>
+    
     {showIHC&&<IHCPanel/>}
     {hasLymph&&<div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg"><h3 className="text-lg font-bold text-red-900 mb-2">⚠️ SOSPETTO LINFOMA</h3><p className="text-sm text-red-800">IHC: CD3,CD4,CD8,CD7,TOX | PCR TCR</p></div>}
     {hasPann&&<div className="mb-6 p-4 bg-teal-50 border-2 border-teal-500 rounded-lg"><h3 className="text-lg font-bold text-teal-900 mb-2">🔍 PATTERN PANNICULITICO</h3><p className="text-sm text-teal-800">Settale (EN) vs Lobulare (Lupus, SPTCL). Se linfociti atipici → IHC T!</p></div>}
@@ -728,20 +832,25 @@ const App=()=>{
     const{step,next,prev,reset:resetStep}=useForm(1);
     const{data,upd,reset:resetData}=useData();
     const[showRes,setShowRes]=useState(false);
-    const[res,setRes]=useState({diagnoses:[],flags:[]});
+    const[res,setRes]=useState({diagnoses:[],flags:[],syphilisWarning:false});
+    const[quickMode,setQuickMode]=useState(false);
+    
     const handleReset=useCallback(()=>{if(confirm('Reset?')){resetData();resetStep();setShowRes(false);}},[]); 
     const handleCalc=useCallback(()=>{setRes(Engine.calc(data));setShowRes(true);},[data]);
     const showIHC=useMemo(()=>Engine.needsIHCPanel(res.diagnoses),[res.diagnoses]);
     const handleExp=useCallback(()=>{
-        let c=`REFERTO DERMATOPATOLOGICO - DermPath v1.9\nData: ${new Date().toLocaleDateString('it-IT')}\nPattern: ${data.pattern_primario}`;
+        let c=`REFERTO DERMATOPATOLOGICO - DermPath v2.0\nData: ${new Date().toLocaleDateString('it-IT')}\nPattern: ${data.pattern_primario}`;
         if(data.panniculite_tipo)c+=` (${data.panniculite_tipo})`;
         c+='\n';
-        if(res.diagnoses&&res.diagnoses.length>0)c+=`\nDIAGNOSI:\n${res.diagnoses.map((d,i)=>`${i+1}. ${d.nome} (${d.pct}%)\n   ${d.note}`).join('\n\n')}`;
+        // v2.0: Warning sifilide in export
+        if(res.syphilisWarning)c+=`\n⚠️⚠️⚠️ ATTENZIONE: PLASMACELLULE IN PSORIASIFORME → ESCLUDERE SIFILIDE (sierologia obbligatoria) ⚠️⚠️⚠️\n`;
+        if(res.diagnoses&&res.diagnoses.length>0)c+=`\nDIAGNOSI:\n${res.diagnoses.map((d,i)=>`${i+1}. ${d.nome} (${d.pct}% compatibilità istologica)\n   ${d.note}`).join('\n\n')}`;
         if(res.lowConf&&res.lowConf.length>0&&(!res.diagnoses||res.diagnoses.length===0))c+=`\nDA CONSIDERARE:\n${res.lowConf.map((d,i)=>`${i+1}. ${d.nome} (${d.pct}%)`).join('\n')}`;
         if(showIHC)c+=`\n\n⚠️ DD EQUIVOCA - Pannello IHC: Ki-67, p53, CD34, IL-36γ`;
-        c+=`\n\n---\nDermPath v1.9 - Correlazione clinico-patologica necessaria.`;
+        c+=`\n\n---\nNOTA: La percentuale indica compatibilità istologica, non probabilità clinica.\nDermPath v2.0 - Correlazione clinico-patologica necessaria.`;
         const b=new Blob([c],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`referto_${Date.now()}.txt`;a.click();
     },[data,res,showIHC]);
+    
     const renderStep=useMemo(()=>{
         switch(step){
             case 1:return<Step1 data={data} upd={upd} onNext={next}/>;
@@ -751,12 +860,33 @@ const App=()=>{
             default:return null;
         }
     },[step,data,upd,next,prev,handleCalc]);
+    
     return(<div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4"><div className="max-w-4xl">
-    <div className="bg-white rounded-xl shadow-lg p-6 mb-6"><div className="flex items-center justify-between"><div><h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v1.9</h1><p className="text-slate-600 mt-1">+ ICD, Pitiriasi rosea, Mastocitosi, Vasculopatia, MxA/CD123</p></div>
-    <button onClick={handleReset} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-semibold">🔄 Reset</button></div></div>
-    {!showRes&&<Steps cur={step}/>}
-    {!showRes?<div className="bg-white rounded-xl shadow-lg p-6">{renderStep}</div>:<Results dx={res.diagnoses} lowConf={res.lowConf} flags={res.flags} hints={res.hints} showIHC={showIHC} onMod={()=>setShowRes(false)} onExp={handleExp}/>}
-    <div className="mt-6 text-center text-sm text-slate-600"><p>DermPath v1.9 - ICD vs ACD | Pitiriasi rosea | Panniculite pancreatica | Mastocitosi | Necrobiosi lipoidica | Vasculopatia livedoide | Dermatomiosite | MxA/CD123</p></div></div></div>);
+    <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+    <div className="flex items-center justify-between">
+    <div><h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.0</h1>
+    <p className="text-slate-600 mt-1">+ Spongiosi proporzionata | Warning sifilide | Quick mode</p></div>
+    <div className="flex items-center gap-4">
+    {/* v2.0: Quick Mode Toggle */}
+    <div className="flex items-center gap-2">
+    <span className="text-sm text-slate-600">Quick</span>
+    <div className={`toggle-switch ${quickMode?'active':''}`} onClick={()=>{setQuickMode(!quickMode);resetStep();setShowRes(false);}}/>
+    </div>
+    <button onClick={handleReset} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-semibold">🔄 Reset</button>
+    </div></div></div>
+    
+    {!showRes&&<Steps cur={quickMode?1:step} quick={quickMode}/>}
+    
+    {!showRes?(
+        quickMode?
+        <QuickForm data={data} upd={upd} onGen={handleCalc}/>:
+        <div className="bg-white rounded-xl shadow-lg p-6">{renderStep}</div>
+    ):<Results dx={res.diagnoses} lowConf={res.lowConf} flags={res.flags} hints={res.hints} showIHC={showIHC} syphilisWarning={res.syphilisWarning} onMod={()=>setShowRes(false)} onExp={handleExp}/>}
+    
+    <div className="mt-6 text-center text-sm text-slate-600">
+    <p>DermPath v2.0 - Spongiosi proporzionata (MF fix) | Warning sifilide aggressivo | Quick mode</p>
+    <p className="text-xs text-slate-500 mt-1">Le percentuali indicano compatibilità istologica, non probabilità clinica.</p>
+    </div></div></div>);
 };
 ReactDOM.render(<App/>,document.getElementById('root'));
     </script>
