@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DermPath v2.0</title>
+    <title>DermPath v2.2</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html{font-family:system-ui,-apple-system,sans-serif;line-height:1.5}
@@ -68,7 +68,15 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="text/babel">
 const{useState,useMemo,useCallback,memo}=React;
-const SC={MAJOR:3,MINOR:1,SOFT:0.9,RED_PENALTY:25,MIN_EXCL:5,THRESH:50,MF_SPONG_PENALTY:30};
+const SC={MAJOR:3,MINOR:1,SOFT:0.9,RED_PENALTY:25,MIN_EXCL:5,THRESH:50,MF_SPONG_PENALTY:15};
+// v2.1: MF_SPONG_PENALTY ridotto da 30 a 15 (calibrazione)
+
+// v2.2: classi compatibilità - mantiene % interno per ranking, mostra classi all'utente
+const getCompClass=(pct)=>{
+    if(pct>=70)return{label:"Alta",emoji:"🟢",color:"text-green-700",bg:"bg-green-50",border:"border-green-400"};
+    if(pct>=50)return{label:"Intermedia",emoji:"🟡",color:"text-amber-700",bg:"bg-amber-50",border:"border-amber-400"};
+    return{label:"Bassa",emoji:"🔴",color:"text-red-700",bg:"bg-red-50",border:"border-red-300"};
+};
 
 const INIT={
     pattern_primario:'',spongiosi:'',esocitosi:'',acantosi:'',paracheratosi:'',ipergranulosi:'',ipogranulosi:'',
@@ -88,12 +96,12 @@ const INIT={
     ghost_cells:false,calcificazione_basofila:false,trombi_fibrina:false,leucocitoclasia:false,depositi_emosiderina:false,
     necrobiosi_sandwich:false,fibrina_centrale:false,mastociti_aggregati:false,cd117_pos:false,cd25_aberrante:false,
     mxa_positivo:false,cd123_clusters:false,follicoli_germinativi:false,necrosi_ialina_grasso:false,
-    // v2.0: nuovo campo critico per MF
-    spongiosi_proporzionata:''
+    spongiosi_proporzionata:'',
+    // v2.1: nuovo campo rimming adipociti per SPTCL
+    rimming_adipociti:false,
+    // v2.1: campi per PLEVA
+    necrosi_cheratinociti_diffusa:false,eritrociti_extravasati_intraepidermici:false
 };
-
-// Quick mode: solo campi essenziali
-const QUICK_FIELDS=['pattern_primario','spongiosi','acantosi','paracheratosi','eosinofili','plasmacellule','epidermotropismo','spongiosi_proporzionata'];
 
 const PATTERNS=[
     {value:'spongotico',label:'Spongotico',desc:'Edema intercellulare'},
@@ -135,8 +143,11 @@ const RED_FLAGS=[
     {flag:"mxa_cd123_lupus",diagnosi:"Lupus/Connettivite",escludi:["micosi_fungoide_early"]},
     {flag:"mastociti_cd25",diagnosi:"Mastocitosi sistemica",escludi:[]},
     {flag:"paracheratosi_mounds_manicotto",diagnosi:"Pitiriasi rosea",escludi:["sifilide_secondaria"]},
-    // v2.0: nuova red flag per spongiosi proporzionata
-    {flag:"spongiosi_proporzionata_mf",diagnosi:"Dermatite (MF improbabile)",escludi:["micosi_fungoide_early"]}
+    {flag:"spongiosi_proporzionata_mf",diagnosi:"Dermatite (MF improbabile)",escludi:["micosi_fungoide_early"]},
+    // v2.1: red flag PLEVA - necrosi + eritrociti intraepidermici
+    {flag:"pleva_necrosi_eritrociti",diagnosi:"PLEVA (Mucha-Habermann)",escludi:["micosi_fungoide_early","drug_reaction_lichenoide"]},
+    // v2.1: red flag rimming adipociti per SPTCL
+    {flag:"rimming_adipociti_flag",diagnosi:"SPTCL (linfoma panniculitico)",escludi:["eritema_nodoso","lupus_panniculitis"]}
 ];
 
 const IHC_PERF={
@@ -220,6 +231,15 @@ const DX={
         note:"Banda DENSA. Civatte. SAW-TOOTHING. Ipergranulosi CUNEO. NO paracheratosi. DIF: IgM fibrillar (sens 78%).",
         color:["IF diretta"],ihc:"DIF_LP",
         bib:{autori:"Gupta S",titolo:"Lichen Planus",riv:"Indian J Dermatol",anno:2015,pmid:"26120146"}
+    },
+    // v2.1: PLEVA - nuova diagnosi
+    pleva:{
+        nome:"PLEVA (Pitiriasi lichenoide et varioliforme acuta / Mucha-Habermann)",cat:"Interfaccia/Lichenoide",
+        major:{pattern_primario:"interfaccia_lichenoide",necrosi_keratinociti:"marcata",eritrociti_extravasati:["presenti","abbondanti"]},
+        minor:{vacuolizzazione_basale:"presente",paracheratosi:["focale","moderata"],necrosi_cheratinociti_diffusa:true,eritrociti_extravasati_intraepidermici:true},
+        note:"⚠️ DD con MF: necrosi cheratinocitaria MASSIVA (tutta l'epidermide), eritrociti INTRAEPIDERMICI. Infiltrato linfocitario denso. NO epidermotropismo ordinato. vs Drug: vacuoli basali meno marcati, eritrociti più abbondanti. ⚠️ CLONALITÀ ≠ MALIGNITÀ: PCR TCR può risultare clonale in PLEVA — non è dirimente senza correlazione morfologica e clinica.",
+        color:["CD3","CD4","CD8","CD30 (positivo in PLEVA fulminante)"],ihc:"PCR_TCR",
+        bib:{autori:"Ersoy-Evans S",titolo:"PLEVA",riv:"JAAD",anno:2007,pmid:"17276530"}
     },
     lupus_cutaneo_discoide:{
         nome:"Lupus eritematoso discoide",cat:"Interfaccia/Vacuolare",
@@ -328,9 +348,8 @@ const DX={
     micosi_fungoide_early:{
         nome:"Micosi fungoide (early)",cat:"Linfoma cutaneo T",
         major:{pattern_primario:["spongotico","interfaccia_lichenoide"],linfociti_atipici:"presenti"},
-        // v2.0: spongiosi NON proporzionata è criterio maggiore per MF
         minor:{epidermotropismo:"presente",alone_chiaro:true,spongiosi_proporzionata:"no"},
-        note:"⚠️ LINFOMA! Epidermotropismo SENZA spongiosi proporzionata. Alone chiaro. PCR TCR: sens 82.6%, spec 95.7%.",
+        note:"⚠️ LINFOMA! Epidermotropismo SENZA spongiosi proporzionata. Alone chiaro. PCR TCR: sens 82.6%, spec 95.7%. ⚠️ CLONALITÀ ≠ MALIGNITÀ: clonalità TCR presente anche in PLEVA, dermatiti croniche, pitiriasi lichenoide. Diagnosi richiede integrazione morfologia + clinica + IHC.",
         color:["CD3","CD4","CD8","CD7 loss","TOX","PD-1"],ihc:"PCR_TCR",
         bib:{autori:"Willemze R",titolo:"WHO-EORTC lymphomas",riv:"Blood",anno:2019,pmid:"30635287"}
     },
@@ -408,9 +427,10 @@ const DX={
     },
     sptcl:{
         nome:"SPTCL (Linfoma panniculitico)",cat:"Panniculite Lobulare / Linfoma",
-        major:{pattern_primario:"panniculitico",panniculite_tipo:"lobulare",linfociti_atipici:["presenti","abbondanti"]},
+        // v2.1: rimming_adipociti come criterio MAGGIORE
+        major:{pattern_primario:"panniculitico",panniculite_tipo:"lobulare",linfociti_atipici:["presenti","abbondanti"],rimming_adipociti:true},
         minor:{necrosi_adipociti:true,emofagocitosi:true},
-        note:"⚠️ LINFOMA! Linfociti 'rimming' adipociti. EMOFAGOCITOSI. IHC: CD3+CD8+βF1+CD56- (αβ). PCR TCR clonale.",
+        note:"⚠️ LINFOMA! Linfociti 'RIMMING' adipociti (criterio morfologico chiave). EMOFAGOCITOSI. IHC: CD3+CD8+βF1+CD56- (αβ). PCR TCR clonale.",
         color:["CD3","CD8","CD4","βF1","CD56","Granzyme","CD68"],ihc:"SPTCL",
         bib:{autori:"Willemze R",titolo:"WHO-EORTC",riv:"Blood",anno:2019,pmid:"30635287"}
     },
@@ -455,8 +475,11 @@ const Engine={
             mxa_cd123_lupus:()=>d.mxa_positivo||d.cd123_clusters,
             mastociti_cd25:()=>d.mastociti_aggregati&&d.cd25_aberrante,
             paracheratosi_mounds_manicotto:()=>d.paracheratosi_mounds&&d.infiltrato_manicotto,
-            // v2.0: spongiosi proporzionata penalizza MF
-            spongiosi_proporzionata_mf:()=>d.spongiosi_proporzionata==="si"&&d.epidermotropismo==="presente"
+            spongiosi_proporzionata_mf:()=>d.spongiosi_proporzionata==="si"&&d.epidermotropismo==="presente",
+            // v2.1: PLEVA - necrosi massiva + eritrociti intraepidermici
+            pleva_necrosi_eritrociti:()=>d.necrosi_cheratinociti_diffusa&&d.eritrociti_extravasati_intraepidermici,
+            // v2.1: rimming adipociti → SPTCL
+            rimming_adipociti_flag:()=>d.rimming_adipociti&&d.panniculite_tipo==="lobulare"
         };
         return chk[f]?chk[f]():false;
     },
@@ -469,12 +492,9 @@ const Engine={
         let s=0,m=0;
         Object.entries(p.major).forEach(([c,v])=>{m+=SC.MAJOR;s+=this.calcScore(c,v,d[c],SC.MAJOR);});
         if(p.minor)Object.entries(p.minor).forEach(([c,v])=>{m+=SC.MINOR;s+=this.calcScore(c,v,d[c],SC.MINOR);});
-        
-        // v2.0: penalità specifica MF se spongiosi proporzionata
         if(k==='micosi_fungoide_early'&&d.spongiosi_proporzionata==='si'){
             s=Math.max(0,s-SC.MF_SPONG_PENALTY);
         }
-        
         const pct=m>0?Math.round((s/m)*100):0;
         return{pct:excl?Math.max(SC.MIN_EXCL,pct-SC.RED_PENALTY):pct,excl};
     },
@@ -490,10 +510,7 @@ const Engine={
         const high=scores.filter(x=>x.pct>=50);
         const low=scores.filter(x=>x.pct>=30&&x.pct<50).slice(0,3);
         const hints=this.hints(d);
-        
-        // v2.0: check sifilide warning
-        const syphilisWarning = ["presenti","abbondanti"].includes(d.plasmacellule) && d.pattern_primario==="psoriasiforme";
-        
+        const syphilisWarning=["presenti","abbondanti"].includes(d.plasmacellule)&&d.pattern_primario==="psoriasiforme";
         return{diagnoses:high,lowConf:low,flags,hints,syphilisWarning};
     },
     hints(d){
@@ -501,13 +518,13 @@ const Engine={
         const H={
             spongotico:{gen:"Spongotico aspecifico",escl:["Dermatofitosi (PAS)","MF (epidermotropismo senza spongiosi?)"],cons:["Eczema NOS","ACD vs ICD","Pitiriasi rosea"],col:["PAS","Sierologia lue"]},
             psoriasiforme:{gen:"Psoriasiforme aspecifico",escl:["Tinea (PAS)","Sifilide (plasmacellule?)"],cons:["Psoriasi iniziale","Dermatite seborroica"],col:["PAS","Sierologia lue"]},
-            interfaccia_lichenoide:{gen:"Lichenoide",escl:["GVHD","Drug lichenoide"],cons:["Lichen planus","Lichenoid keratosis"],col:["IF se lupus"]},
+            interfaccia_lichenoide:{gen:"Lichenoide",escl:["GVHD","Drug lichenoide","PLEVA (necrosi massiva?)"],cons:["Lichen planus","Lichenoid keratosis","PLEVA"],col:["IF se lupus","CD30 se PLEVA fulminante"]},
             interfaccia_vacuolare:{gen:"Vacuolare",escl:["EM/TEN","Drug"],cons:["Lupus (MxA+)","Dermatomiosite (MxA+, mucina)"],col:["IF","Alcian blue","MxA"]},
             granulomatoso:{gen:"Granulomatoso",escl:["TB/funghi","Corpo estraneo"],cons:["Sarcoidosi","GA"],col:["ZN","PAS","Polarizzazione"]},
             granulomatoso_palizzata:{gen:"Granulomatoso palizzata",escl:["Infezione"],cons:["GA (mucina)","Necrobiosi lipoidica (sandwich)","Nodulo reumatoide (fibrina)"],col:["Alcian blue","PAS"]},
             vasculitico:{gen:"Vasculitico",escl:["Vasculopatia (no leucocitoclasia)"],cons:["LCV","Vasculite IgA"],col:["IF per Ig"]},
             vasculopatico:{gen:"Vasculopatico",escl:["Vasculite vera"],cons:["Livedoide","Coagulopatia"],col:["Perls","Coagulazione"]},
-            panniculitico:{gen:"Panniculitico",escl:["SPTCL (atipici+emofagocitosi)","Pancreatica (ghost cells)"],cons:["EN (settale)","Lupus panniculitis (lobulare, follicoli)"],col:["IHC T se linfoma","ZN"]},
+            panniculitico:{gen:"Panniculitico",escl:["SPTCL (rimming adipociti+atipici+emofagocitosi)","Pancreatica (ghost cells)"],cons:["EN (settale)","Lupus panniculitis (lobulare, follicoli)"],col:["IHC T se linfoma","ZN"]},
             mastocitario:{gen:"Mastocitario",escl:["Istiocitoma"],cons:["Mastocitosi cutanea","Urticaria pigmentosa"],col:["Giemsa","CD117","Triptasi","CD25"]}
         };
         return H[p]?[H[p]]:[];
@@ -591,23 +608,32 @@ const DxCard=memo(({dx,idx})=>{
     const isLymph=dx.cat.includes('Linfoma');
     const isEos=dx.cat==='Eosinofilo';
     const isPann=dx.cat.includes('Panniculite');
-    const bg=isLymph?'bg-red-50 border-red-500':isEos?'bg-orange-50 border-orange-500':isPann?'bg-teal-50 border-teal-500':'bg-blue-50 border-blue-500';
+    const isPleva=dx.key==='pleva';
+    const bg=isLymph?'bg-red-50 border-red-500':isPleva?'bg-pink-50 border-pink-300':isEos?'bg-orange-50 border-orange-500':isPann?'bg-teal-50 border-teal-500':'bg-blue-50 border-blue-500';
+    // v2.2: classi compatibilità
+    const cls=getCompClass(dx.pct);
     return(<div className={`${bg} border-2 rounded-lg p-4 mb-4`}>
     <div className="flex justify-between items-center mb-2"><div><span className="px-2 py-1 bg-white rounded text-sm font-bold">#{idx+1}</span><h3 className="text-xl font-bold mt-1">{dx.nome}</h3><p className="text-sm text-slate-600">{dx.cat}</p></div>
-    <div className="text-right ml-4"><div className="text-3xl font-bold text-blue-600">{dx.pct}%</div><div className="text-xs text-slate-500">compatibilità istologica</div></div></div>
+    <div className={`text-right ml-4 px-3 py-2 rounded-lg ${cls.bg} border ${cls.border}`}>
+        <div className={`text-2xl font-bold ${cls.color}`}>{cls.emoji} {cls.label}</div>
+        <div className="text-xs text-slate-500 mt-1">compatibilità {dx.pct}%</div>
+    </div></div>
     <p className="text-sm mb-3 bg-white rounded p-3">{dx.note}</p>
-    {dx.color&&dx.color.length>0&&(<div className={`rounded p-3 mb-2 ${isLymph?'bg-red-100':isEos?'bg-orange-100':isPann?'bg-teal-100':'bg-amber-50'}`}>
-    <p className="text-sm font-semibold mb-1">🔬 {isLymph?'IHC OBBLIGATORIA':'Colorazioni'}:</p>
+    {dx.color&&dx.color.length>0&&(<div className={`rounded p-3 mb-2 ${isLymph?'bg-red-100':isPleva?'bg-pink-100':isEos?'bg-orange-100':isPann?'bg-teal-100':'bg-amber-50'}`}>
+    <p className="text-sm font-semibold mb-1">🔬 {isLymph||isPleva?'IHC / PCR':'Colorazioni'}:</p>
     <ul className="text-sm space-y-1">{dx.color.map((c,i)=><li key={i}>• {c}</li>)}</ul></div>)}
     {dx.ihc&&<IHCBox ihcKey={dx.ihc}/>}
     <Bib b={dx.bib}/></div>);
 });
 
-const LowCard=memo(({dx})=>(
-    <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 bg-slate-50">
-    <div className="flex justify-between items-center mb-2"><h4 className="font-semibold text-slate-700">{dx.nome}</h4><span className="text-lg font-bold text-slate-500">{dx.pct}%</span></div>
-    <p className="text-xs text-slate-600">{dx.note}</p></div>
-));
+const LowCard=memo(({dx})=>{
+    // v2.2: anche la low card mostra la classe
+    const cls=getCompClass(dx.pct);
+    return(<div className="border-2 border-dashed border-slate-300 rounded-lg p-4 bg-slate-50">
+    <div className="flex justify-between items-center mb-2"><h4 className="font-semibold text-slate-700">{dx.nome}</h4>
+    <span className={`text-sm font-semibold ${cls.color}`}>{cls.emoji} {cls.label} ({dx.pct}%)</span></div>
+    <p className="text-xs text-slate-600">{dx.note}</p></div>);
+});
 
 const HintsBox=memo(({hints})=>{
     if(!hints||hints.length===0)return null;
@@ -620,61 +646,48 @@ const HintsBox=memo(({hints})=>{
     {h.col&&h.col.length>0&&<div className="bg-white rounded p-2 mt-3"><p className="text-sm"><strong>🔬 Colorazioni:</strong> {h.col.join(', ')}</p></div>}</div>);
 });
 
-// v2.0: Alert sifilide dedicato
 const SyphilisAlert=memo(()=>(
     <div className="mb-6 p-6 bg-purple-100 border-4 border-purple-600 rounded-xl animate-pulse">
     <h3 className="text-2xl font-bold text-purple-900 mb-3">🚨 PLASMACELLULE IN PSORIASIFORME</h3>
     <p className="text-lg text-purple-800 font-semibold mb-4">→ ESCLUDERE SIFILIDE (sierologia obbligatoria)</p>
     <div className="bg-white rounded-lg p-4">
-    <p className="text-sm text-purple-900 mb-2"><strong>Perché è critico:</strong></p>
     <ul className="text-sm text-slate-700 space-y-1">
-    <li>• La sifilide è la "grande simulatrice" - mima psoriasi, LP, eczema</li>
     <li>• Le plasmacellule sono ASSENTI nella psoriasi vera</li>
     <li>• La diagnosi di psoriasi NON può essere emessa senza escludere lue</li>
     </ul>
     <div className="mt-3 p-3 bg-purple-50 rounded">
-    <p className="text-sm font-semibold text-purple-800">✓ AZIONE RICHIESTA:</p>
-    <p className="text-sm text-purple-700">Sierologia lue (VDRL/TPHA) + eventuale IHC anti-Treponema</p>
+    <p className="text-sm font-semibold text-purple-800">✓ AZIONE: VDRL/TPHA + IHC anti-Treponema se indicato</p>
     </div></div></div>
 ));
 
-// v2.0: Quick Mode Form
 const QuickForm=memo(({data,upd,onGen})=>(
     <div className="bg-white rounded-xl shadow-lg p-6">
     <div className="mb-4 p-3 bg-purple-50 border-2 border-purple-300 rounded-lg">
-    <p className="text-sm text-purple-800">⚡ <strong>Modalità Rapida</strong> - Solo campi essenziali. Per analisi completa, disattiva Quick Mode.</p></div>
-    
+    <p className="text-sm text-purple-800">⚡ <strong>Modalità Rapida</strong> - Solo campi essenziali.</p></div>
     <h2 className="text-xl font-bold mb-4">Pattern + Criteri Chiave</h2>
-    
     <div className="space-y-4">
     <div><label className="block font-semibold mb-2">Pattern Architetturale</label>
     <select value={data.pattern_primario} onChange={e=>upd('pattern_primario',e.target.value)}>
     <option value="">Seleziona...</option>
     {PATTERNS.map(p=><option key={p.value} value={p.value}>{p.label}</option>)}
     </select></div>
-    
     <div className="grid grid-cols-2 gap-4">
     <Sel label="Spongiosi" value={data.spongiosi} onChange={v=>upd('spongiosi',v)} opts={[{value:'assente',label:'Assente'},{value:'lieve',label:'Lieve'},{value:'moderata',label:'Moderata'},{value:'marcata',label:'Marcata'}]}/>
     <Sel label="Acantosi" value={data.acantosi} onChange={v=>upd('acantosi',v)} opts={[{value:'assente',label:'Assente'},{value:'lieve',label:'Lieve'},{value:'moderata',label:'Moderata'},{value:'marcata',label:'Marcata'}]}/>
     </div>
-    
     <div className="grid grid-cols-2 gap-4">
     <Sel label="Paracheratosi" value={data.paracheratosi} onChange={v=>upd('paracheratosi',v)} opts={[{value:'assente',label:'Assente'},{value:'focale',label:'Focale'},{value:'moderata',label:'Moderata'},{value:'marcata',label:'Marcata'}]}/>
     <Sel label="Eosinofili" value={data.eosinofili} onChange={v=>upd('eosinofili',v)} opts={[{value:'assenti',label:'Assenti'},{value:'rari',label:'Rari'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
     </div>
-    
     <Sel label="⚠️ Plasmacellule" value={data.plasmacellule} onChange={v=>upd('plasmacellule',v)} highlight={true} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti → Sifilide?'},{value:'abbondanti',label:'Abbondanti → SIFILIDE!'}]}/>
-    
     <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>upd('epidermotropismo',v)} opts={[{value:'assente',label:'Assente'},{value:'presente',label:'Presente'},{value:'marcato',label:'Marcato'}]}/>
-    
     {data.epidermotropismo&&data.epidermotropismo!=='assente'&&(
     <div className="p-4 bg-purple-50 border-2 border-purple-500 rounded-lg">
     <Sel label="🔑 Spongiosi proporzionata all'esocitosi?" value={data.spongiosi_proporzionata} onChange={v=>upd('spongiosi_proporzionata',v)} highlight={true} opts={[{value:'si',label:'SÌ → Dermatite (MF improbabile)'},{value:'no',label:'NO → Sospetto MF!'}]}/>
-    <p className="text-xs text-purple-700 mt-2 italic">Criterio chiave: in MF l'epidermotropismo è SPROPORZIONATO rispetto alla spongiosi</p>
+    <p className="text-xs text-purple-700 mt-2 italic">In MF l'epidermotropismo è SPROPORZIONATO rispetto alla spongiosi</p>
     </div>)}
     </div>
-    
-    <Nav onNext={onGen} canNext={!!data.pattern_primario} nextLabel="🔬 Genera Diagnosi"/>
+    <Nav onNext={onGen} canNext={!!data.pattern_primario} nextLbl="🔬 Genera Diagnosi"/>
     </div>
 ));
 
@@ -718,6 +731,9 @@ const Step2=memo(({data,upd,onBack,onNext})=>(
     <Chk label="Saw-toothing (dente sega) → LP" checked={data.saw_toothing} onChange={v=>upd('saw_toothing',v)} variant="morpho"/>
     <Chk label="Ipergranulosi a cuneo → LP" checked={data.ipergranulosi_cuneo} onChange={v=>upd('ipergranulosi_cuneo',v)} variant="morpho"/>
     <Chk label="Plugging follicolare → Lupus" checked={data.plugging_follicolare} onChange={v=>upd('plugging_follicolare',v)} variant="morpho"/>
+    {/* v2.1: clues PLEVA */}
+    <Chk label="⚠️ Necrosi cheratinocitaria DIFFUSA (tutta l'epidermide) → PLEVA" checked={data.necrosi_cheratinociti_diffusa} onChange={v=>upd('necrosi_cheratinociti_diffusa',v)} variant="danger"/>
+    <Chk label="⚠️ Eritrociti INTRAEPIDERMICI → PLEVA" checked={data.eritrociti_extravasati_intraepidermici} onChange={v=>upd('eritrociti_extravasati_intraepidermici',v)} variant="danger"/>
     <Sel label="Granuli cheratoialina" value={data.granuli_cheratoialina} onChange={v=>upd('granuli_cheratoialina',v)} opts={[{value:'normali',label:'Normali'},{value:'diminuiti',label:'Diminuiti → Psoriasi'},{value:'grossolani',label:'Grossolani → LSC'}]}/></div></div></div>
     <Nav onBack={onBack} onNext={onNext}/></div>
 ));
@@ -748,21 +764,18 @@ const Step3=memo(({data,upd,onBack,onNext})=>(
     <div className="space-y-3">
     <Chk label="MxA+ (firma IFN tipo I) → Lupus/Dermatomiosite" checked={data.mxa_positivo} onChange={v=>upd('mxa_positivo',v)}/>
     <Chk label="CD123 clusters → Lupus (vs sparso in MF)" checked={data.cd123_clusters} onChange={v=>upd('cd123_clusters',v)}/></div></div>
-    
-    {/* v2.0: Sezione MF con campo spongiosi proporzionata */}
-    <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg"><h3 className="font-bold text-red-900 mb-3">⚠️ Sospetto Linfoma/Panniculite</h3>
+    <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg"><h3 className="font-bold text-red-900 mb-3">⚠️ Sospetto Linfoma / Panniculite</h3>
     <div className="space-y-3">
     <Sel label="Linfociti atipici" value={data.linfociti_atipici} onChange={v=>upd('linfociti_atipici',v)} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
     <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>upd('epidermotropismo',v)} opts={[{value:'assente',label:'Assente'},{value:'presente',label:'Presente'},{value:'marcato',label:'Marcato'}]}/>
-    
-    {/* v2.0: Campo critico per MF */}
     {data.epidermotropismo&&data.epidermotropismo!=='assente'&&(
     <div className="p-3 bg-purple-100 border-2 border-purple-500 rounded-lg mt-2">
     <Sel label="🔑 Spongiosi PROPORZIONATA all'esocitosi?" value={data.spongiosi_proporzionata} onChange={v=>upd('spongiosi_proporzionata',v)} highlight={true} opts={[{value:'si',label:'SÌ, proporzionata → Dermatite (MF improbabile)'},{value:'no',label:'NO, sproporzionata → Sospetto MF!'}]}/>
-    <p className="text-xs text-purple-800 mt-2 italic">⚠️ CRITERIO CHIAVE: In MF l'epidermotropismo è SPROPORZIONATO rispetto alla spongiosi. Se c'è molta spongiosi, probabilmente è una dermatite.</p>
+    <p className="text-xs text-purple-800 mt-2 italic">⚠️ In MF l'epidermotropismo è SPROPORZIONATO rispetto alla spongiosi.</p>
     </div>)}
-    
     <Chk label="Alone chiaro → MF" checked={data.alone_chiaro} onChange={v=>upd('alone_chiaro',v)} variant="danger"/>
+    {/* v2.1: rimming adipociti - campo esplicito */}
+    <Chk label="⚠️ Rimming adipociti (linfociti a corona) → SPTCL!" checked={data.rimming_adipociti} onChange={v=>upd('rimming_adipociti',v)} variant="danger"/>
     <Chk label="Granulomi Miescher → EN" checked={data.granulomi_miescher} onChange={v=>upd('granulomi_miescher',v)} variant="danger"/>
     <Chk label="Necrosi adipociti → SPTCL" checked={data.necrosi_adipociti} onChange={v=>upd('necrosi_adipociti',v)} variant="danger"/>
     <Chk label="Emofagocitosi → SPTCL" checked={data.emofagocitosi} onChange={v=>upd('emofagocitosi',v)} variant="danger"/></div></div></div>
@@ -796,61 +809,65 @@ const Step4=memo(({data,upd,onBack,onGen})=>(
     <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg"><h3 className="font-bold text-blue-900 mb-3">📋 Contesto</h3>
     <Chk label="Storia farmaci" checked={data.storia_farmaci} onChange={v=>upd('storia_farmaci',v)}/>
     <Chk label="Sospetta puntura" checked={data.storia_puntura_insetto} onChange={v=>upd('storia_puntura_insetto',v)}/></div></div>
-    <Nav onBack={onBack} onNext={onGen} nextLabel="🔬 Genera Diagnosi"/></div>
+    <Nav onBack={onBack} onNext={onGen} nextLbl="🔬 Genera Diagnosi"/></div>
 ));
 
 const Results=memo(({dx,lowConf,flags,hints,showIHC,syphilisWarning,onMod,onExp})=>{
     const hasLymph=dx.some(d=>d.cat.includes('Linfoma'));
     const hasEos=dx.some(d=>d.cat==='Eosinofilo');
     const hasPann=dx.some(d=>d.cat.includes('Panniculite'));
-    const hasHigh=dx.length>0;
+    const hasPleva=dx.some(d=>d.key==='pleva');
     return(<div className="bg-white rounded-xl shadow-lg p-6">
     <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold">📋 Diagnosi Differenziale</h2>
     <div className="flex gap-2"><button onClick={onExp} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold">💾 Esporta</button>
     <button onClick={onMod} className="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300 text-sm font-semibold">← Modifica</button></div></div>
-    
-    {/* v2.0: Alert sifilide PRIMA di tutto */}
     {syphilisWarning&&<SyphilisAlert/>}
-    
-    {/* Disclaimer punteggio */}
     <div className="mb-4 p-3 bg-slate-100 border border-slate-300 rounded-lg">
-    <p className="text-xs text-slate-600">ℹ️ <strong>Nota:</strong> La percentuale indica la <em>compatibilità istologica</em> con i criteri selezionati, NON la probabilità clinica della diagnosi. Correlazione clinico-patologica sempre necessaria.</p></div>
-    
+    <p className="text-xs text-slate-600">ℹ️ 🟢 Alta ≥70% | 🟡 Intermedia 50-69% | 🔴 Bassa &lt;50% — compatibilità istologica con i criteri selezionati, NON probabilità clinica né bayesiana.</p></div>
     {showIHC&&<IHCPanel/>}
     {hasLymph&&<div className="mb-6 p-4 bg-red-50 border-2 border-red-500 rounded-lg"><h3 className="text-lg font-bold text-red-900 mb-2">⚠️ SOSPETTO LINFOMA</h3><p className="text-sm text-red-800">IHC: CD3,CD4,CD8,CD7,TOX | PCR TCR</p></div>}
-    {hasPann&&<div className="mb-6 p-4 bg-teal-50 border-2 border-teal-500 rounded-lg"><h3 className="text-lg font-bold text-teal-900 mb-2">🔍 PATTERN PANNICULITICO</h3><p className="text-sm text-teal-800">Settale (EN) vs Lobulare (Lupus, SPTCL). Se linfociti atipici → IHC T!</p></div>}
+    {hasPleva&&<div className="mb-6 p-4 bg-pink-50 border-2 border-pink-400 rounded-lg"><h3 className="text-lg font-bold text-pink-900 mb-2">⚠️ PLEVA – Mucha-Habermann</h3><p className="text-sm text-pink-800">Escludere linfoma con PCR TCR. CD30 se fulminante. Correlazione clinica essenziale.</p></div>}
+    {(hasPleva||hasLymph)&&<div className="mb-6 p-4 bg-slate-50 border-2 border-slate-400 rounded-lg">
+    <h3 className="text-lg font-bold text-slate-800 mb-2">🧬 Nota sulla clonalità TCR</h3>
+    <p className="text-sm text-slate-700 mb-2">La clonalità TCR <strong>non è sinonimo di malignità</strong>. Può essere presente in:</p>
+    <ul className="text-sm text-slate-700 space-y-1 mb-2">
+    <li>• <strong>PLEVA</strong> (Mucha-Habermann): clonalità fino al 50-60% dei casi</li>
+    <li>• <strong>Pitiriasi lichenoide cronica</strong>: clonalità documentata</li>
+    <li>• <strong>Dermatiti croniche</strong>: clonalità debole possibile (espansione reattiva)</li>
+    </ul>
+    <p className="text-sm text-slate-600 italic">La diagnosi di MF richiede integrazione di morfologia + immunofenotipo + clinica + PCR. La PCR da sola non è sufficiente per diagnosi né per esclusione.</p>
+    </div>}
+    {hasPann&&<div className="mb-6 p-4 bg-teal-50 border-2 border-teal-500 rounded-lg"><h3 className="text-lg font-bold text-teal-900 mb-2">🔍 PATTERN PANNICULITICO</h3><p className="text-sm text-teal-800">Settale (EN) vs Lobulare (Lupus, SPTCL). Rimming adipociti → IHC T urgente!</p></div>}
     {hasEos&&<div className="mb-6 p-4 bg-orange-50 border-2 border-orange-500 rounded-lg"><h3 className="text-lg font-bold text-orange-900 mb-2">🔶 PATTERN EOSINOFILO</h3><p className="text-sm text-orange-800">Farmaci? Punture? Flame figures = Wells.</p></div>}
     {flags.length>0&&<div className="mb-6 p-4 bg-amber-50 border-2 border-amber-500 rounded-lg"><h3 className="text-lg font-bold text-amber-900 mb-2">🚩 RED FLAGS</h3><div className="text-sm text-amber-800 space-y-1">{flags.map((f,i)=><p key={i}>• <strong>{f.diagnosi}</strong></p>)}</div></div>}
-    {hasHigh&&<div className="space-y-4 mb-6">{dx.map((d,i)=><DxCard key={d.key} dx={d} idx={i}/>)}</div>}
-    {!hasHigh&&(<div className="space-y-4"><HintsBox hints={hints}/>
+    {dx.length>0&&<div className="space-y-4 mb-6">{dx.map((d,i)=><DxCard key={d.key} dx={d} idx={i}/>)}</div>}
+    {dx.length===0&&(<div className="space-y-4"><HintsBox hints={hints}/>
     {lowConf&&lowConf.length>0&&(<div className="mb-6"><h3 className="text-lg font-semibold text-slate-700 mb-3">🤔 Bassa confidenza</h3><div className="space-y-3">{lowConf.map(d=><LowCard key={d.key} dx={d}/>)}</div></div>)}
-    {(!lowConf||lowConf.length===0)&&(!hints||hints.length===0)&&(<div className="p-6 bg-slate-50 border-2 border-slate-200 rounded-lg text-center"><p className="font-semibold text-slate-700 mb-2">🔬 Pattern non diagnostico</p><p className="text-sm text-slate-600">Considera livelli aggiuntivi, correlazione clinica, nuova biopsia.</p></div>)}</div>)}
-    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"><p className="text-sm text-blue-900"><strong>💡</strong> Diagnosi pattern-based. Correlazione clinico-patologica sempre necessaria.</p></div></div>);
+    {(!lowConf||lowConf.length===0)&&<div className="p-6 bg-slate-50 border-2 border-slate-200 rounded-lg text-center"><p className="font-semibold text-slate-700">🔬 Pattern non diagnostico</p><p className="text-sm text-slate-600 mt-1">Considera livelli aggiuntivi, correlazione clinica, nuova biopsia.</p></div>}</div>)}
+    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"><p className="text-sm text-blue-900"><strong>💡</strong> Correlazione clinico-patologica sempre necessaria.</p></div></div>);
 });
 
 const App=()=>{
     const{step,next,prev,reset:resetStep}=useForm(1);
     const{data,upd,reset:resetData}=useData();
     const[showRes,setShowRes]=useState(false);
-    const[res,setRes]=useState({diagnoses:[],flags:[],syphilisWarning:false});
+    const[res,setRes]=useState({diagnoses:[],lowConf:[],flags:[],hints:[],syphilisWarning:false});
     const[quickMode,setQuickMode]=useState(false);
-    
-    const handleReset=useCallback(()=>{if(confirm('Reset?')){resetData();resetStep();setShowRes(false);}},[]); 
+    const handleReset=useCallback(()=>{if(confirm('Reset?')){resetData();resetStep();setShowRes(false);}},[]);
     const handleCalc=useCallback(()=>{setRes(Engine.calc(data));setShowRes(true);},[data]);
     const showIHC=useMemo(()=>Engine.needsIHCPanel(res.diagnoses),[res.diagnoses]);
     const handleExp=useCallback(()=>{
-        let c=`REFERTO DERMATOPATOLOGICO - DermPath v2.0\nData: ${new Date().toLocaleDateString('it-IT')}\nPattern: ${data.pattern_primario}`;
+        let c=`REFERTO DERMATOPATOLOGICO - DermPath v2.1\nData: ${new Date().toLocaleDateString('it-IT')}\nPattern: ${data.pattern_primario}`;
         if(data.panniculite_tipo)c+=` (${data.panniculite_tipo})`;
         c+='\n';
-        // v2.0: Warning sifilide in export
-        if(res.syphilisWarning)c+=`\n⚠️⚠️⚠️ ATTENZIONE: PLASMACELLULE IN PSORIASIFORME → ESCLUDERE SIFILIDE (sierologia obbligatoria) ⚠️⚠️⚠️\n`;
+        if(res.syphilisWarning)c+=`\n⚠️⚠️⚠️ PLASMACELLULE IN PSORIASIFORME → ESCLUDERE SIFILIDE ⚠️⚠️⚠️\n`;
+        if(data.rimming_adipociti)c+=`\n⚠️ RIMMING ADIPOCITI: escludere SPTCL! IHC T urgente.\n`;
         if(res.diagnoses&&res.diagnoses.length>0)c+=`\nDIAGNOSI:\n${res.diagnoses.map((d,i)=>`${i+1}. ${d.nome} (${d.pct}% compatibilità istologica)\n   ${d.note}`).join('\n\n')}`;
         if(res.lowConf&&res.lowConf.length>0&&(!res.diagnoses||res.diagnoses.length===0))c+=`\nDA CONSIDERARE:\n${res.lowConf.map((d,i)=>`${i+1}. ${d.nome} (${d.pct}%)`).join('\n')}`;
         if(showIHC)c+=`\n\n⚠️ DD EQUIVOCA - Pannello IHC: Ki-67, p53, CD34, IL-36γ`;
-        c+=`\n\n---\nNOTA: La percentuale indica compatibilità istologica, non probabilità clinica.\nDermPath v2.0 - Correlazione clinico-patologica necessaria.`;
+        c+=`\n\n---\nNOTA: Compatibilità istologica ≠ probabilità clinica.\nDermPath v2.1`;
         const b=new Blob([c],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`referto_${Date.now()}.txt`;a.click();
     },[data,res,showIHC]);
-    
     const renderStep=useMemo(()=>{
         switch(step){
             case 1:return<Step1 data={data} upd={upd} onNext={next}/>;
@@ -860,32 +877,26 @@ const App=()=>{
             default:return null;
         }
     },[step,data,upd,next,prev,handleCalc]);
-    
     return(<div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4"><div className="max-w-4xl">
     <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
     <div className="flex items-center justify-between">
-    <div><h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.0</h1>
-    <p className="text-slate-600 mt-1">+ Spongiosi proporzionata | Warning sifilide | Quick mode</p></div>
+    <div><h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.2</h1>
+    <p className="text-slate-600 mt-1">+ Classi compatibilità | Nota clonalità | PLEVA | Rimming</p></div>
     <div className="flex items-center gap-4">
-    {/* v2.0: Quick Mode Toggle */}
     <div className="flex items-center gap-2">
     <span className="text-sm text-slate-600">Quick</span>
     <div className={`toggle-switch ${quickMode?'active':''}`} onClick={()=>{setQuickMode(!quickMode);resetStep();setShowRes(false);}}/>
     </div>
     <button onClick={handleReset} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-semibold">🔄 Reset</button>
     </div></div></div>
-    
     {!showRes&&<Steps cur={quickMode?1:step} quick={quickMode}/>}
-    
     {!showRes?(
-        quickMode?
-        <QuickForm data={data} upd={upd} onGen={handleCalc}/>:
+        quickMode?<QuickForm data={data} upd={upd} onGen={handleCalc}/>:
         <div className="bg-white rounded-xl shadow-lg p-6">{renderStep}</div>
     ):<Results dx={res.diagnoses} lowConf={res.lowConf} flags={res.flags} hints={res.hints} showIHC={showIHC} syphilisWarning={res.syphilisWarning} onMod={()=>setShowRes(false)} onExp={handleExp}/>}
-    
     <div className="mt-6 text-center text-sm text-slate-600">
-    <p>DermPath v2.0 - Spongiosi proporzionata (MF fix) | Warning sifilide aggressivo | Quick mode</p>
-    <p className="text-xs text-slate-500 mt-1">Le percentuali indicano compatibilità istologica, non probabilità clinica.</p>
+    <p>DermPath v2.2 | Classi compatibilità + Nota clonalità + PLEVA + Rimming</p>
+    <p className="text-xs text-slate-500 mt-1">⚠️ Strumento di supporto. Correlazione clinico-patologica sempre necessaria.</p>
     </div></div></div>);
 };
 ReactDOM.render(<App/>,document.getElementById('root'));
