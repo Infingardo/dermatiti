@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DermPath v2.2</title>
+    <title>DermPath v2.10.3</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html{font-family:system-ui,-apple-system,sans-serif;line-height:1.5}
@@ -59,6 +59,12 @@
         .toggle-switch.active{background:#2563eb}
         .toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:white;border-radius:50%;transition:transform .2s}
         .toggle-switch.active::after{transform:translateX(20px)}
+        /* v2.3: fix classi mancanti getCompClass */
+        .text-amber-700{color:#b45309}.text-red-700{color:#b91c1c}
+        .border-green-400{border-color:#4ade80}.border-amber-400{border-color:#fbbf24}
+        /* v2.3: fix gradient background */
+        .bg-gradient-to-br{background-image:linear-gradient(to bottom right,var(--tw-gradient-from,#eff6ff),var(--tw-gradient-to,#e0e7ff))}
+        .from-blue-50{--tw-gradient-from:#eff6ff}.to-indigo-100{--tw-gradient-to:#e0e7ff}
     </style>
 </head>
 <body>
@@ -68,38 +74,80 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="text/babel">
 const{useState,useMemo,useCallback,memo}=React;
-const SC={MAJOR:3,MINOR:1,SOFT:0.9,RED_PENALTY:25,MIN_EXCL:5,THRESH:50,MF_SPONG_PENALTY:15};
-// v2.1: MF_SPONG_PENALTY ridotto da 30 a 15 (calibrazione)
+const SC={MAJOR:3,MINOR:1,RED_PENALTY:25,MIN_EXCL:5,THRESH:50,MF_SPONG_PENALTY:15};
+// v2.3: rimosso SOFT (inutilizzato); THRESH ora usato nel filtro calc()
 
-// v2.2: classi compatibilità - mantiene % interno per ranking, mostra classi all'utente
+// v2.8: monotonia semantica — "marcato" soddisfa "presente"; "abbondanti" soddisfa "presenti"
+// ORD: ordine crescente di intensità per ogni campo ordinale
+const ORD={
+    epidermotropismo:['assente','presente','marcato'],  // UI: assente/presente/marcato
+    linfociti_atipici:['assenti','rari','presenti','abbondanti'],
+    necrosi_keratinociti:['assente','presente','marcata'],
+    plasmacellule:['assenti','presenti','abbondanti'],  // UI: assenti/presenti/abbondanti
+    spongiosi:['assente','lieve','moderata','marcata'],
+    esocitosi:['assente','lieve','presente','marcata'],  // v2.8: fix residuo ACD/dermatite atopica
+    neutrofili:['assenti','rari','presenti','abbondanti'],
+    eosinofili:['assenti','rari','presenti','abbondanti'],
+    vacuolizzazione_basale:['assente','presente','marcata'],
+    acantosi:['assente','lieve','moderata','marcata'],
+    paracheratosi:['assente','focale','moderata','marcata'],
+    mucina_dermica:['assente','focale','abbondante'],
+    eritrociti_extravasati:['assenti','presenti','abbondanti'],
+    edema_dermico:['assente','lieve','moderato','marcato'],
+};
+// v2.8: EXACT_ARRAY_FIELDS — campi ordinali con range chiuso (upper bound semanticamente rilevante)
+// spongiosi:["lieve","moderata"] non deve accettare "marcata" (tipico di PR, PLEVA)
+// paracheratosi:["focale","moderata"] non deve accettare "marcata" (tipico di PLEVA)
+// v2.9: neutrofili aggiunto — ["rari","presenti"] in dermatite irritativa non deve accettare "abbondanti"
+// ["presenti","abbondanti"] in psoriasi/bolle è già al top ordinale → oneOf ≡ atLeast, nessun danno
+const EXACT_ARRAY_FIELDS=new Set(['spongiosi','paracheratosi','neutrofili']);
+
+const matchAtLeast=(field,expected,actual)=>{
+    const rank=ORD[field];
+    if(!rank)return actual===expected;
+    const eIdx=rank.indexOf(expected);
+    const aIdx=rank.indexOf(actual);
+    if(eIdx<0||aIdx<0)return actual===expected;
+    return aIdx>=eIdx;
+};
+
+// v2.3: classi compatibilità
 const getCompClass=(pct)=>{
     if(pct>=70)return{label:"Alta",emoji:"🟢",color:"text-green-700",bg:"bg-green-50",border:"border-green-400"};
     if(pct>=50)return{label:"Intermedia",emoji:"🟡",color:"text-amber-700",bg:"bg-amber-50",border:"border-amber-400"};
     return{label:"Bassa",emoji:"🔴",color:"text-red-700",bg:"bg-red-50",border:"border-red-300"};
 };
 
+// v2.5: campi tri-state (''=non valutato, 'si'=presente, 'no'=assente) — esclusi dal denominatore se ''
+// boolean semplici rimangono false/true: contesto, clues minori, campi IHC ancillari
 const INIT={
     pattern_primario:'',spongiosi:'',esocitosi:'',acantosi:'',paracheratosi:'',ipergranulosi:'',ipogranulosi:'',
     vacuolizzazione_basale:'',necrosi_keratinociti:'',infiltrato_distribuzione:'',infiltrato_densita:'',
-    eosinofili:'',neutrofili:'',linfociti_atipici:'',epidermotropismo:'',alone_chiaro:false,cellule_cerebriformi:false,
-    cd30_positivi:false,microascessi_munro:false,vasculite:'',eritrociti_extravasati:'',sede_anatomica:'',note_cliniche:'',
-    edema_dermico:'',palisading_necrosi_mucina:false,microvescicole:false,corpi_civatte:false,
-    acantolisi:false,bolle_intraepidermiche:false,bolle_subepidermiche:false,infiltrato_neutrofili_pustole:false,
-    flame_figures:false,infiltrato_wedge_shaped:false,eosinofili_perivascolari_profondi:false,degranulazione_eosinofila:false,
-    necrosi_epidermica_focale:false,storia_farmaci:false,storia_puntura_insetto:false,
-    fibrosi_dermica:false,iperplasia_neurale:false,infiltrato_follicolare:false,spongiosi_follicolare:false,pustole_follicolari:false,
+    eosinofili:'',neutrofili:'',linfociti_atipici:'',epidermotropismo:'',
+    // tri-state critici morfologici
+    alone_chiaro:'',microascessi_munro:'',corpi_civatte:'',
+    palisading_necrosi_mucina:'',necrobiosi_sandwich:'',
+    acantolisi:'',bolle_intraepidermiche:'',bolle_subepidermiche:'',
+    flame_figures:'',leucocitoclasia:'',trombi_fibrina:'',depositi_emosiderina:'',
+    granulomi_miescher:'',follicoli_germinativi:'',necrosi_ialina_grasso:'',
+    ghost_cells:'',calcificazione_basofila:'',
+    panniculite_vasculite:'',rimming_adipociti:'',necrosi_adipociti:'',emofagocitosi:'',
+    mastociti_aggregati:'',cd117_pos:'',cd25_aberrante:'',
+    // boolean semplici (contesto/clues minori — non valutato = assente è semanticamente accettabile)
+    cellule_cerebriformi:false,cd30_positivi:false,vasculite:'',eritrociti_extravasati:'',sede_anatomica:'',note_cliniche:'',
+    edema_dermico:'',microvescicole:false,infiltrato_neutrofili_pustole:'',
+    infiltrato_wedge_shaped:false,eosinofili_perivascolari_profondi:false,
+    // v2.10: tri-state — erano booleani nei criteri ma non esposti in UI → zavorra fissa
+    degranulazione_eosinofila:'',necrosi_epidermica_focale:'',iperplasia_neurale:'',spongiosi_follicolare:'',pustole_follicolari:'',
+    storia_farmaci:false,storia_puntura_insetto:false,
+    fibrosi_dermica:false,infiltrato_follicolare:false,
     neutrofili_in_paracheratosi:false,assottigliamento_soprapapillare:false,granuli_cheratoialina:'',capillari_dilatati_papille:false,
-    saw_toothing:false,ipergranulosi_cuneo:false,granulomi_miescher:false,plugging_follicolare:false,
-    mucina_dermica:'',plasmacellule:'',infiltrato_perianessiale_profondo:false,necrosi_adipociti:false,emofagocitosi:false,
-    panniculite_tipo:'',panniculite_vasculite:false,
+    saw_toothing:false,ipergranulosi_cuneo:false,plugging_follicolare:'',
+    mucina_dermica:'',plasmacellule:'',infiltrato_perianessiale_profondo:'',
+    panniculite_tipo:'',
     fase_lesione:'',paracheratosi_mounds:false,infiltrato_manicotto:false,necrosi_cheratino_superficiale:false,
-    ghost_cells:false,calcificazione_basofila:false,trombi_fibrina:false,leucocitoclasia:false,depositi_emosiderina:false,
-    necrobiosi_sandwich:false,fibrina_centrale:false,mastociti_aggregati:false,cd117_pos:false,cd25_aberrante:false,
-    mxa_positivo:false,cd123_clusters:false,follicoli_germinativi:false,necrosi_ialina_grasso:false,
+    fibrina_centrale:false,mxa_positivo:'',cd123_clusters:'',
     spongiosi_proporzionata:'',
-    // v2.1: nuovo campo rimming adipociti per SPTCL
-    rimming_adipociti:false,
-    // v2.1: campi per PLEVA
     necrosi_cheratinociti_diffusa:false,eritrociti_extravasati_intraepidermici:false
 };
 
@@ -140,21 +188,22 @@ const RED_FLAGS=[
     {flag:"emofagocitosi_lobulare",diagnosi:"SPTCL (linfoma)",escludi:["eritema_nodoso","lupus_panniculitis"]},
     {flag:"ghost_cells_panniculite",diagnosi:"Panniculite PANCREATICA!",escludi:["lupus_panniculitis","eritema_nodoso"]},
     {flag:"trombi_no_lcv",diagnosi:"Vasculopatia (non vasculite)",escludi:["vasculite_leucocitoclastica"]},
-    {flag:"mxa_cd123_lupus",diagnosi:"Lupus/Connettivite",escludi:["micosi_fungoide_early"]},
+    // v2.4: MxA/CD123 boost per lupus ma non penalizza MF (letteratura non consente esclusione automatica)
+    {flag:"mxa_cd123_lupus",diagnosi:"Lupus/Connettivite (MxA/CD123+)",escludi:[]},
     {flag:"mastociti_cd25",diagnosi:"Mastocitosi sistemica",escludi:[]},
     {flag:"paracheratosi_mounds_manicotto",diagnosi:"Pitiriasi rosea",escludi:["sifilide_secondaria"]},
     {flag:"spongiosi_proporzionata_mf",diagnosi:"Dermatite (MF improbabile)",escludi:["micosi_fungoide_early"]},
     // v2.1: red flag PLEVA - necrosi + eritrociti intraepidermici
-    {flag:"pleva_necrosi_eritrociti",diagnosi:"PLEVA (Mucha-Habermann)",escludi:["micosi_fungoide_early","drug_reaction_lichenoide"]},
-    // v2.1: red flag rimming adipociti per SPTCL
-    {flag:"rimming_adipociti_flag",diagnosi:"SPTCL (linfoma panniculitico)",escludi:["eritema_nodoso","lupus_panniculitis"]}
+    {flag:"pleva_necrosi_eritrociti",diagnosi:"PLEVA (Mucha-Habermann)",escludi:["micosi_fungoide_early"]},
+    // v2.3: rimming adipociti → sospetto SPTCL ma NON esclude LEP (Magro 2021); rimosso lupus_panniculitis da escludi
+    {flag:"rimming_adipociti_flag",diagnosi:"SPTCL (sospetto — rimming + contesto)",escludi:["eritema_nodoso"]}
 ];
 
 const IHC_PERF={
-    PCR_TCR:{test:"PCR TCR dual-site",ind:"MF vs dermatite",sens:"82.6",spec:"95.7"},
+    PCR_TCR:{test:"PCR TCR dual-site",ind:"MF vs dermatite",sens:"82.6",spec:"95.7",note:"Valori da studio dual-site in setting selezionato; resa variabile per metodo, tessuto e pretest probability"},
     DIF_lupus:{test:"DIF Lupus Band",ind:"Lupus cutaneo",sens:"71-84",spec:">90"},
     DIF_LP:{test:"DIF IgM fibrillar",ind:"Lichen planus",sens:"78.5",spec:">90"},
-    CD123:{test:"CD123 ≥10 cellule",ind:"Lupus vs LPP",sens:"50",spec:"93"},
+    CD123:{test:"CD123 ≥10 cellule",ind:"Lupus vs MF",sens:"50-80",spec:"93",note:"Variabile per soglia e studio"},
     BP180:{test:"ELISA BP180",ind:"Pemfigoide",sens:"82-90",spec:"94"},
     Treponema:{test:"IHC anti-Treponema",ind:"Sifilide",sens:"60-70",spec:"100"},
     SPTCL:{test:"CD3+CD8+βF1+CD56-",ind:"SPTCL",sens:">95",spec:">95"},
@@ -166,7 +215,7 @@ const IHC_PERF={
 
 const IHC_PSO_SPONG={
     titolo:"Pannello IHC: Psoriasi vs Spongotico",
-    fonte:"Healthcare Bulletin 2025",
+    fonte:"Canavese M et al. IL-36γ IHC psoriasis vs eczema. JAAD 2025",
     marcatori:[
         {nome:"Ki-67",pso:"Soprabasale diffuso",spong:"Solo basale",note:"Forte discriminante"},
         {nome:"p53",pso:"Iperespresso",spong:"Basale/debole",note:"Combinare con Ki-67"},
@@ -211,7 +260,7 @@ const DX={
     psoriasi_vulgaris:{
         nome:"Psoriasi vulgaris",cat:"Psoriasiforme",
         major:{pattern_primario:"psoriasiforme",acantosi:"marcata",paracheratosi:["moderata","marcata"],ipogranulosi:"si"},
-        minor:{neutrofili:["presenti","abbondanti"],microascessi_munro:true,neutrofili_in_paracheratosi:true,assottigliamento_soprapapillare:true,granuli_cheratoialina:"diminuiti",capillari_dilatati_papille:true},
+        minor:{neutrofili:["presenti","abbondanti"],microascessi_munro:'si',neutrofili_in_paracheratosi:true,assottigliamento_soprapapillare:true,granuli_cheratoialina:"diminuiti",capillari_dilatati_papille:true},
         note:"Creste REGOLARI. Granuloso ASSENTE. SEGNO Ñ. NO plasmacellule!",
         color:["PAS escludere tinea"],ihc:null,
         bib:{autori:"Armstrong AW",titolo:"Psoriasis",riv:"JAMA",anno:2020,pmid:"32427307"}
@@ -227,7 +276,7 @@ const DX={
     lichen_planus:{
         nome:"Lichen planus",cat:"Interfaccia/Lichenoide",
         major:{pattern_primario:"interfaccia_lichenoide",infiltrato_distribuzione:"banda_lichenoide",vacuolizzazione_basale:"presente"},
-        minor:{necrosi_keratinociti:"presente",ipergranulosi:"si",saw_toothing:true,ipergranulosi_cuneo:true,corpi_civatte:true},
+        minor:{necrosi_keratinociti:"presente",ipergranulosi:"si",saw_toothing:true,ipergranulosi_cuneo:true,corpi_civatte:'si'},
         note:"Banda DENSA. Civatte. SAW-TOOTHING. Ipergranulosi CUNEO. NO paracheratosi. DIF: IgM fibrillar (sens 78%).",
         color:["IF diretta"],ihc:"DIF_LP",
         bib:{autori:"Gupta S",titolo:"Lichen Planus",riv:"Indian J Dermatol",anno:2015,pmid:"26120146"}
@@ -243,8 +292,8 @@ const DX={
     },
     lupus_cutaneo_discoide:{
         nome:"Lupus eritematoso discoide",cat:"Interfaccia/Vacuolare",
-        major:{pattern_primario:"interfaccia_vacuolare",vacuolizzazione_basale:["presente","marcata"],plugging_follicolare:true},
-        minor:{mucina_dermica:["focale","abbondante"],infiltrato_perianessiale_profondo:true,plasmacellule:"presenti",mxa_positivo:true,cd123_clusters:true},
+        major:{pattern_primario:"interfaccia_vacuolare",vacuolizzazione_basale:["presente","marcata"],plugging_follicolare:'si'},
+        minor:{mucina_dermica:["focale","abbondante"],infiltrato_perianessiale_profondo:'si',plasmacellule:"presenti",mxa_positivo:'si',cd123_clusters:'si'},
         note:"PLUGGING FOLLICOLARE. Infiltrato sup+PROFONDO. MUCINA. MxA+ cheratinociti. CD123 CLUSTERS (vs sparso in MF).",
         color:["IF diretta","Alcian blue","CD123","MxA"],ihc:"DIF_lupus",
         bib:{autori:"Crowson AN",titolo:"Lupus cutaneous pathology",riv:"J Cutan Pathol",anno:2001,pmid:"11168761"}
@@ -252,7 +301,7 @@ const DX={
     lupus_cutaneo_subacuto:{
         nome:"Lupus eritematoso subacuto",cat:"Interfaccia/Vacuolare",
         major:{pattern_primario:"interfaccia_vacuolare",vacuolizzazione_basale:"presente"},
-        minor:{mucina_dermica:["focale","abbondante"],infiltrato_distribuzione:"perivascolare_superficiale",mxa_positivo:true},
+        minor:{mucina_dermica:["focale","abbondante"],infiltrato_distribuzione:"perivascolare_superficiale",mxa_positivo:'si'},
         note:"Più superficiale del discoide. Meno plugging. Foto-distribuito. Anti-Ro/SSA. MxA+.",
         color:["IF diretta","Alcian blue","MxA"],ihc:"MxA",
         bib:{autori:"Sontheimer RD",titolo:"SCLE",riv:"Clin Dermatol",anno:1985,pmid:"3833325"}
@@ -260,7 +309,7 @@ const DX={
     dermatomiosite:{
         nome:"Dermatomiosite",cat:"Interfaccia/Vacuolare",
         major:{pattern_primario:"interfaccia_vacuolare",vacuolizzazione_basale:"presente",mucina_dermica:["focale","abbondante"]},
-        minor:{mxa_positivo:true,edema_dermico:["moderato","marcato"]},
+        minor:{mxa_positivo:'si',edema_dermico:["moderato","marcato"]},
         note:"Vacuolare + MUCINA dermica abbondante. MxA+ (firma IFN tipo I). Atrofia epidermica possibile.",
         color:["Alcian blue","MxA"],ihc:"MxA",
         bib:{autori:"Casciola-Rosen L",titolo:"Dermatomyositis",riv:"Curr Opin Rheumatol",anno:2015,pmid:"25415528"}
@@ -283,7 +332,7 @@ const DX={
     },
     vasculite_leucocitoclastica:{
         nome:"Vasculite leucocitoclastica",cat:"Vasculitico",
-        major:{pattern_primario:["perivascolare","vasculitico"],vasculite:"si",neutrofili:"abbondanti",leucocitoclasia:true},
+        major:{pattern_primario:["perivascolare","vasculitico"],vasculite:"si",neutrofili:"abbondanti",leucocitoclasia:'si'},
         minor:{eritrociti_extravasati:["presenti","abbondanti"]},
         note:"NECROSI FIBRINOIDE parete. LEUCOCITOCLASIA (polvere nucleare). Porpora palpabile.",
         color:["IF diretta per IgA"],ihc:null,
@@ -291,8 +340,8 @@ const DX={
     },
     vasculopatia_livedoide:{
         nome:"Vasculopatia livedoide",cat:"Vasculopatico",
-        major:{pattern_primario:"vasculopatico",trombi_fibrina:true,leucocitoclasia:false},
-        minor:{depositi_emosiderina:true},
+        major:{pattern_primario:"vasculopatico",trombi_fibrina:'si',leucocitoclasia:'no'},
+        minor:{depositi_emosiderina:'si'},
         note:"⚠️ NON È VASCULITE! Trombi fibrina intraluminali, ispessimento ialino pareti. NO leucocitoclasia. Porpora reticolata.",
         color:["Perls (emosiderina)","Fibrina"],ihc:null,
         bib:{autori:"Criado PR",titolo:"Livedoid vasculopathy",riv:"An Bras Dermatol",anno:2011,pmid:"21603806"}
@@ -300,16 +349,16 @@ const DX={
     reazione_puntura_insetto:{
         nome:"Reazione da puntura",cat:"Eosinofilo",
         major:{pattern_primario:["perivascolare_eosinofilo","interstiziale_eosinofilo"],eosinofili:"abbondanti"},
-        minor:{edema_dermico:["moderato","marcato"],infiltrato_wedge_shaped:true,necrosi_epidermica_focale:true},
+        minor:{edema_dermico:["moderato","marcato"],infiltrato_wedge_shaped:true,necrosi_epidermica_focale:'si'},
         note:"Pattern WEDGE-SHAPED. Possibile necrosi focale (punto inoculo).",
         color:["Giemsa se sospetto leishmaniosi"],ihc:null,
         bib:{autori:"Miteva M",titolo:"Arthropod Bite",riv:"Dermatol Ther",anno:2012,pmid:"22741932"}
     },
     sindrome_wells:{
         nome:"Sindrome di Wells",cat:"Eosinofilo",
-        major:{pattern_primario:["interstiziale_eosinofilo","perivascolare_eosinofilo"],eosinofili:"abbondanti",flame_figures:true},
-        minor:{edema_dermico:["moderato","marcato"],degranulazione_eosinofila:true},
-        note:"⚠️ FLAME FIGURES patognomoniche.",
+        major:{pattern_primario:["interstiziale_eosinofilo","perivascolare_eosinofilo"],eosinofili:"abbondanti",flame_figures:'si'},
+        minor:{edema_dermico:["moderato","marcato"],degranulazione_eosinofila:'si'},
+        note:"Flame figures: forte indizio per dermatosi eosinofila/Wells, NON patognomoniche (compaiono anche in artropod reactions e EGPA).",
         color:["H&E","Congo rosso"],ihc:null,
         bib:{autori:"Räßler F",titolo:"Eosinophilic cellulitis",riv:"JEADV",anno:2016,pmid:"27291961"}
     },
@@ -332,7 +381,7 @@ const DX={
     prurigo_nodularis:{
         nome:"Prurigo nodularis",cat:"Eosinofilo",
         major:{pattern_primario:["perivascolare","perivascolare_eosinofilo"],acantosi:["moderata","marcata"],ipergranulosi:"si"},
-        minor:{fibrosi_dermica:true,iperplasia_neurale:true,granuli_cheratoialina:"grossolani"},
+        minor:{fibrosi_dermica:true,iperplasia_neurale:'si',granuli_cheratoialina:"grossolani"},
         note:"Ipergranulosi. Fibrosi verticale. Iperplasia neurale (S100+).",
         color:["S100","PGP9.5"],ihc:null,
         bib:{autori:"Williams KA",titolo:"Prurigo nodularis",riv:"JAAD",anno:2020,pmid:"32461078"}
@@ -340,7 +389,7 @@ const DX={
     follicolite_eosinofila:{
         nome:"Follicolite eosinofila",cat:"Eosinofilo",
         major:{pattern_primario:["perivascolare_eosinofilo","interstiziale_eosinofilo"],eosinofili:"abbondanti",infiltrato_follicolare:true},
-        minor:{spongiosi_follicolare:true,pustole_follicolari:true},
+        minor:{spongiosi_follicolare:'si',pustole_follicolari:'si'},
         note:"⚠️ Eosinofili CENTRATI SUI FOLLICOLI. HIV: CD4<300.",
         color:["PAS/Grocott","Gram"],ihc:null,
         bib:{autori:"Nervi SJ",titolo:"Eosinophilic folliculitis",riv:"JAAD",anno:2006,pmid:"16844513"}
@@ -348,14 +397,14 @@ const DX={
     micosi_fungoide_early:{
         nome:"Micosi fungoide (early)",cat:"Linfoma cutaneo T",
         major:{pattern_primario:["spongotico","interfaccia_lichenoide"],linfociti_atipici:"presenti"},
-        minor:{epidermotropismo:"presente",alone_chiaro:true,spongiosi_proporzionata:"no"},
+        minor:{epidermotropismo:"presente",alone_chiaro:'si',spongiosi_proporzionata:"no"},
         note:"⚠️ LINFOMA! Epidermotropismo SENZA spongiosi proporzionata. Alone chiaro. PCR TCR: sens 82.6%, spec 95.7%. ⚠️ CLONALITÀ ≠ MALIGNITÀ: clonalità TCR presente anche in PLEVA, dermatiti croniche, pitiriasi lichenoide. Diagnosi richiede integrazione morfologia + clinica + IHC.",
         color:["CD3","CD4","CD8","CD7 loss","TOX","PD-1"],ihc:"PCR_TCR",
         bib:{autori:"Willemze R",titolo:"WHO-EORTC lymphomas",riv:"Blood",anno:2019,pmid:"30635287"}
     },
     granuloma_anulare:{
         nome:"Granuloma anulare",cat:"Granulomatoso",
-        major:{pattern_primario:["granulomatoso","granulomatoso_palizzata"],palisading_necrosi_mucina:true},
+        major:{pattern_primario:["granulomatoso","granulomatoso_palizzata"],palisading_necrosi_mucina:'si'},
         minor:{mucina_dermica:["focale","abbondante"]},
         note:"Palisading + MUCINA centrale (Alcian blue+). No necrosi fibrinoide. Rari eosinofili.",
         color:["PAS","Alcian blue"],ihc:null,
@@ -363,7 +412,7 @@ const DX={
     },
     necrobiosi_lipoidica:{
         nome:"Necrobiosi lipoidica",cat:"Granulomatoso Palizzata",
-        major:{pattern_primario:["granulomatoso","granulomatoso_palizzata"],necrobiosi_sandwich:true},
+        major:{pattern_primario:["granulomatoso","granulomatoso_palizzata"],necrobiosi_sandwich:'si'},
         minor:{plasmacellule:"presenti",fibrosi_dermica:true},
         note:"Necrobiosi 'A SANDWICH' (strati infiammatori alternati a collagene ialinizzato). TUTTO SPESSORE derma. Plasmacellule.",
         color:["PAS","VVG elastiche"],ihc:null,
@@ -379,7 +428,7 @@ const DX={
     },
     pemfigo_volgare:{
         nome:"Pemfigo volgare",cat:"Bolloso Intraepidermico",
-        major:{pattern_primario:"intraepidermico",acantolisi:true,bolle_intraepidermiche:true},
+        major:{pattern_primario:"intraepidermico",acantolisi:'si',bolle_intraepidermiche:'si'},
         minor:{},
         note:"⚠️ Acantolisi SOPRABASALE. Tombstoning. DIF: IgG rete (sens ~95%).",
         color:["IF: IgG/C3 intercellulari"],ihc:null,
@@ -387,7 +436,7 @@ const DX={
     },
     pemfigoide_bolloso:{
         nome:"Pemfigoide bolloso",cat:"Bolloso Subepidermico",
-        major:{pattern_primario:"subepidermico_bolloso",bolle_subepidermiche:true},
+        major:{pattern_primario:"subepidermico_bolloso",bolle_subepidermiche:'si'},
         minor:{eosinofili:["presenti","abbondanti"]},
         note:"⚠️ Bolle subepidermiche + EOSINOFILI. DIF: IgG+C3 lineari (sens ~80%). ELISA BP180: sens 82-90%, spec 94%.",
         color:["IF: IgG+C3 lineari BMZ"],ihc:"BP180",
@@ -395,7 +444,7 @@ const DX={
     },
     dermatite_erpetiforme:{
         nome:"Dermatite erpetiforme",cat:"Bolloso Subepidermico",
-        major:{pattern_primario:"subepidermico_bolloso",bolle_subepidermiche:true,neutrofili:["presenti","abbondanti"]},
+        major:{pattern_primario:"subepidermico_bolloso",bolle_subepidermiche:'si',neutrofili:["presenti","abbondanti"]},
         minor:{},
         note:"Microascessi NEUTROFILI tips papillari. DIF: IgA GRANULARE (gold standard, sens ~90%, spec ~100%).",
         color:["IF: IgA granulare papille"],ihc:null,
@@ -404,39 +453,39 @@ const DX={
     eritema_nodoso:{
         nome:"Eritema nodoso",cat:"Panniculite Settale",
         major:{pattern_primario:"panniculitico",panniculite_tipo:"settale"},
-        minor:{granulomi_miescher:true,fibrosi_dermica:true,panniculite_vasculite:false},
+        minor:{granulomi_miescher:'si',fibrosi_dermica:true,panniculite_vasculite:'no'},
         note:"SETTALE senza vasculite. GRANULOMI MIESCHER (rosetta) quasi patognomonici. Escludere cause.",
         color:["Workup sistemico"],ihc:null,
         bib:{autori:"Requena L",titolo:"Panniculitis I",riv:"JAAD",anno:2001,pmid:"11169025"}
     },
     lupus_panniculitis:{
         nome:"Lupus panniculitis",cat:"Panniculite Lobulare",
-        major:{pattern_primario:"panniculitico",panniculite_tipo:"lobulare",follicoli_germinativi:true},
-        minor:{mucina_dermica:["focale","abbondante"],plasmacellule:"presenti",vacuolizzazione_basale:"presente",necrosi_ialina_grasso:true},
+        major:{pattern_primario:"panniculitico",panniculite_tipo:"lobulare",follicoli_germinativi:'si'},
+        minor:{mucina_dermica:["focale","abbondante"],plasmacellule:"presenti",vacuolizzazione_basale:"presente",necrosi_ialina_grasso:'si'},
         note:"LOBULARE linfocitaria. FOLLICOLI LINFOIDI con centri germinativi. MUCINA nel grasso. Necrosi ialina.",
         color:["IF diretta","Alcian blue"],ihc:"DIF_lupus",
         bib:{autori:"Massone C",titolo:"Lupus panniculitis",riv:"Dermatol Clin",anno:2008,pmid:"18346555"}
     },
     panniculite_pancreatica:{
         nome:"Panniculite pancreatica",cat:"Panniculite Lobulare",
-        major:{pattern_primario:"panniculitico",panniculite_tipo:"lobulare",ghost_cells:true},
-        minor:{calcificazione_basofila:true,neutrofili:"abbondanti"},
+        major:{pattern_primario:"panniculitico",panniculite_tipo:"lobulare",ghost_cells:'si'},
+        minor:{calcificazione_basofila:'si',neutrofili:"abbondanti"},
         note:"⚠️ GHOST CELLS patognomoniche (adipociti senza nucleo, pareti ispessite). Calcificazione basofila (saponificazione). ESCLUDERE CARCINOMA PANCREAS!",
         color:["Von Kossa (calcio)","Lipasi sierica"],ihc:null,
         bib:{autori:"Requena L",titolo:"Panniculitis II",riv:"JAAD",anno:2001,pmid:"11169026"}
     },
     sptcl:{
         nome:"SPTCL (Linfoma panniculitico)",cat:"Panniculite Lobulare / Linfoma",
-        // v2.1: rimming_adipociti come criterio MAGGIORE
-        major:{pattern_primario:"panniculitico",panniculite_tipo:"lobulare",linfociti_atipici:["presenti","abbondanti"],rimming_adipociti:true},
-        minor:{necrosi_adipociti:true,emofagocitosi:true},
-        note:"⚠️ LINFOMA! Linfociti 'RIMMING' adipociti (criterio morfologico chiave). EMOFAGOCITOSI. IHC: CD3+CD8+βF1+CD56- (αβ). PCR TCR clonale.",
+        // v2.3: rimming_adipociti spostato da MAJOR a MINOR (non discrimina da LEP: Magro 2021, J Cutan Pathol)
+        major:{pattern_primario:"panniculitico",panniculite_tipo:"lobulare",linfociti_atipici:["presenti","abbondanti"]},
+        minor:{rimming_adipociti:'si',necrosi_adipociti:'si',emofagocitosi:'si'},
+        note:"⚠️ LINFOMA! Linfociti 'RIMMING' adipociti (supportivo ma NON discriminante da LEP da solo — richiede atipia + emofagocitosi + IHC). IHC: CD3+CD8+βF1+CD56- (αβ). PCR TCR clonale.",
         color:["CD3","CD8","CD4","βF1","CD56","Granzyme","CD68"],ihc:"SPTCL",
         bib:{autori:"Willemze R",titolo:"WHO-EORTC",riv:"Blood",anno:2019,pmid:"30635287"}
     },
     vasculite_nodulare:{
         nome:"Vasculite nodulare / Er. indurato",cat:"Panniculite Lobulare/Settale",
-        major:{pattern_primario:"panniculitico",panniculite_vasculite:true},
+        major:{pattern_primario:"panniculitico",panniculite_vasculite:'si'},
         minor:{panniculite_tipo:"lobulare"},
         note:"Lobulo-SETTALE + VASCULITE necrotizzante. Associazione TB (Bazin). Necrosi caseosa possibile.",
         color:["ZN/Fite","PCR MTB"],ihc:null,
@@ -444,74 +493,113 @@ const DX={
     },
     mastocitosi_cutanea:{
         nome:"Mastocitosi cutanea",cat:"Mastocitario",
-        major:{pattern_primario:"mastocitario",mastociti_aggregati:true,cd117_pos:true},
-        minor:{cd25_aberrante:true},
+        major:{pattern_primario:"mastocitario",mastociti_aggregati:'si',cd117_pos:'si'},
+        minor:{cd25_aberrante:'si'},
         note:"Aggregati ≥15 mastociti. CD117+ (c-kit), TRIPTASI+. CD25/CD2 ABERRANTE = sospetto sistemico. Giemsa metacromasia.",
         color:["Giemsa/Toluidina blu","CD117","Triptasi","CD25"],ihc:"CD117",
         bib:{autori:"Valent P",titolo:"Mastocytosis WHO",riv:"Blood",anno:2017,pmid:"28053105"}
+    },
+    // v2.10.2: diagnosi subcorneo — pattern non era coperto
+    sneddon_wilkinson:{
+        nome:"Sneddon-Wilkinson (Pustolosi subcornea)",cat:"Subcorneo",
+        major:{pattern_primario:"subcorneo",neutrofili:["presenti","abbondanti"]},
+        minor:{acantolisi:'si',eosinofili:["presenti","abbondanti"]},
+        note:"Pustole subcornee flaccide, sterili, simmetriche. Acantolisi superficiale possibile. DD: pemfigo IgA, AGEP. IgA intercellulare superficiale in IF diretta.",
+        color:["PAS (esclude candida)","IF diretta (IgA)"],
+        bib:{autori:"Cheng S",titolo:"Sneddon-Wilkinson disease",riv:"Clin Exp Dermatol",anno:2008,pmid:"17976217"}
+    },
+    agep_pustolosi:{
+        nome:"AGEP / Pustolosi acuta generalizzata",cat:"Subcorneo",
+        major:{pattern_primario:"subcorneo",neutrofili:"abbondanti",infiltrato_neutrofili_pustole:'si'},
+        minor:{eosinofili:["presenti","abbondanti"],edema_dermico:["moderato","marcato"],storia_farmaci:true},
+        note:"Pustole intraepidermiche/subcornee spongioidi. Ricca infiltrazione neutrofila perivascolare. Eosinofili quasi costanti. Edema dermico papillare. >90% farmaco-correlata (aminopenicilline, chinolonici, Ca-antagonisti). Esordio <4 gg dal farmaco.",
+        color:["Nessuna specifica — morfologia caratteristica"],
+        bib:{autori:"Sidoroff A",titolo:"AGEP diagnostic criteria",riv:"J Cutan Pathol",anno:2001,pmid:"11168750"}
+    },
+    impetigine_bullosa:{
+        nome:"Impetigine bollosa / SSSS",cat:"Subcorneo",
+        major:{pattern_primario:"subcorneo",neutrofili:["rari","presenti"]},
+        minor:{acantolisi:'si'},
+        note:"Clivaggio subcorneo da esfoliatina stafilococcica (ET-A/B) che cliva desmogleina-1. Pochissima infiammazione nel clivaggio. DD: pemfigo fogliacco (immunopatologia). SSSS: cute perilesionale normale istologicamente.",
+        color:["Gram (se essudato)","Coltura batterica"],
+        bib:{autori:"Stanley JR",titolo:"Pemphigus and staphylococcal scalded skin",riv:"N Engl J Med",anno:2006,pmid:"16510744"}
     }
 };
 
 const Engine={
     evalFlag(f,d){
         const chk={
-            microascessi_munro:()=>d.microascessi_munro,
-            corpi_civatte:()=>d.corpi_civatte,
+            microascessi_munro:()=>d.microascessi_munro==='si',
+            corpi_civatte:()=>d.corpi_civatte==='si',
             eosinofili_marcati_edema:()=>d.eosinofili==="abbondanti"&&d.edema_dermico==="marcato",
-            palisading_necrosi_mucina:()=>d.palisading_necrosi_mucina,
-            epidermotropismo_alone:()=>d.epidermotropismo==="presente"&&d.alone_chiaro,
-            acantolisi_bolloso:()=>d.acantolisi&&d.bolle_intraepidermiche,
-            bolle_subepidermiche_eosinofili:()=>d.bolle_subepidermiche&&["presenti","abbondanti"].includes(d.eosinofili),
-            flame_figures_eosinofili:()=>d.flame_figures&&d.eosinofili==="abbondanti",
+            palisading_necrosi_mucina:()=>d.palisading_necrosi_mucina==='si',
+            // v2.7: matchAtLeast — marcato soddisfa presente
+            epidermotropismo_alone:()=>matchAtLeast('epidermotropismo','presente',d.epidermotropismo)&&d.alone_chiaro==='si',
+            acantolisi_bolloso:()=>d.acantolisi==='si'&&d.bolle_intraepidermiche==='si',
+            bolle_subepidermiche_eosinofili:()=>d.bolle_subepidermiche==='si'&&["presenti","abbondanti"].includes(d.eosinofili),
+            flame_figures_eosinofili:()=>d.flame_figures==='si'&&d.eosinofili==="abbondanti",
             wedge_eosinofili_profondo:()=>d.infiltrato_wedge_shaped&&d.eosinofili==="abbondanti",
             neutrofili_paracheratosi_psoriasi:()=>d.neutrofili_in_paracheratosi&&d.paracheratosi!=="assente",
             granuli_grossolani_lsc:()=>d.granuli_cheratoialina==="grossolani"&&d.acantosi!=="assente",
-            saw_toothing_civatte:()=>d.saw_toothing&&d.corpi_civatte,
+            saw_toothing_civatte:()=>d.saw_toothing&&d.corpi_civatte==='si',
             plasmacellule_psoriasiforme:()=>["presenti","abbondanti"].includes(d.plasmacellule)&&d.pattern_primario==="psoriasiforme",
-            granulomi_miescher_en:()=>d.granulomi_miescher&&d.pattern_primario==="panniculitico",
-            emofagocitosi_lobulare:()=>d.emofagocitosi&&d.panniculite_tipo==="lobulare",
-            ghost_cells_panniculite:()=>d.ghost_cells&&d.pattern_primario==="panniculitico",
-            trombi_no_lcv:()=>d.trombi_fibrina&&!d.leucocitoclasia,
-            mxa_cd123_lupus:()=>d.mxa_positivo||d.cd123_clusters,
-            mastociti_cd25:()=>d.mastociti_aggregati&&d.cd25_aberrante,
+            granulomi_miescher_en:()=>d.granulomi_miescher==='si'&&d.pattern_primario==="panniculitico",
+            emofagocitosi_lobulare:()=>d.emofagocitosi==='si'&&d.panniculite_tipo==="lobulare",
+            ghost_cells_panniculite:()=>d.ghost_cells==='si'&&d.pattern_primario==="panniculitico",
+            // v2.6: coerenza tri-state — lcv deve essere 'no' esplicito, non solo assenza di 'si'
+            trombi_no_lcv:()=>d.trombi_fibrina==='si'&&d.leucocitoclasia==='no',
+            mxa_cd123_lupus:()=>d.mxa_positivo==='si'||d.cd123_clusters==='si',
+            mastociti_cd25:()=>d.mastociti_aggregati==='si'&&d.cd25_aberrante==='si',
             paracheratosi_mounds_manicotto:()=>d.paracheratosi_mounds&&d.infiltrato_manicotto,
-            spongiosi_proporzionata_mf:()=>d.spongiosi_proporzionata==="si"&&d.epidermotropismo==="presente",
+            // v2.7: coerenza — penalità MF scatta anche con epidermotropismo marcato
+            spongiosi_proporzionata_mf:()=>d.spongiosi_proporzionata==="si"&&matchAtLeast('epidermotropismo','presente',d.epidermotropismo),
             // v2.1: PLEVA - necrosi massiva + eritrociti intraepidermici
             pleva_necrosi_eritrociti:()=>d.necrosi_cheratinociti_diffusa&&d.eritrociti_extravasati_intraepidermici,
             // v2.1: rimming adipociti → SPTCL
-            rimming_adipociti_flag:()=>d.rimming_adipociti&&d.panniculite_tipo==="lobulare"
+            rimming_adipociti_flag:()=>d.rimming_adipociti==='si'&&d.panniculite_tipo==="lobulare"
         };
         return chk[f]?chk[f]():false;
     },
     calcScore(c,exp,val,w){
-        if(Array.isArray(exp))return exp.includes(val)?w:0;
         if(typeof exp==='boolean')return val===exp?w:0;
-        return val===exp?w:0;
+        if(Array.isArray(exp)){
+            // v2.8: EXACT_ARRAY_FIELDS → oneOf (range chiuso); altri → atLeast(min dell'array)
+            if(EXACT_ARRAY_FIELDS.has(c))return exp.includes(val)?w:0;
+            return exp.some(e=>matchAtLeast(c,e,val))?w:0;
+        }
+        return matchAtLeast(c,exp,val)?w:0;
     },
     scorePat(k,p,d,excl){
         let s=0,m=0;
-        Object.entries(p.major).forEach(([c,v])=>{m+=SC.MAJOR;s+=this.calcScore(c,v,d[c],SC.MAJOR);});
-        if(p.minor)Object.entries(p.minor).forEach(([c,v])=>{m+=SC.MINOR;s+=this.calcScore(c,v,d[c],SC.MINOR);});
+        // v2.4: campi stringa non compilati (='') esclusi dal denominatore → non valutato ≠ discordante
+        // i boolean restano nel denominatore: checkbox non spuntato = assente è semanticamente esplicito
+        const addCrit=(c,v,w)=>{
+            const val=d[c];
+            if(typeof val==='string'&&val==='')return; // non valutato: esce dal denominatore
+            m+=w;s+=this.calcScore(c,v,val,w);
+        };
+        Object.entries(p.major).forEach(([c,v])=>addCrit(c,v,SC.MAJOR));
+        if(p.minor)Object.entries(p.minor).forEach(([c,v])=>addCrit(c,v,SC.MINOR));
         if(k==='micosi_fungoide_early'&&d.spongiosi_proporzionata==='si'){
             s=Math.max(0,s-SC.MF_SPONG_PENALTY);
         }
         const pct=m>0?Math.round((s/m)*100):0;
-        return{pct:excl?Math.max(SC.MIN_EXCL,pct-SC.RED_PENALTY):pct,excl};
+        return{pct:excl?Math.max(SC.MIN_EXCL,pct-SC.RED_PENALTY):pct,excl,m};
     },
     calc(d){
         const flags=RED_FLAGS.filter(rf=>this.evalFlag(rf.flag,d));
         const scores=[];
         Object.entries(DX).forEach(([k,p])=>{
             const excl=flags.some(rf=>rf.escludi.includes(k));
-            const{pct}=this.scorePat(k,p,d,excl);
-            scores.push({key:k,...p,pct,excl});
+            const{pct,excl:ex,m}=this.scorePat(k,p,d,excl);
+            scores.push({key:k,...p,pct,excl:ex,m});
         });
         scores.sort((a,b)=>b.pct-a.pct);
-        const high=scores.filter(x=>x.pct>=50);
+        const high=scores.filter(x=>x.pct>=SC.THRESH);
         const low=scores.filter(x=>x.pct>=30&&x.pct<50).slice(0,3);
         const hints=this.hints(d);
         const syphilisWarning=["presenti","abbondanti"].includes(d.plasmacellule)&&d.pattern_primario==="psoriasiforme";
-        return{diagnoses:high,lowConf:low,flags,hints,syphilisWarning};
+        return{diagnoses:high,lowConf:low,allScores:scores,flags,hints,syphilisWarning};
     },
     hints(d){
         const p=d.pattern_primario;
@@ -525,15 +613,20 @@ const Engine={
             vasculitico:{gen:"Vasculitico",escl:["Vasculopatia (no leucocitoclasia)"],cons:["LCV","Vasculite IgA"],col:["IF per Ig"]},
             vasculopatico:{gen:"Vasculopatico",escl:["Vasculite vera"],cons:["Livedoide","Coagulopatia"],col:["Perls","Coagulazione"]},
             panniculitico:{gen:"Panniculitico",escl:["SPTCL (rimming adipociti+atipici+emofagocitosi)","Pancreatica (ghost cells)"],cons:["EN (settale)","Lupus panniculitis (lobulare, follicoli)"],col:["IHC T se linfoma","ZN"]},
-            mastocitario:{gen:"Mastocitario",escl:["Istiocitoma"],cons:["Mastocitosi cutanea","Urticaria pigmentosa"],col:["Giemsa","CD117","Triptasi","CD25"]}
+            mastocitario:{gen:"Mastocitario",escl:["Istiocitoma"],cons:["Mastocitosi cutanea","Urticaria pigmentosa"],col:["Giemsa","CD117","Triptasi","CD25"]},
+            subcorneo:{gen:"Pustole subcornee",escl:["Pemfigo fogliacco (IF)","Candidosi (PAS)","Dermatofitosi (PAS)"],cons:["Sneddon-Wilkinson","AGEP (farmaco?)","Impetigine bollosa/SSSS"],col:["PAS","IF diretta (IgA)","Gram se essudato"]}
         };
         return H[p]?[H[p]]:[];
     },
-    needsIHCPanel(dx){
-        const pso=dx.find(x=>x.key==='psoriasi_vulgaris');
-        const spong=dx.find(x=>['dermatite_allergica_contatto','dermatite_atopica_acuta','lichen_simplex_chronicus'].includes(x.key));
+    // v2.5: IHC panel basato su allScores (non solo high) → cattura DD viva anche sotto soglia
+    needsIHCPanel(allScores){
+        if(!allScores||!allScores.length)return false;
+        const pso=allScores.find(x=>x.key==='psoriasi_vulgaris');
+        // v2.7: best spong competitor, non il primo per ordine lista
+        const spongCandidates=allScores.filter(x=>['dermatite_allergica_contatto','dermatite_atopica_acuta','lichen_simplex_chronicus'].includes(x.key));
+        const spong=spongCandidates.sort((a,b)=>b.pct-a.pct)[0];
         if(!pso||!spong)return false;
-        return Math.abs(pso.pct-spong.pct)<20&&pso.pct>=50&&spong.pct>=50;
+        return pso.pct>=30&&spong.pct>=30&&Math.abs(pso.pct-spong.pct)<25;
     }
 };
 
@@ -550,6 +643,21 @@ const Sel=memo(({label,value,onChange,opts,highlight})=>(
 const Chk=memo(({label,checked,onChange,variant="default"})=>{
     const col={default:"border-slate-200 hover:bg-slate-50",warning:"border-amber-200 hover:bg-amber-50",danger:"border-red-300 hover:bg-red-50",eosinophil:"border-orange-200 hover:bg-orange-50",morpho:"border-indigo-300 hover:bg-indigo-50",teal:"border-teal-300 hover:bg-teal-50",critical:"border-purple-500 bg-purple-50 hover:bg-purple-100"};
     return(<label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer ${col[variant]}`}><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} className="mr-3"/><span className={variant==="danger"||variant==="critical"?"font-semibold":""}>{label}</span></label>);
+});
+
+// v2.5: TriState — 3 stati: 'si'=presente | 'no'=assente | ''=non valutato
+// I campi '' escono dal denominatore → non valutato ≠ discordante
+const TS=memo(({label,value,onChange,variant="default"})=>{
+    const border={default:"border-slate-200",warning:"border-amber-200",danger:"border-red-300",morpho:"border-indigo-300",teal:"border-teal-300",eosinophil:"border-orange-200"};
+    const btnBase="px-2 py-1 text-xs font-semibold border-l border-slate-200 first:border-l-0 transition-colors";
+    return(<div className={`flex items-center justify-between p-3 border-2 rounded-lg ${border[variant]}`}>
+        <span className={`text-sm flex-1 mr-2 ${variant==="danger"?"font-semibold":""}`}>{label}</span>
+        <div className="flex rounded overflow-hidden border border-slate-300 shrink-0">
+            <button type="button" onClick={()=>onChange('si')} className={`${btnBase} ${value==='si'?'bg-blue-600 text-white':'bg-white text-slate-600 hover:bg-slate-50'}`}>Sì</button>
+            <button type="button" onClick={()=>onChange('no')} className={`${btnBase} ${value==='no'?'bg-slate-500 text-white':'bg-white text-slate-600 hover:bg-slate-50'}`}>No</button>
+            <button type="button" onClick={()=>onChange('')} className={`${btnBase} ${value===''?'bg-slate-200 text-slate-500':'bg-white text-slate-400 hover:bg-slate-50'}`} title="Non valutato">—</button>
+        </div>
+    </div>);
 });
 
 const Radio=memo(({opt,sel,onSel})=>(
@@ -578,7 +686,7 @@ const Nav=memo(({onBack,onNext,canNext=true,nextLbl="Avanti →"})=>(
 const IHCBox=memo(({ihcKey})=>{
     if(!ihcKey||!IHC_PERF[ihcKey])return null;
     const d=IHC_PERF[ihcKey];
-    return(<div className="mt-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-xs"><p className="font-semibold text-indigo-800">📊 {d.test}</p><p className="text-indigo-700">Sens: {d.sens}% | Spec: {d.spec}%</p></div>);
+    return(<div className="mt-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-xs"><p className="font-semibold text-indigo-800">📊 {d.test}</p><p className="text-indigo-700">Sens: {d.sens}% | Spec: {d.spec}%{d.note?` — ${d.note}`:''}</p></div>);
 });
 
 const IHCPanel=memo(()=>{
@@ -617,6 +725,7 @@ const DxCard=memo(({dx,idx})=>{
     <div className={`text-right ml-4 px-3 py-2 rounded-lg ${cls.bg} border ${cls.border}`}>
         <div className={`text-2xl font-bold ${cls.color}`}>{cls.emoji} {cls.label}</div>
         <div className="text-xs text-slate-500 mt-1">compatibilità {dx.pct}%</div>
+        {dx.m!==undefined&&<div className="text-xs text-slate-400" title="peso criteri valutati sul denominatore">peso: {dx.m}</div>}
     </div></div>
     <p className="text-sm mb-3 bg-white rounded p-3">{dx.note}</p>
     {dx.color&&dx.color.length>0&&(<div className={`rounded p-3 mb-2 ${isLymph?'bg-red-100':isPleva?'bg-pink-100':isEos?'bg-orange-100':isPann?'bg-teal-100':'bg-amber-50'}`}>
@@ -663,7 +772,8 @@ const SyphilisAlert=memo(()=>(
 const QuickForm=memo(({data,upd,onGen})=>(
     <div className="bg-white rounded-xl shadow-lg p-6">
     <div className="mb-4 p-3 bg-purple-50 border-2 border-purple-300 rounded-lg">
-    <p className="text-sm text-purple-800">⚡ <strong>Modalità Rapida</strong> - Solo campi essenziali.</p></div>
+    <p className="text-sm text-purple-800">⚡ <strong>Modalità Rapida</strong> - Solo campi essenziali.</p>
+    <p className="text-xs text-purple-600 mt-1 italic">Nota: con meno criteri valutati, le percentuali sono più sensibili a ogni singolo campo — variabilità fisiologica del denominatore ridotto.</p></div>
     <h2 className="text-xl font-bold mb-4">Pattern + Criteri Chiave</h2>
     <div className="space-y-4">
     <div><label className="block font-semibold mb-2">Pattern Architetturale</label>
@@ -680,12 +790,20 @@ const QuickForm=memo(({data,upd,onGen})=>(
     <Sel label="Eosinofili" value={data.eosinofili} onChange={v=>upd('eosinofili',v)} opts={[{value:'assenti',label:'Assenti'},{value:'rari',label:'Rari'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
     </div>
     <Sel label="⚠️ Plasmacellule" value={data.plasmacellule} onChange={v=>upd('plasmacellule',v)} highlight={true} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti → Sifilide?'},{value:'abbondanti',label:'Abbondanti → SIFILIDE!'}]}/>
-    <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>upd('epidermotropismo',v)} opts={[{value:'assente',label:'Assente'},{value:'presente',label:'Presente'},{value:'marcato',label:'Marcato'}]}/>
+    <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>{upd('epidermotropismo',v);if(!v||v==='assente')upd('spongiosi_proporzionata','');}} opts={[{value:'assente',label:'Assente'},{value:'presente',label:'Presente'},{value:'marcato',label:'Marcato'}]}/>
     {data.epidermotropismo&&data.epidermotropismo!=='assente'&&(
     <div className="p-4 bg-purple-50 border-2 border-purple-500 rounded-lg">
     <Sel label="🔑 Spongiosi proporzionata all'esocitosi?" value={data.spongiosi_proporzionata} onChange={v=>upd('spongiosi_proporzionata',v)} highlight={true} opts={[{value:'si',label:'SÌ → Dermatite (MF improbabile)'},{value:'no',label:'NO → Sospetto MF!'}]}/>
     <p className="text-xs text-purple-700 mt-2 italic">In MF l'epidermotropismo è SPROPORZIONATO rispetto alla spongiosi</p>
     </div>)}
+    {/* v2.10.3: campi subcorneo condizionali in Quick mode */}
+    {data.pattern_primario==='subcorneo'&&(<div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
+    <h3 className="font-bold text-amber-800 mb-2">🔶 Subcorneo — campi essenziali</h3>
+    <div className="space-y-2">
+    <Sel label="Neutrofili" value={data.neutrofili} onChange={v=>upd('neutrofili',v)} opts={[{value:'assenti',label:'Assenti'},{value:'rari',label:'Rari'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]/>
+    <TS label="Acantolisi superficiale" value={data.acantolisi} onChange={v=>upd('acantolisi',v)} variant="warning"/>
+    <TS label="Infiltrato neutrofilo nelle pustole → AGEP" value={data.infiltrato_neutrofili_pustole} onChange={v=>upd('infiltrato_neutrofili_pustole',v)} variant="warning"/>
+    <Chk label="Storia farmaci → AGEP" checked={data.storia_farmaci} onChange={v=>upd('storia_farmaci',v)}/></div></div>)}
     </div>
     <Nav onNext={onGen} canNext={!!data.pattern_primario} nextLbl="🔬 Genera Diagnosi"/>
     </div>
@@ -699,12 +817,11 @@ const Step1=memo(({data,upd,onNext})=>(
     <h3 className="font-bold text-teal-800 mb-3">🔍 Tipo Panniculite</h3>
     <Sel label="Localizzazione" value={data.panniculite_tipo} onChange={v=>upd('panniculite_tipo',v)} opts={[{value:'settale',label:'Settale (setti) → EN'},{value:'lobulare',label:'Lobulare (lobuli) → Lupus, SPTCL, Pancreatica'}]}/>
     <div className="space-y-2 mt-3">
-    <Chk label="Vasculite presente → Er. indurato Bazin" checked={data.panniculite_vasculite} onChange={v=>upd('panniculite_vasculite',v)} variant="teal"/>
-    <Chk label="⚠️ Ghost cells (adipociti fantasma) → PANCREATICA!" checked={data.ghost_cells} onChange={v=>upd('ghost_cells',v)} variant="danger"/>
-    <Chk label="Follicoli linfoidi con centri germinativi → Lupus" checked={data.follicoli_germinativi} onChange={v=>upd('follicoli_germinativi',v)} variant="teal"/></div></div>)}
-    <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
-    <h3 className="font-bold text-blue-800 mb-3">⏱️ Fase della Lesione</h3>
-    <Sel label="Fase" value={data.fase_lesione} onChange={v=>upd('fase_lesione',v)} opts={[{value:'acuta',label:'Acuta (ore-giorni): spongiosi massiva, vescicolazione'},{value:'subacuta',label:'Subacuta (giorni-settimane): spongiosi moderata, paracheratosi'},{value:'cronica',label:'Cronica (settimane-mesi): acantosi, ipergranulosi, fibrosi'}]}/></div>
+    <TS label="Vasculite presente → Er. indurato Bazin" value={data.panniculite_vasculite} onChange={v=>upd('panniculite_vasculite',v)} variant="teal"/>
+    <TS label="⚠️ Ghost cells (adipociti fantasma) → PANCREATICA!" value={data.ghost_cells} onChange={v=>upd('ghost_cells',v)} variant="danger"/>
+    <TS label="Necrosi ialina del grasso → Lupus panniculitis" value={data.necrosi_ialina_grasso} onChange={v=>upd('necrosi_ialina_grasso',v)} variant="teal"/>
+    <TS label="Calcificazione basofila → Pancreatica" value={data.calcificazione_basofila} onChange={v=>upd('calcificazione_basofila',v)} variant="warning"/>
+    <TS label="Follicoli linfoidi con centri germinativi → Lupus" value={data.follicoli_germinativi} onChange={v=>upd('follicoli_germinativi',v)} variant="teal"/></div></div>)}
     <Nav onNext={onNext} canNext={!!data.pattern_primario}/></div>
 ));
 
@@ -730,7 +847,7 @@ const Step2=memo(({data,upd,onBack,onNext})=>(
     <Chk label="Capillari dilatati papille → Psoriasi" checked={data.capillari_dilatati_papille} onChange={v=>upd('capillari_dilatati_papille',v)} variant="morpho"/>
     <Chk label="Saw-toothing (dente sega) → LP" checked={data.saw_toothing} onChange={v=>upd('saw_toothing',v)} variant="morpho"/>
     <Chk label="Ipergranulosi a cuneo → LP" checked={data.ipergranulosi_cuneo} onChange={v=>upd('ipergranulosi_cuneo',v)} variant="morpho"/>
-    <Chk label="Plugging follicolare → Lupus" checked={data.plugging_follicolare} onChange={v=>upd('plugging_follicolare',v)} variant="morpho"/>
+    <TS label="Plugging follicolare → Lupus" value={data.plugging_follicolare} onChange={v=>upd('plugging_follicolare',v)} variant="morpho"/>
     {/* v2.1: clues PLEVA */}
     <Chk label="⚠️ Necrosi cheratinocitaria DIFFUSA (tutta l'epidermide) → PLEVA" checked={data.necrosi_cheratinociti_diffusa} onChange={v=>upd('necrosi_cheratinociti_diffusa',v)} variant="danger"/>
     <Chk label="⚠️ Eritrociti INTRAEPIDERMICI → PLEVA" checked={data.eritrociti_extravasati_intraepidermici} onChange={v=>upd('eritrociti_extravasati_intraepidermici',v)} variant="danger"/>
@@ -750,35 +867,40 @@ const Step3=memo(({data,upd,onBack,onNext})=>(
     <Sel label="Eritrociti extravasati" value={data.eritrociti_extravasati} onChange={v=>upd('eritrociti_extravasati',v)} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
     <div className="p-4 bg-orange-50 border-2 border-orange-200 rounded-lg"><h3 className="font-bold text-orange-800 mb-3">🔶 Pattern Eosinofilo</h3>
     <div className="space-y-3">
-    <Chk label="Flame figures → Wells" checked={data.flame_figures} onChange={v=>upd('flame_figures',v)} variant="eosinophil"/>
+    <TS label="Flame figures → considerare Wells" value={data.flame_figures} onChange={v=>upd('flame_figures',v)} variant="eosinophil"/>
+    <TS label="Degranulazione eosinofila → Wells" value={data.degranulazione_eosinofila} onChange={v=>upd('degranulazione_eosinofila',v)} variant="eosinophil"/>
     <Chk label="Wedge-shaped → Bite" checked={data.infiltrato_wedge_shaped} onChange={v=>upd('infiltrato_wedge_shaped',v)} variant="eosinophil"/>
+    <TS label="Necrosi epidermica focale → Reazione puntura" value={data.necrosi_epidermica_focale} onChange={v=>upd('necrosi_epidermica_focale',v)} variant="eosinophil"/>
     <Chk label="Eosinofili profondi → Drug" checked={data.eosinofili_perivascolari_profondi} onChange={v=>upd('eosinofili_perivascolari_profondi',v)} variant="eosinophil"/>
     <Chk label="Fibrosi verticale → Prurigo" checked={data.fibrosi_dermica} onChange={v=>upd('fibrosi_dermica',v)} variant="eosinophil"/>
-    <Chk label="Centrato follicoli → Follicolite eos" checked={data.infiltrato_follicolare} onChange={v=>upd('infiltrato_follicolare',v)} variant="eosinophil"/></div></div>
+    <TS label="Iperplasia neurale → Prurigo nodulare" value={data.iperplasia_neurale} onChange={v=>upd('iperplasia_neurale',v)} variant="eosinophil"/>
+    <Chk label="Centrato follicoli → Follicolite eos" checked={data.infiltrato_follicolare} onChange={v=>upd('infiltrato_follicolare',v)} variant="eosinophil"/>
+    <TS label="Spongiosi follicolare → Follicolite eos" value={data.spongiosi_follicolare} onChange={v=>upd('spongiosi_follicolare',v)} variant="eosinophil"/>
+    <TS label="Pustole follicolari → Follicolite eos" value={data.pustole_follicolari} onChange={v=>upd('pustole_follicolari',v)} variant="eosinophil"/></div></div>
     <div className="p-4 bg-cyan-50 border-2 border-cyan-200 rounded-lg"><h3 className="font-bold text-cyan-900 mb-3">🔷 Vasculite vs Vasculopatia</h3>
     <div className="space-y-3">
-    <Chk label="Leucocitoclasia (polvere nucleare) → Vasculite vera" checked={data.leucocitoclasia} onChange={v=>upd('leucocitoclasia',v)}/>
-    <Chk label="Trombi fibrina intraluminali → Vasculopatia livedoide" checked={data.trombi_fibrina} onChange={v=>upd('trombi_fibrina',v)}/>
-    <Chk label="Depositi emosiderina (Perls+)" checked={data.depositi_emosiderina} onChange={v=>upd('depositi_emosiderina',v)}/></div></div>
+    <TS label="Leucocitoclasia (polvere nucleare) → Vasculite vera" value={data.leucocitoclasia} onChange={v=>upd('leucocitoclasia',v)}/>
+    <TS label="Trombi fibrina intraluminali → Vasculopatia livedoide" value={data.trombi_fibrina} onChange={v=>upd('trombi_fibrina',v)}/>
+    <TS label="Depositi emosiderina (Perls+)" value={data.depositi_emosiderina} onChange={v=>upd('depositi_emosiderina',v)}/></div></div>
     <div className="p-4 bg-indigo-50 border-2 border-indigo-200 rounded-lg"><h3 className="font-bold text-indigo-900 mb-3">🔬 IHC Specifici (Lupus/DM)</h3>
     <div className="space-y-3">
-    <Chk label="MxA+ (firma IFN tipo I) → Lupus/Dermatomiosite" checked={data.mxa_positivo} onChange={v=>upd('mxa_positivo',v)}/>
-    <Chk label="CD123 clusters → Lupus (vs sparso in MF)" checked={data.cd123_clusters} onChange={v=>upd('cd123_clusters',v)}/></div></div>
+    <TS label="MxA+ (firma IFN tipo I) → Lupus/Dermatomiosite" value={data.mxa_positivo} onChange={v=>upd('mxa_positivo',v)}/>
+    <TS label="CD123 clusters → Lupus (vs sparso in MF)" value={data.cd123_clusters} onChange={v=>upd('cd123_clusters',v)}/></div></div>
     <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg"><h3 className="font-bold text-red-900 mb-3">⚠️ Sospetto Linfoma / Panniculite</h3>
     <div className="space-y-3">
     <Sel label="Linfociti atipici" value={data.linfociti_atipici} onChange={v=>upd('linfociti_atipici',v)} opts={[{value:'assenti',label:'Assenti'},{value:'presenti',label:'Presenti'},{value:'abbondanti',label:'Abbondanti'}]}/>
-    <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>upd('epidermotropismo',v)} opts={[{value:'assente',label:'Assente'},{value:'presente',label:'Presente'},{value:'marcato',label:'Marcato'}]}/>
+    <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>{upd('epidermotropismo',v);if(!v||v==='assente')upd('spongiosi_proporzionata','');}} opts={[{value:'assente',label:'Assente'},{value:'presente',label:'Presente'},{value:'marcato',label:'Marcato'}]}/>
     {data.epidermotropismo&&data.epidermotropismo!=='assente'&&(
     <div className="p-3 bg-purple-100 border-2 border-purple-500 rounded-lg mt-2">
     <Sel label="🔑 Spongiosi PROPORZIONATA all'esocitosi?" value={data.spongiosi_proporzionata} onChange={v=>upd('spongiosi_proporzionata',v)} highlight={true} opts={[{value:'si',label:'SÌ, proporzionata → Dermatite (MF improbabile)'},{value:'no',label:'NO, sproporzionata → Sospetto MF!'}]}/>
     <p className="text-xs text-purple-800 mt-2 italic">⚠️ In MF l'epidermotropismo è SPROPORZIONATO rispetto alla spongiosi.</p>
     </div>)}
-    <Chk label="Alone chiaro → MF" checked={data.alone_chiaro} onChange={v=>upd('alone_chiaro',v)} variant="danger"/>
+    <TS label="Alone chiaro perinucleare → MF" value={data.alone_chiaro} onChange={v=>upd('alone_chiaro',v)} variant="danger"/>
     {/* v2.1: rimming adipociti - campo esplicito */}
-    <Chk label="⚠️ Rimming adipociti (linfociti a corona) → SPTCL!" checked={data.rimming_adipociti} onChange={v=>upd('rimming_adipociti',v)} variant="danger"/>
-    <Chk label="Granulomi Miescher → EN" checked={data.granulomi_miescher} onChange={v=>upd('granulomi_miescher',v)} variant="danger"/>
-    <Chk label="Necrosi adipociti → SPTCL" checked={data.necrosi_adipociti} onChange={v=>upd('necrosi_adipociti',v)} variant="danger"/>
-    <Chk label="Emofagocitosi → SPTCL" checked={data.emofagocitosi} onChange={v=>upd('emofagocitosi',v)} variant="danger"/></div></div></div>
+    <TS label="Rimming adipociti (linfociti a corona) → supporto SPTCL" value={data.rimming_adipociti} onChange={v=>upd('rimming_adipociti',v)} variant="danger"/>
+    <TS label="Granulomi Miescher → EN" value={data.granulomi_miescher} onChange={v=>upd('granulomi_miescher',v)} variant="danger"/>
+    <TS label="Necrosi adipociti → SPTCL" value={data.necrosi_adipociti} onChange={v=>upd('necrosi_adipociti',v)} variant="danger"/>
+    <TS label="Emofagocitosi → SPTCL" value={data.emofagocitosi} onChange={v=>upd('emofagocitosi',v)} variant="danger"/></div></div></div>
     <Nav onBack={onBack} onNext={onNext}/></div>
 ));
 
@@ -786,25 +908,26 @@ const Step4=memo(({data,upd,onBack,onGen})=>(
     <div><h2 className="text-2xl font-bold mb-4">Completamento</h2>
     <div className="space-y-4">
     <Sel label="Vasculite" value={data.vasculite} onChange={v=>upd('vasculite',v)} opts={[{value:'no',label:'No'},{value:'si',label:'Sì'}]}/>
-    <Chk label="Microascessi Munro" checked={data.microascessi_munro} onChange={v=>upd('microascessi_munro',v)}/>
+    <TS label="Microascessi Munro" value={data.microascessi_munro} onChange={v=>upd('microascessi_munro',v)}/>
     <div><label className="block font-semibold mb-2">🚩 Red Flags - Granulomatosi Palizzata</label>
     <div className="space-y-2">
-    <Chk label="Palisading + mucina → GA" checked={data.palisading_necrosi_mucina} onChange={v=>upd('palisading_necrosi_mucina',v)} variant="warning"/>
-    <Chk label="Necrobiosi 'a sandwich' → Necrobiosi lipoidica" checked={data.necrobiosi_sandwich} onChange={v=>upd('necrobiosi_sandwich',v)} variant="warning"/>
+    <TS label="Palisading + mucina → GA" value={data.palisading_necrosi_mucina} onChange={v=>upd('palisading_necrosi_mucina',v)} variant="warning"/>
+    <TS label="Necrobiosi 'a sandwich' → Necrobiosi lipoidica" value={data.necrobiosi_sandwich} onChange={v=>upd('necrobiosi_sandwich',v)} variant="warning"/>
     <Chk label="Fibrina centrale eosinofila → Nodulo reumatoide" checked={data.fibrina_centrale} onChange={v=>upd('fibrina_centrale',v)} variant="warning"/>
-    <Chk label="Corpi Civatte → LP" checked={data.corpi_civatte} onChange={v=>upd('corpi_civatte',v)} variant="warning"/></div></div>
-    <div><label className="block font-semibold mb-2">⚠️ Bollosi</label>
+    <TS label="Corpi Civatte → LP" value={data.corpi_civatte} onChange={v=>upd('corpi_civatte',v)} variant="warning"/></div></div>
+    <div><label className="block font-semibold mb-2">⚠️ Bollosi / Subcorneo</label>
     <div className="space-y-2">
-    <Chk label="⚠️ Acantolisi → PEMFIGO" checked={data.acantolisi} onChange={v=>upd('acantolisi',v)} variant="danger"/>
-    <Chk label="⚠️ Bolle intraepidermiche" checked={data.bolle_intraepidermiche} onChange={v=>upd('bolle_intraepidermiche',v)} variant="danger"/>
-    <Chk label="⚠️ Bolle subepidermiche → PEMFIGOIDE" checked={data.bolle_subepidermiche} onChange={v=>upd('bolle_subepidermiche',v)} variant="danger"/></div></div>
+    <TS label="⚠️ Acantolisi → PEMFIGO / Sneddon-Wilkinson" value={data.acantolisi} onChange={v=>upd('acantolisi',v)} variant="danger"/>
+    <TS label="⚠️ Bolle intraepidermiche" value={data.bolle_intraepidermiche} onChange={v=>upd('bolle_intraepidermiche',v)} variant="danger"/>
+    <TS label="⚠️ Bolle subepidermiche → PEMFIGOIDE" value={data.bolle_subepidermiche} onChange={v=>upd('bolle_subepidermiche',v)} variant="danger"/>
+    <TS label="Infiltrato neutrofilo nelle pustole → AGEP" value={data.infiltrato_neutrofili_pustole} onChange={v=>upd('infiltrato_neutrofili_pustole',v)} variant="warning"/></div></div>
     <div><label className="block font-semibold mb-2">🔬 Mastocitosi</label>
     <div className="space-y-2">
-    <Chk label="Mastociti aggregati (≥15)" checked={data.mastociti_aggregati} onChange={v=>upd('mastociti_aggregati',v)}/>
-    <Chk label="CD117+ (c-kit)" checked={data.cd117_pos} onChange={v=>upd('cd117_pos',v)}/>
-    <Chk label="CD25 aberrante → Sospetto sistemico!" checked={data.cd25_aberrante} onChange={v=>upd('cd25_aberrante',v)} variant="danger"/></div></div>
+    <TS label="Mastociti aggregati (≥15)" value={data.mastociti_aggregati} onChange={v=>upd('mastociti_aggregati',v)}/>
+    <TS label="CD117+ (c-kit)" value={data.cd117_pos} onChange={v=>upd('cd117_pos',v)}/>
+    <TS label="CD25 aberrante → Sospetto sistemico" value={data.cd25_aberrante} onChange={v=>upd('cd25_aberrante',v)} variant="danger"/></div></div>
     <Sel label="Edema dermico" value={data.edema_dermico} onChange={v=>upd('edema_dermico',v)} opts={[{value:'assente',label:'Assente'},{value:'lieve',label:'Lieve'},{value:'moderato',label:'Moderato'},{value:'marcato',label:'Marcato'}]}/>
-    <Chk label="Infiltrato perianessiale profondo → Lupus" checked={data.infiltrato_perianessiale_profondo} onChange={v=>upd('infiltrato_perianessiale_profondo',v)}/>
+    <TS label="Infiltrato perianessiale profondo → Lupus" value={data.infiltrato_perianessiale_profondo} onChange={v=>upd('infiltrato_perianessiale_profondo',v)}/>
     <Chk label="Infiltrato 'a manicotto' → Pitiriasi rosea" checked={data.infiltrato_manicotto} onChange={v=>upd('infiltrato_manicotto',v)}/>
     <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg"><h3 className="font-bold text-blue-900 mb-3">📋 Contesto</h3>
     <Chk label="Storia farmaci" checked={data.storia_farmaci} onChange={v=>upd('storia_farmaci',v)}/>
@@ -813,10 +936,12 @@ const Step4=memo(({data,upd,onBack,onGen})=>(
 ));
 
 const Results=memo(({dx,lowConf,flags,hints,showIHC,syphilisWarning,onMod,onExp})=>{
-    const hasLymph=dx.some(d=>d.cat.includes('Linfoma'));
-    const hasEos=dx.some(d=>d.cat==='Eosinofilo');
-    const hasPann=dx.some(d=>d.cat.includes('Panniculite'));
-    const hasPleva=dx.some(d=>d.key==='pleva');
+    // v2.7: alert su dx + lowConf — sospetti importanti non spariscono sotto soglia
+    const allDx=[...dx,...(lowConf||[])];
+    const hasLymph=allDx.some(d=>d.cat&&d.cat.includes('Linfoma'));
+    const hasEos=allDx.some(d=>d.cat==='Eosinofilo');
+    const hasPann=allDx.some(d=>d.cat&&d.cat.includes('Panniculite'));
+    const hasPleva=allDx.some(d=>d.key==='pleva');
     return(<div className="bg-white rounded-xl shadow-lg p-6">
     <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold">📋 Diagnosi Differenziale</h2>
     <div className="flex gap-2"><button onClick={onExp} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold">💾 Esporta</button>
@@ -837,13 +962,17 @@ const Results=memo(({dx,lowConf,flags,hints,showIHC,syphilisWarning,onMod,onExp}
     </ul>
     <p className="text-sm text-slate-600 italic">La diagnosi di MF richiede integrazione di morfologia + immunofenotipo + clinica + PCR. La PCR da sola non è sufficiente per diagnosi né per esclusione.</p>
     </div>}
-    {hasPann&&<div className="mb-6 p-4 bg-teal-50 border-2 border-teal-500 rounded-lg"><h3 className="text-lg font-bold text-teal-900 mb-2">🔍 PATTERN PANNICULITICO</h3><p className="text-sm text-teal-800">Settale (EN) vs Lobulare (Lupus, SPTCL). Rimming adipociti → IHC T urgente!</p></div>}
-    {hasEos&&<div className="mb-6 p-4 bg-orange-50 border-2 border-orange-500 rounded-lg"><h3 className="text-lg font-bold text-orange-900 mb-2">🔶 PATTERN EOSINOFILO</h3><p className="text-sm text-orange-800">Farmaci? Punture? Flame figures = Wells.</p></div>}
+    {hasPann&&<div className="mb-6 p-4 bg-teal-50 border-2 border-teal-500 rounded-lg"><h3 className="text-lg font-bold text-teal-900 mb-2">🔍 PATTERN PANNICULITICO</h3><p className="text-sm text-teal-800">Settale (EN) vs Lobulare (Lupus, SPTCL). Rimming adipociti + atipia + emofagocitosi + fenotipo T citotossico → aumentare sospetto SPTCL; da solo non discrimina da LEP.</p></div>}
+    {hasEos&&<div className="mb-6 p-4 bg-orange-50 border-2 border-orange-500 rounded-lg"><h3 className="text-lg font-bold text-orange-900 mb-2">🔶 PATTERN EOSINOFILO</h3><p className="text-sm text-orange-800">Farmaci? Punture? Flame figures → forte supporto per Wells nel contesto (non specifiche: si vedono anche in artropod reactions e EGPA).</p></div>}
     {flags.length>0&&<div className="mb-6 p-4 bg-amber-50 border-2 border-amber-500 rounded-lg"><h3 className="text-lg font-bold text-amber-900 mb-2">🚩 RED FLAGS</h3><div className="text-sm text-amber-800 space-y-1">{flags.map((f,i)=><p key={i}>• <strong>{f.diagnosi}</strong></p>)}</div></div>}
     {dx.length>0&&<div className="space-y-4 mb-6">{dx.map((d,i)=><DxCard key={d.key} dx={d} idx={i}/>)}</div>}
-    {dx.length===0&&(<div className="space-y-4"><HintsBox hints={hints}/>
-    {lowConf&&lowConf.length>0&&(<div className="mb-6"><h3 className="text-lg font-semibold text-slate-700 mb-3">🤔 Bassa confidenza</h3><div className="space-y-3">{lowConf.map(d=><LowCard key={d.key} dx={d}/>)}</div></div>)}
-    {(!lowConf||lowConf.length===0)&&<div className="p-6 bg-slate-50 border-2 border-slate-200 rounded-lg text-center"><p className="font-semibold text-slate-700">🔬 Pattern non diagnostico</p><p className="text-sm text-slate-600 mt-1">Considera livelli aggiuntivi, correlazione clinica, nuova biopsia.</p></div>}</div>)}
+    {/* v2.10: HintsBox sempre quando dx=0, indipendente da lowConf */}
+    {dx.length===0&&<HintsBox hints={hints}/>}
+    {lowConf&&lowConf.length>0&&(<div className="mb-6">
+        <h3 className="text-lg font-semibold text-slate-700 mb-3">🤔 Altri differenziali rilevanti</h3>
+        <div className="space-y-3">{lowConf.map(d=><LowCard key={d.key} dx={d}/>)}</div>
+    </div>)}
+    {dx.length===0&&(!lowConf||lowConf.length===0)&&(<div className="p-6 bg-slate-50 border-2 border-slate-200 rounded-lg text-center"><p className="font-semibold text-slate-700">🔬 Pattern non diagnostico</p><p className="text-sm text-slate-600 mt-1">Considera livelli aggiuntivi, correlazione clinica, nuova biopsia.</p></div>)}
     <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"><p className="text-sm text-blue-900"><strong>💡</strong> Correlazione clinico-patologica sempre necessaria.</p></div></div>);
 });
 
@@ -851,21 +980,29 @@ const App=()=>{
     const{step,next,prev,reset:resetStep}=useForm(1);
     const{data,upd,reset:resetData}=useData();
     const[showRes,setShowRes]=useState(false);
-    const[res,setRes]=useState({diagnoses:[],lowConf:[],flags:[],hints:[],syphilisWarning:false});
+    const[res,setRes]=useState({diagnoses:[],lowConf:[],allScores:[],flags:[],hints:[],syphilisWarning:false});
     const[quickMode,setQuickMode]=useState(false);
     const handleReset=useCallback(()=>{if(confirm('Reset?')){resetData();resetStep();setShowRes(false);}},[]);
     const handleCalc=useCallback(()=>{setRes(Engine.calc(data));setShowRes(true);},[data]);
-    const showIHC=useMemo(()=>Engine.needsIHCPanel(res.diagnoses),[res.diagnoses]);
+    const showIHC=useMemo(()=>Engine.needsIHCPanel(res.allScores),[res.allScores]);
     const handleExp=useCallback(()=>{
-        let c=`REFERTO DERMATOPATOLOGICO - DermPath v2.1\nData: ${new Date().toLocaleDateString('it-IT')}\nPattern: ${data.pattern_primario}`;
+        let c=`REFERTO DERMATOPATOLOGICO - DermPath v2.10.3\nData: ${new Date().toLocaleDateString('it-IT')}\nPattern: ${data.pattern_primario}`;
         if(data.panniculite_tipo)c+=` (${data.panniculite_tipo})`;
         c+='\n';
         if(res.syphilisWarning)c+=`\n⚠️⚠️⚠️ PLASMACELLULE IN PSORIASIFORME → ESCLUDERE SIFILIDE ⚠️⚠️⚠️\n`;
-        if(data.rimming_adipociti)c+=`\n⚠️ RIMMING ADIPOCITI: escludere SPTCL! IHC T urgente.\n`;
+        if(data.rimming_adipociti==='si')c+=`\n⚠️ RIMMING ADIPOCITI presente: reperto supportivo per SPTCL — correlare con atipia citologica, emofagocitosi, IHC T e clinica; non discrimina da LEP da solo.\n`;
         if(res.diagnoses&&res.diagnoses.length>0)c+=`\nDIAGNOSI:\n${res.diagnoses.map((d,i)=>`${i+1}. ${d.nome} (${d.pct}% compatibilità istologica)\n   ${d.note}`).join('\n\n')}`;
-        if(res.lowConf&&res.lowConf.length>0&&(!res.diagnoses||res.diagnoses.length===0))c+=`\nDA CONSIDERARE:\n${res.lowConf.map((d,i)=>`${i+1}. ${d.nome} (${d.pct}%)`).join('\n')}`;
+        // v2.10: hints esportati quando non ci sono diagnosi alte — coerenza con UI
+        if((!res.diagnoses||res.diagnoses.length===0)&&res.hints&&res.hints.length>0){
+            const h=res.hints[0];
+            c+=`\nPATTERN: ${h.gen}`;
+            if(h.escl&&h.escl.length)c+=`\nDa escludere: ${h.escl.join(', ')}`;
+            if(h.cons&&h.cons.length)c+=`\nConsiderare: ${h.cons.join(', ')}`;
+        }
+        // v2.9: lowConf sempre esportato — evita paradosso alert senza card
+        if(res.lowConf&&res.lowConf.length>0)c+=`\n\nALTRI DIFFERENZIALI RILEVANTI:\n${res.lowConf.map((d,i)=>`${i+1}. ${d.nome} (${d.pct}%)`).join('\n')}`;
         if(showIHC)c+=`\n\n⚠️ DD EQUIVOCA - Pannello IHC: Ki-67, p53, CD34, IL-36γ`;
-        c+=`\n\n---\nNOTA: Compatibilità istologica ≠ probabilità clinica.\nDermPath v2.1`;
+        c+=`\n\n---\nNOTA: Compatibilità istologica ≠ probabilità clinica.\nDermPath v2.10.3`;
         const b=new Blob([c],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`referto_${Date.now()}.txt`;a.click();
     },[data,res,showIHC]);
     const renderStep=useMemo(()=>{
@@ -880,12 +1017,12 @@ const App=()=>{
     return(<div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4"><div className="max-w-4xl">
     <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
     <div className="flex items-center justify-between">
-    <div><h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.2</h1>
-    <p className="text-slate-600 mt-1">+ Classi compatibilità | Nota clonalità | PLEVA | Rimming</p></div>
+    <div><h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.10.3</h1>
+    <p className="text-slate-600 mt-1">Tri-state 26 criteri morfologici | matchAtLeast + EXACT_ARRAY_FIELDS | IHC panel su tutti gli score | label coerenti col motore</p></div>
     <div className="flex items-center gap-4">
     <div className="flex items-center gap-2">
     <span className="text-sm text-slate-600">Quick</span>
-    <div className={`toggle-switch ${quickMode?'active':''}`} onClick={()=>{setQuickMode(!quickMode);resetStep();setShowRes(false);}}/>
+    <div className={`toggle-switch ${quickMode?'active':''}`} onClick={()=>{setQuickMode(!quickMode);resetStep();resetData();setShowRes(false);}}/>
     </div>
     <button onClick={handleReset} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-semibold">🔄 Reset</button>
     </div></div></div>
@@ -895,7 +1032,7 @@ const App=()=>{
         <div className="bg-white rounded-xl shadow-lg p-6">{renderStep}</div>
     ):<Results dx={res.diagnoses} lowConf={res.lowConf} flags={res.flags} hints={res.hints} showIHC={showIHC} syphilisWarning={res.syphilisWarning} onMod={()=>setShowRes(false)} onExp={handleExp}/>}
     <div className="mt-6 text-center text-sm text-slate-600">
-    <p>DermPath v2.2 | Classi compatibilità + Nota clonalità + PLEVA + Rimming</p>
+    <p>DermPath v2.10.3 | infiltrato_neutrofili_pustole → TS esposto | Quick subcorneo block condizionale</p>
     <p className="text-xs text-slate-500 mt-1">⚠️ Strumento di supporto. Correlazione clinico-patologica sempre necessaria.</p>
     </div></div></div>);
 };
