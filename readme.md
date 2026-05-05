@@ -1,191 +1,168 @@
-# DermPath v2.10.1
+# DermPath v2.11.2
 
-Tool di supporto diagnostico per dermatopatologia. Single-file HTML/JS (React + Babel standalone), zero dipendenze esterne, funzionante offline. Non sostituisce il giudizio morfologico del patologo.
-
----
-
-## Utilizzo
-
-Aprire `index_v2.10.1.html` in qualsiasi browser moderno. Nessuna installazione, nessun server.
+Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
 ---
 
-## Modalità
+## Principi di funzionamento
 
-| Modalità | Campi | Indicata per |
-|----------|-------|--------------|
-| **Rapida** | Subset essenziali (~15 campi) | Screening rapido, pattern comune |
-| **Completa** | ~60 campi, 4 step | Analisi sistematica, DD difficili |
+**Il vetrino comanda. Il punteggio porta il caffè.**
 
-> In modalità rapida le percentuali sono più sensibili al numero ridotto di criteri inseriti — variabilità fisiologica del denominatore ridotto.
+Il tool non assegna probabilità diagnostiche. Assegna una *compatibilità euristica corretta* — percentuale grezzo sul peso risposto, poi corretta per:
 
----
+- dati insufficienti (soglia minima di peso risposto)
+- required mancanti o contrari
+- elementi contro (`against`)
+- red flags morfologiche attive
 
-## Pattern supportati
-
-| Pattern | Diagnosi incluse |
-|---------|-----------------|
-| **Spongotico** | DAC, Dermatite atopica acuta, ICD, Pitiriasi rosea |
-| **Psoriasiforme** | Psoriasi vulgaris, Sifilide secondaria, LSC |
-| **Interfaccia lichenoide** | Lichen planus, PLEVA |
-| **Interfaccia vacuolare** | LED, LECS, Dermatomiosite, Eritema multiforme |
-| **Vasculitico / Vasculopatico** | LCV, Vasculopatia livedoide |
-| **Eosinofilo** | Reazione da puntura, Wells, Drug eosinofila, Orticaria, Prurigo nodularis, Follicolite eosinofila |
-| **Linfoma cutaneo T** | MF early |
-| **Granulomatoso** | GA, Necrobiosi lipoidica, Sarcoidosi cutanea |
-| **Bolloso** | Pemfigo volgare, Pemfigoide bolloso, Dermatite erpetiforme |
-| **Panniculitico** | EN, Lupus panniculitis, Panniculite pancreatica, SPTCL, Vasculite nodulare |
-| **Mastocitario** | Mastocitosi cutanea |
+Una diagnosi è *proponibile* solo se supera la soglia del 50% **dopo** tutte le correzioni. In caso contrario appare come "da considerare, non chiudibile".
 
 ---
 
-## Motore di scoring
+## Architettura del motore
 
-### Pesi
+### Struttura di una diagnosi
 
-```
-MAJOR  = 3 pt
-MINOR  = 1 pt
-THRESH = 50%   (soglia diagnosi "alta confidenza")
-lowConf = 30–49% (mostrate sempre come "Altri differenziali rilevanti")
-RED_PENALTY = −25 pt (flag escludente attivo)
-MIN_EXCL    = 5%  (floor per diagnosi penalizzata)
-MF_SPONG_PENALTY = −15 pt (spongiosi proporzionata con epidermotropismo)
+```javascript
+{
+  nome, cat,
+  required: [...],                    // bloccanti se mancanti o contrari
+  conditionalRequired: [              // bloccanti solo se la condizione è vera
+    { field: 'campo', when: d => ... }
+  ],
+  major: { campo: valore_atteso },    // peso 3
+  minor: { campo: valore_atteso },    // peso 1
+  against: { campo: valore_atteso },  // penalità -12 per hit
+  note, workup
+}
 ```
 
-### Denominatore adattivo
+### Pipeline di scoring
 
-Il denominatore include **solo i criteri effettivamente valutati**. I campi non compilati escono dal calcolo.
+1. Valuta `major` e `minor` → calcola `raw` e `answeredWeight`
+2. Verifica `required` → popola `missingRequired` / `failedRequired`
+3. Valuta `conditionalRequired` → aggiunge a `missingRequired` se condizione vera e campo mancante
+4. Verifica `against` → accumula `againstHits`
+5. Applica red flags → `excludedByFlags`
+6. Corregge il punteggio:
+   - `lowData` (answeredWeight < 6 o matchedCriteria < 3) → cap a 49%
+   - `requiredProblem` → cap a 49%
+   - ogni `againstHit` → -12 punti
+   - ogni `excludedByFlag` → -25 punti (min 5%)
+7. `blocked = pct < 50 || lowData || requiredProblem || excludedByFlags.length > 0`
 
-Tre categorie di campo:
+### Logica di matching
 
-| Tipo | Valore non valutato | Nel denominatore? |
-|------|--------------------|--------------------|
-| Select (stringa) | `''` | No |
-| Tri-state (TS) | `''` | No |
-| Boolean (checkbox) | `false` | Sì — semanticamente "assente" è esplicito |
-
-### Monotonia ordinale (`matchAtLeast`)
-
-Per i campi con scala intensità, un valore più forte soddisfa un criterio più debole:
-
-> "marcato" soddisfa "presente"; "abbondanti" soddisfa "presenti"
-
-Campi con ranking ordinale esplicito (`ORD`):
-
-`epidermotropismo` · `linfociti_atipici` · `necrosi_keratinociti` · `plasmacellule` · `spongiosi` · `esocitosi` · `neutrofili` · `eosinofili` · `vacuolizzazione_basale` · `acantosi` · `paracheratosi` · `mucina_dermica` · `eritrociti_extravasati` · `edema_dermico`
-
-### Range chiuso (`EXACT_ARRAY_FIELDS`)
-
-Per alcuni campi un array nei criteri è `oneOf`, non `atLeast(min)`. Un valore fuori range **non** soddisfa il criterio:
-
-- `spongiosi` — es. `["lieve","moderata"]` non accetta "marcata" (PR, PLEVA)
-- `paracheratosi` — es. `["focale","moderata"]` non accetta "marcata"
-- `neutrofili` — es. `["rari","presenti"]` non accetta "abbondanti" (ICD)
-
----
-
-## Red flags
-
-Meccanismo che penalizza diagnosi incompatibili con combinazioni morfologiche specifiche. Esempi:
-
-| Flag | Trigger | Penalizza |
-|------|---------|-----------|
-| `epidermotropismo_alone` | epidermotropismo ≥ presente + alone chiaro | DAC |
-| `spongiosi_proporzionata_mf` | spongiosi "si" + epidermotropismo ≥ presente | MF early |
-| `mxa_cd123_lupus` | MxA+ o CD123 clusters | (nessuna esclusione — solo boost contestuale) |
-| `trombi_no_lcv` | trombi fibrina + leucocitoclasia === 'no' (esplicito) | Vasculite vera |
-| `flame_figures_eosinofili` | flame figures + eosinofili abbondanti | Reazione da puntura |
-| `pleva_necrosi_eritrociti` | necrosi cheratinociti diffusa + eritrociti intraepidermici | MF early |
-
-> `trombi_no_lcv` richiede leucocitoclasia === `'no'` **esplicito**. Il tri-state vuoto (`''`) non attiva il flag — non valutato ≠ assente.
-
----
-
-## Pannello IHC psoriasi vs spongotico
-
-Appare quando psoriasi e almeno un competitor spongiotic (DAC, DA, LSC) hanno entrambi score ≥ 30% con gap < 25 punti. Basato su tutti gli score (`allScores`), non solo sulle diagnosi alte.
-
-Marcatori: Ki-67 · p53 · CD34 · IL-36γ  
-Fonte: Canavese M et al. *JAAD* 2025.
-
----
-
-## Alert clinici
-
-Attivati su `diagnoses + lowConf` — un sospetto a 48% non scompare:
-
-- 🔴 **Sospetto linfoma** — IHC: CD3, CD4, CD8, CD7, TOX | PCR TCR
-- 🔍 **Pattern panniculitico** — rimming + atipia + emofagocitosi + fenotipo T citotossico → aumentare sospetto SPTCL; rimming da solo non discrimina da LEP
-- 🔶 **Pattern eosinofilo** — flame figures: suggestive per Wells, non specifiche (artropod reactions, EGPA)
-
----
-
-## Note scientifiche rilevanti
-
-**SPTCL vs LEP**  
-Il rimming adipocitario è un reperto *supportivo*, non discriminante da LEP da solo. Correlare con: atipia citologica, emofagocitosi, fenotipo T citotossico (CD8+, TIA-1+, granzyme B+), Ki-67 focale, CD123 (plasmocitoidi dendritiche). Rif.: Magro 2021, *J Cutan Pathol*.
-
-**Flame figures**  
-Suggestive per Wells nel contesto clinico, non patognomoniche. Presenti anche in artropod reactions e EGPA.
-
-**PCR TCR dual-site**  
-Sensibilità 82.6%, specificità 95.7% in setting selezionato dual-site. Resa variabile per metodo, tessuto e pretest probability. Clonalità ≠ malignità (PLEVA, PLC, dermatiti croniche).
-
-**MxA / CD123**  
-Utili come supporto per CLE/DM, non come interruttori on/off per escludere MF. Il tool non penalizza MF automaticamente su questi marcatori.
-
-**IL-36γ IHC**  
-Alta specificità per psoriasi vs spongotico in biopsia routinaria. Rif.: Canavese M et al. *JAAD* 2025.
-
----
-
-## Export
-
-Tasto **Esporta referto** → file `.txt` con:
-- Pattern primario e varianti
-- Warning rimming / sifilide se attivi
-- Diagnosi alte con % e nota
-- Altri differenziali rilevanti (lowConf, sempre inclusi)
-- Hints di pattern se nessuna diagnosi alta
-- Pannello IHC se DD equivoca
-
----
-
-## Struttura tecnica
-
-```
-index_v2.10.1.html
-├── CSS inline (custom + classi Tailwind essenziali)
-├── React 18 UMD + Babel standalone
-├── Dati (INIT, PATTERNS, DX, RED_FLAGS, IHC_*)
-├── Engine (calcScore, scorePat, calc, needsIHCPanel, hints)
-├── Componenti UI (Sel, Chk, TS, DxCard, LowCard, HintsBox, IHCBox, IHCPanel)
-└── App (useForm, useData, Step1–4, QuickForm, Results)
+```javascript
+matchAtLeast(field, expected, actual)
 ```
 
-Componente **TS** (tri-state): `Sì | No | —`  
-Il pulsante `—` imposta il campo a `''` → esce dal denominatore.
+Per la maggior parte dei campi ordinali (`epidermotropismo`, `linfociti_atipici`, `spongiosi`, ecc.) usa confronto "almeno": `actual >= expected` nella scala ordinale.
+
+**Eccezione — `EXACT_FIELDS`**: confronto esatto per campi dove "più" non implica "meglio":
+
+| Campo | Motivazione |
+|---|---|
+| `paracheratosi` | focale ≠ marcata in diagnostica differenziale |
+| `pattern_primario` | categoriale puro |
+| `infiltrato_distribuzione` | categoriale puro |
+| `spongiosi_proporzionata` | booleano semantico |
+
+**Eccezione — `EXACT_ARRAY_FIELDS`**: per `spongiosi`, `paracheratosi`, `neutrofili` passati come array in `against`, usa `includes()` invece di `some(matchAtLeast)`.
+
+### required condizionali
+
+Meccanismo per required che dipendono da altri campi:
+
+```javascript
+conditionalRequired: [
+  { field: 'spongiosi_proporzionata', when: d => ['presente','marcato'].includes(d.epidermotropismo) }
+]
+```
+
+Usato attualmente per MF early: `spongiosi_proporzionata` è morfologicamente cruciale solo se epidermotropismo è presente o marcato.
+
+| Scenario | Risultato |
+|---|---|
+| epidermotropismo assente | MF bloccata da required `epidermotropismo` |
+| epidermotropismo presente, spongiosi_proporzionata non compilata | MF non proponibile |
+| epidermotropismo presente + spongiosi_proporzionata = sì | MF penalizzata (against) |
+| epidermotropismo presente + spongiosi_proporzionata = no | MF può salire |
+
+### Red flags
+
+Layer separato dalla pipeline di scoring. Ogni red flag ha:
+- `test(d)` → funzione che valuta i dati
+- `escludi[]` → lista di chiavi DX penalizzate se il test è vero
+
+Le red flags sono interrupt, non pesi. Una red flag attiva non blocca necessariamente la diagnosi correlata, ma la penalizza di 25 punti e la mostra esplicitamente nell'output.
+
+Red flags implementate:
+
+| Flag | Condizione | Diagnosi segnalata | DX penalizzate |
+|---|---|---|---|
+| Microascessi di Munro | `microascessi_munro = 'si'` | Psoriasi | DAC, DA acuta |
+| Corpi di Civatte | `corpi_civatte = 'si'` | Interfaccia lichenoide | Psoriasi |
+| Plasmacellule in psoriasiforme | `pattern psoriasiforme + plasmacellule` | Escludere sifilide | Psoriasi |
+| Epidermotropismo + alone chiaro | epidermotropismo + alone_chiaro | Sospetto T-linfoproliferativo | DAC |
+| Spongiosi proporzionata in MF | spongiosi_proporzionata = sì + epidermotropismo | Dermatite > MF | MF early |
+| PLEVA | necrosi diffusa + eritrociti intraepidermici | Considerare PLEVA | MF early |
+
+### unsupportedPattern
+
+```javascript
+const isPatternSupported = (pattern) => Object.values(DX).some(dx => {
+  const exp = dx.major?.pattern_primario;
+  return Array.isArray(exp) ? exp.includes(pattern) : exp === pattern;
+});
+```
+
+Calcolato direttamente sui DX, non su `compatibility > 0`. Robusto a contaminazione da campi condivisi tra diagnosi.
+
+---
+
+## Diagnosi implementate
+
+| Chiave | Nome | Pattern |
+|---|---|---|
+| `dermatite_allergica_contatto` | Dermatite allergica da contatto | Spongotico |
+| `dermatite_atopica_acuta` | Dermatite atopica, fase acuta | Spongotico |
+| `psoriasi_vulgaris` | Psoriasi vulgaris | Psoriasiforme |
+| `lichen_planus` | Lichen planus | Interfaccia lichenoide |
+| `micosi_fungoide_early` | Micosi fungoide, fase iniziale | Spongotico / Interfaccia lichenoide |
+
+Pattern riconosciuti ma non ancora implementati: interfaccia vacuolare, perivascolare, perivascolare eosinofilo, vasculitico, vasculopatico, granulomatoso, granulomatoso a palizzata, subcorneo, intraepidermico bolloso, subepidermico bolloso, interstiziale eosinofilo, panniculitico, mastocitario.
+
+---
+
+## Parametri configurabili (SC)
+
+```javascript
+const SC = {
+  MAJOR: 3,               // peso criterio major
+  MINOR: 1,               // peso criterio minor
+  THRESH: 50,             // soglia minima per "proponibile"
+  MIN_CRITERIA_FOR_HIGH: 3,  // n. criteri matched minimi
+  MIN_ANSWERED_WEIGHT: 6,    // peso totale risposto minimo
+  RED_PENALTY: 25,        // penalità per red flag
+  REQUIRED_CAP: 49,       // cap se required mancanti
+  LOW_DATA_CAP: 49,       // cap se dati insufficienti
+  AGAINST_PENALTY: 12     // penalità per elemento contro
+};
+```
+
+---
+
+## Changelog
+
+| Versione | Modifiche |
+|---|---|
+| v2.11.2 | required condizionale per MF (spongiosi_proporzionata); isPatternSupported robusto; EXACT_FIELDS per paracheratosi/pattern/infiltrato/spongiosi_proporzionata |
+| v2.11.1 | MIN_ANSWERED_WEIGHT 4→6; MIN_CRITERIA_FOR_HIGH 2→3; spongiosi_proporzionata rimossa dai required globali di MF |
+| v2.11.0 | Motore conservativo con matchAtLeast ordinale, EXACT_ARRAY_FIELDS, required/against pipeline, red flags layer separato |
 
 ---
 
 ## Disclaimer
 
-Tool di supporto diagnostico per uso interno. La compatibilità istologica calcolata **non equivale a probabilità clinica**. La diagnosi dermatopatologica richiede integrazione di morfologia, immunoistochimica, clinica e, dove indicato, biologia molecolare. Il vetrino decide, non il form.
-
----
-
-## Changelog sintetico
-
-| Versione | Intervento principale |
-|----------|-----------------------|
-| 2.3 | Fix CSS, rimming→minor, flame figures, export |
-| 2.4 | Denominatore adattivo (campi stringa `''` esclusi), MxA non esclude MF |
-| 2.5 | Tri-state 22 criteri morfologici critici, `needsIHCPanel` su `allScores` |
-| 2.6 | Export rimming `==='si'`, `trombi_no_lcv` coerente tri-state, TS +4 IHC |
-| 2.7 | `matchAtLeast` + `ORD` 14 campi ordinali, alert su `dx+lowConf` |
-| 2.8 | `EXACT_ARRAY_FIELDS` (oneOf vs atLeast), `esocitosi` in ORD, peso denominatore in card |
-| 2.9 | Badge CSS ripristinato, `lowConf` sempre visibile ed esportato, `neutrofili` in EXACT |
-| 2.9.1 | Fix regressione `HintsBox` con `dx=0` e `lowConf>0` |
-| 2.10 | 5 booleani irraggiungibili → TS esposti in UI, fantasma `drug_reaction_lichenoide` rimosso, hints in export, versioning coerente |
-| 2.10.1 | Fix duplicato `necrosi_epidermica_focale` in INIT (boolean sovrascriveva tri-state) |
+Strumento di supporto diagnostico ad uso esclusivo di medici specialisti. Non sostituisce la valutazione morfologica diretta del preparato istologico, il giudizio clinico e la correlazione anatomo-clinica. La compatibilità euristica non è una probabilità diagnostica.

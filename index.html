@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DermPath v2.11.1</title>
+  <title>DermPath v2.11.2</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5;background:#eef2ff;color:#1e293b}
@@ -75,6 +75,17 @@ const ORD = {
 };
 
 const EXACT_ARRAY_FIELDS = new Set(['spongiosi','paracheratosi','neutrofili']);
+
+// FIX 3: campi non realmente ordinali — "marcata" non implica "focale" in dermpath.
+// paracheratosi focale ≠ paracheratosi marcata (una goccia non è una pozzanghera).
+// pattern_primario, infiltrato_distribuzione, spongiosi_proporzionata: sempre esatto.
+const EXACT_FIELDS = new Set([
+  'paracheratosi',
+  'pattern_primario',
+  'infiltrato_distribuzione',
+  'spongiosi_proporzionata'
+]);
+
 const isMissing = (v) => v === '' || v === null || v === undefined;
 
 const labelize = (field) => ({
@@ -103,6 +114,7 @@ const labelize = (field) => ({
 }[field] || field.replaceAll('_',' '));
 
 const matchAtLeast = (field, expected, actual) => {
+  if(EXACT_FIELDS.has(field)) return actual === expected;
   const rank = ORD[field];
   if(!rank) return actual === expected;
   const eIdx = rank.indexOf(expected);
@@ -206,6 +218,12 @@ const DX = {
   micosi_fungoide_early:{
     nome:'Micosi fungoide, fase iniziale', cat:'Linfoma cutaneo T',
     required:['pattern_primario','linfociti_atipici','epidermotropismo'],
+    // FIX 1: required condizionale — spongiosi_proporzionata è cruciale
+    // ma solo se epidermotropismo è presente/marcato.
+    // Senza risposta, MF resta "da considerare, non chiudibile".
+    conditionalRequired:[
+      {field:'spongiosi_proporzionata', when:d => ['presente','marcato'].includes(d.epidermotropismo)}
+    ],
     major:{pattern_primario:['spongotico','interfaccia_lichenoide'], linfociti_atipici:'presenti', epidermotropismo:'presente', spongiosi_proporzionata:'no'},
     minor:{alone_chiaro:'si'},
     against:{spongiosi_proporzionata:'si', eosinofili:'abbondanti', necrosi_keratinociti:'marcata'},
@@ -286,6 +304,14 @@ const Engine = {
       else if(expected !== undefined && !matches(field,expected,actual)) failedRequired.push(field);
     });
 
+    // FIX 1: required condizionali — valutati solo se la condizione è vera
+    (dx.conditionalRequired || []).forEach(rule => {
+      if(rule.when(d)){
+        const actual = d[rule.field];
+        if(isMissing(actual)) missingRequired.push(rule.field);
+      }
+    });
+
     Object.entries(dx.against || {}).forEach(([field,expected]) => {
       const actual = d[field];
       if(!isMissing(actual) && matches(field,expected,actual)) againstHits.push({field,expected,actual});
@@ -318,7 +344,15 @@ const Engine = {
     const scores = Object.entries(DX).map(([key,dx]) => Engine.scoreDx(key,dx,d,flags)).sort((a,b)=>b.pct-a.pct);
     const diagnoses = scores.filter(x => x.pct >= SC.THRESH && !x.blocked);
     const considered = scores.filter(x => x.pct > 0 && !diagnoses.includes(x)).slice(0,5);
-    const unsupportedPattern = d.pattern_primario && !scores.some(x => x.compatibility > 0);
+    // FIX 2: isPatternSupported controlla direttamente sui DX, non su compatibility.
+  // Prima, compilare un criterio minore di una DX diversa poteva far sparire il warning
+  // su un pattern non implementato (compatibility > 0 per inerzia di altri campi).
+  const isPatternSupported = (pattern) => Object.values(DX).some(dx => {
+    const exp = dx.major?.pattern_primario;
+    return Array.isArray(exp) ? exp.includes(pattern) : exp === pattern;
+  });
+
+  const unsupportedPattern = d.pattern_primario && !isPatternSupported(d.pattern_primario);
     return {diagnoses, considered, allScores:scores, flags, unsupportedPattern};
   }
 };
@@ -602,8 +636,8 @@ const App = () => {
       <div className="card">
         <div className="flex flex-mobile items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.11.1</h1>
-            <p className="text-sm text-slate-600 mt-1">Fix: soglia dati alzata (MIN_ANSWERED_WEIGHT 4→6, MIN_CRITERIA 2→3); spongiosi_proporzionata rimossa dai required di MF.</p>
+            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.11.2</h1>
+            <p className="text-sm text-slate-600 mt-1">Fix: required condizionale MF (spongiosi_proporzionata); unsupportedPattern robusto; confronto esatto per paracheratosi/pattern/infiltrato.</p>
           </div>
           <button onClick={handleReset} className="btn btn-slate mt-3">Reset</button>
         </div>
