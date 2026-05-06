@@ -1,151 +1,168 @@
-# 🔬 DermPath v1.9
+# DermPath v2.11.2
 
-**Sistema diagnostico pattern-based per dermatiti infiammatorie e linfomi cutanei**
-
-App web standalone per la diagnosi differenziale istopatologica delle dermatiti, basata su pattern architetturali secondo l'approccio di Ackerman.
-
-🔗 **Live:** [https://infingardo.github.io/dermatiti/](https://infingardo.github.io/dermatiti/)
+Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
 ---
 
-## ✨ Features
+## Principi di funzionamento
 
-### Pattern Supportati
-- **Spongotico** - ACD, AD, ICD, Pitiriasi rosea
-- **Psoriasiforme** - Psoriasi, Sifilide secondaria, LSC
-- **Interfaccia Lichenoide** - Lichen planus, Drug reaction lichenoide
-- **Interfaccia Vacuolare** - Lupus (DLE, SCLE), Dermatomiosite, EM
-- **Perivascolare/Eosinofilo** - Orticaria, Drug reaction, Wells, Bite, Follicolite eosinofila
-- **Vasculitico** - LCV, Vasculite IgA
-- **Vasculopatico** - Vasculopatia livedoide, Porpora pigmentaria
-- **Granulomatoso** - Sarcoidosi, GA, Necrobiosi lipoidica, Nodulo reumatoide
-- **Bolloso** - Pemfigo, Pemfigoide, Dermatite erpetiforme, EBA
-- **Panniculitico** - EN, Lupus panniculitis, Panniculite pancreatica, SPTCL, Vasculite nodulare
-- **Mastocitario** - Mastocitosi cutanea
+**Il vetrino comanda. Il punteggio porta il caffè.**
 
-### Sistema Diagnostico
-- **Scoring pesato**: criteri maggiori (×3) e minori (×1)
-- **Red flags automatici**: esclusione diagnosi incompatibili
-- **Alert linfomi**: identificazione pattern sospetti (MF, SPTCL)
-- **Pannello IHC dinamico**: suggerimenti mirati per DD equivoche
+Il tool non assegna probabilità diagnostiche. Assegna una *compatibilità euristica corretta* — percentuale grezzo sul peso risposto, poi corretta per:
 
-### Marcatori IHC Integrati
-| Marcatore | Indicazione | Sens/Spec |
-|-----------|-------------|-----------|
-| PCR TCR dual-site | MF vs dermatite | 82.6%/95.7% |
-| DIF Lupus Band | Lupus cutaneo | 71-84%/>90% |
-| MxA | Lupus/DM vs altri | 85-95%/>90% |
-| CD123 clusters | Lupus vs MF | 70-80%/>90% |
-| Ki-67 soprabasale | Psoriasi vs eczema | ~83%/~70% |
-| IL-36γ | Psoriasi vs altri | alta/alta |
-| BP180 ELISA | Pemfigoide | 82-90%/94% |
-| CD117/CD25 | Mastocitosi | >95%/>95% |
+- dati insufficienti (soglia minima di peso risposto)
+- required mancanti o contrari
+- elementi contro (`against`)
+- red flags morfologiche attive
+
+Una diagnosi è *proponibile* solo se supera la soglia del 50% **dopo** tutte le correzioni. In caso contrario appare come "da considerare, non chiudibile".
 
 ---
 
-## 🚀 Utilizzo
+## Architettura del motore
 
-### Workflow in 4 Step
+### Struttura di una diagnosi
 
-1. **Pattern** - Seleziona pattern architetturale predominante + fase lesione
-2. **Epidermide** - Caratteristiche epidermiche e clues morfologici
-3. **Derma** - Infiltrato, composizione cellulare, pattern speciali
-4. **Speciali** - Sospetto linfoma, marcatori IHC, contesto clinico
+```javascript
+{
+  nome, cat,
+  required: [...],                    // bloccanti se mancanti o contrari
+  conditionalRequired: [              // bloccanti solo se la condizione è vera
+    { field: 'campo', when: d => ... }
+  ],
+  major: { campo: valore_atteso },    // peso 3
+  minor: { campo: valore_atteso },    // peso 1
+  against: { campo: valore_atteso },  // penalità -12 per hit
+  note, workup
+}
+```
 
-### Output
-- Diagnosi differenziale ranked per % compatibilità
-- Red flags con diagnosi escluse
-- Colorazioni/IHC suggerite per conferma
-- Bibliografia con PMID per ogni diagnosi
-- Export referto (.txt)
+### Pipeline di scoring
 
----
+1. Valuta `major` e `minor` → calcola `raw` e `answeredWeight`
+2. Verifica `required` → popola `missingRequired` / `failedRequired`
+3. Valuta `conditionalRequired` → aggiunge a `missingRequired` se condizione vera e campo mancante
+4. Verifica `against` → accumula `againstHits`
+5. Applica red flags → `excludedByFlags`
+6. Corregge il punteggio:
+   - `lowData` (answeredWeight < 6 o matchedCriteria < 3) → cap a 49%
+   - `requiredProblem` → cap a 49%
+   - ogni `againstHit` → -12 punti
+   - ogni `excludedByFlag` → -25 punti (min 5%)
+7. `blocked = pct < 50 || lowData || requiredProblem || excludedByFlags.length > 0`
 
-## 📋 Changelog
+### Logica di matching
 
-### v1.9 (Dicembre 2024)
-**+8 nuove diagnosi:**
-- Pitiriasi rosea (paracheratosi "a tumuli", infiltrato "a manicotto")
-- Dermatite irritativa (ICD) - necrosi cheratinociti superficiali
-- Dermatomiosite - vacuolare + mucina + MxA+
-- Vasculopatia livedoide - trombi senza leucocitoclasia
-- Porpora pigmentaria cronica
-- Panniculite pancreatica - ghost cells
-- Necrobiosi lipoidica - pattern "sandwich"
-- Mastocitosi cutanea - CD117/CD25
+```javascript
+matchAtLeast(field, expected, actual)
+```
 
-**Nuovi marcatori:**
-- MxA (firma IFN tipo I)
-- CD123 clusters vs sparso
-- IL-36γ
-- Pannello mastocitosi
+Per la maggior parte dei campi ordinali (`epidermotropismo`, `linfociti_atipici`, `spongiosi`, ecc.) usa confronto "almeno": `actual >= expected` nella scala ordinale.
 
-**Nuovi clues:**
-- Vasculite vs vasculopatia (leucocitoclasia)
-- Ghost cells panniculite
-- Follicoli germinativi (lupus panniculitis)
+**Eccezione — `EXACT_FIELDS`**: confronto esatto per campi dove "più" non implica "meglio":
 
-### v1.8
-- Panniculiti complete (EN, Lupus, SPTCL, Vasculite nodulare)
-- Sistema pannello IHC psoriasi vs spongotico
-- Fase lesione (acuta/subacuta/cronica)
+| Campo | Motivazione |
+|---|---|
+| `paracheratosi` | focale ≠ marcata in diagnostica differenziale |
+| `pattern_primario` | categoriale puro |
+| `infiltrato_distribuzione` | categoriale puro |
+| `spongiosi_proporzionata` | booleano semantico |
 
-### v1.7
-- Pattern eosinofilo completo (Wells, Bite, Drug, Follicolite)
-- Prurigo nodularis
-- Clues morfologici espansi
+**Eccezione — `EXACT_ARRAY_FIELDS`**: per `spongiosi`, `paracheratosi`, `neutrofili` passati come array in `against`, usa `includes()` invece di `some(matchAtLeast)`.
 
-### v1.6
-- Malattie bollose (Pemfigo, Pemfigoide, DH)
-- Granulomatosi (Sarcoidosi, GA)
-- Performance IHC con sensibilità/specificità
+### required condizionali
 
-### v1.5
-- Alert linfomi automatico
-- Sifilide secondaria
-- Red flags system
+Meccanismo per required che dipendono da altri campi:
 
----
+```javascript
+conditionalRequired: [
+  { field: 'spongiosi_proporzionata', when: d => ['presente','marcato'].includes(d.epidermotropismo) }
+]
+```
 
-## 🛠️ Tecnologie
+Usato attualmente per MF early: `spongiosi_proporzionata` è morfologicamente cruciale solo se epidermotropismo è presente o marcato.
 
-- React 18 (standalone via CDN)
-- CSS inline (zero dipendenze esterne)
-- Vanilla JavaScript
-- Single-file HTML (~60KB)
+| Scenario | Risultato |
+|---|---|
+| epidermotropismo assente | MF bloccata da required `epidermotropismo` |
+| epidermotropismo presente, spongiosi_proporzionata non compilata | MF non proponibile |
+| epidermotropismo presente + spongiosi_proporzionata = sì | MF penalizzata (against) |
+| epidermotropismo presente + spongiosi_proporzionata = no | MF può salire |
 
----
+### Red flags
 
-## 📚 Bibliografia Principale
+Layer separato dalla pipeline di scoring. Ogni red flag ha:
+- `test(d)` → funzione che valuta i dati
+- `escludi[]` → lista di chiavi DX penalizzate se il test è vero
 
-Ogni diagnosi include riferimenti PMID. Fonti principali:
+Le red flags sono interrupt, non pesi. Una red flag attiva non blocca necessariamente la diagnosi correlata, ma la penalizza di 25 punti e la mostra esplicitamente nell'output.
 
-- Willemze R et al. WHO-EORTC classification. *Blood* 2019
-- Armstrong AW et al. Psoriasis. *JAMA* 2020
-- Weidinger S et al. Atopic Dermatitis. *Lancet* 2016
-- Requena L et al. Panniculitis I-II. *JAAD* 2001
-- Joly P et al. Pemphigus guidelines. *JEADV* 2020
-- Schmidt E et al. Pemphigoid. *J Invest Dermatol* 2016
-- Valent P et al. Mastocytosis WHO. *Blood* 2017
+Red flags implementate:
 
----
+| Flag | Condizione | Diagnosi segnalata | DX penalizzate |
+|---|---|---|---|
+| Microascessi di Munro | `microascessi_munro = 'si'` | Psoriasi | DAC, DA acuta |
+| Corpi di Civatte | `corpi_civatte = 'si'` | Interfaccia lichenoide | Psoriasi |
+| Plasmacellule in psoriasiforme | `pattern psoriasiforme + plasmacellule` | Escludere sifilide | Psoriasi |
+| Epidermotropismo + alone chiaro | epidermotropismo + alone_chiaro | Sospetto T-linfoproliferativo | DAC |
+| Spongiosi proporzionata in MF | spongiosi_proporzionata = sì + epidermotropismo | Dermatite > MF | MF early |
+| PLEVA | necrosi diffusa + eritrociti intraepidermici | Considerare PLEVA | MF early |
 
-## ⚠️ Disclaimer
+### unsupportedPattern
 
-**Strumento di supporto decisionale - NON sostituisce il giudizio clinico.**
+```javascript
+const isPatternSupported = (pattern) => Object.values(DX).some(dx => {
+  const exp = dx.major?.pattern_primario;
+  return Array.isArray(exp) ? exp.includes(pattern) : exp === pattern;
+});
+```
 
-La diagnosi definitiva richiede sempre:
-- Correlazione clinico-patologica
-- Valutazione morfologica diretta
-- Indagini supplementari quando indicate
-- Consulenza con colleghi esperti in caso di dubbio
-
----
-
-## 📝 Licenza
-
-Uso educativo e professionale. Non per scopi commerciali.
+Calcolato direttamente sui DX, non su `compatibility > 0`. Robusto a contaminazione da campi condivisi tra diagnosi.
 
 ---
 
-**DermPath v1.9** - Pattern-based diagnostic system for inflammatory dermatoses
+## Diagnosi implementate
+
+| Chiave | Nome | Pattern |
+|---|---|---|
+| `dermatite_allergica_contatto` | Dermatite allergica da contatto | Spongotico |
+| `dermatite_atopica_acuta` | Dermatite atopica, fase acuta | Spongotico |
+| `psoriasi_vulgaris` | Psoriasi vulgaris | Psoriasiforme |
+| `lichen_planus` | Lichen planus | Interfaccia lichenoide |
+| `micosi_fungoide_early` | Micosi fungoide, fase iniziale | Spongotico / Interfaccia lichenoide |
+
+Pattern riconosciuti ma non ancora implementati: interfaccia vacuolare, perivascolare, perivascolare eosinofilo, vasculitico, vasculopatico, granulomatoso, granulomatoso a palizzata, subcorneo, intraepidermico bolloso, subepidermico bolloso, interstiziale eosinofilo, panniculitico, mastocitario.
+
+---
+
+## Parametri configurabili (SC)
+
+```javascript
+const SC = {
+  MAJOR: 3,               // peso criterio major
+  MINOR: 1,               // peso criterio minor
+  THRESH: 50,             // soglia minima per "proponibile"
+  MIN_CRITERIA_FOR_HIGH: 3,  // n. criteri matched minimi
+  MIN_ANSWERED_WEIGHT: 6,    // peso totale risposto minimo
+  RED_PENALTY: 25,        // penalità per red flag
+  REQUIRED_CAP: 49,       // cap se required mancanti
+  LOW_DATA_CAP: 49,       // cap se dati insufficienti
+  AGAINST_PENALTY: 12     // penalità per elemento contro
+};
+```
+
+---
+
+## Changelog
+
+| Versione | Modifiche |
+|---|---|
+| v2.11.2 | required condizionale per MF (spongiosi_proporzionata); isPatternSupported robusto; EXACT_FIELDS per paracheratosi/pattern/infiltrato/spongiosi_proporzionata |
+| v2.11.1 | MIN_ANSWERED_WEIGHT 4→6; MIN_CRITERIA_FOR_HIGH 2→3; spongiosi_proporzionata rimossa dai required globali di MF |
+| v2.11.0 | Motore conservativo con matchAtLeast ordinale, EXACT_ARRAY_FIELDS, required/against pipeline, red flags layer separato |
+
+---
+
+## Disclaimer
+
+Strumento di supporto diagnostico ad uso esclusivo di medici specialisti. Non sostituisce la valutazione morfologica diretta del preparato istologico, il giudizio clinico e la correlazione anatomo-clinica. La compatibilità euristica non è una probabilità diagnostica.
