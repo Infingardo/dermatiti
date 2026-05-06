@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DermPath v2.11.2</title>
+  <title>DermPath v2.11.4</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5;background:#eef2ff;color:#1e293b}
@@ -87,6 +87,12 @@ const EXACT_FIELDS = new Set([
 ]);
 
 const isMissing = (v) => v === '' || v === null || v === undefined;
+const isUnansweredCriterion = (expected, actual) => {
+  // Checkbox-only true clues have no explicit "unknown" state in the UI.
+  // Treat an unchecked optional positive clue as undocumented, not as a documented absence.
+  if(expected === true && actual === false) return true;
+  return isMissing(actual);
+};
 
 const labelize = (field) => ({
   pattern_primario:'pattern primario',
@@ -279,7 +285,7 @@ const Engine = {
     const addCrit = (field, expected, weight, tier) => {
       totalWeight += weight;
       const actual = d[field];
-      if(isMissing(actual)){
+      if(isUnansweredCriterion(expected, actual)){
         missing.push(field);
         return;
       }
@@ -342,17 +348,17 @@ const Engine = {
   calc:(d) => {
     const flags = RED_FLAGS.filter(rf => rf.test(d));
     const scores = Object.entries(DX).map(([key,dx]) => Engine.scoreDx(key,dx,d,flags)).sort((a,b)=>b.pct-a.pct);
-    const diagnoses = scores.filter(x => x.pct >= SC.THRESH && !x.blocked);
-    const considered = scores.filter(x => x.pct > 0 && !diagnoses.includes(x)).slice(0,5);
     // FIX 2: isPatternSupported controlla direttamente sui DX, non su compatibility.
-  // Prima, compilare un criterio minore di una DX diversa poteva far sparire il warning
-  // su un pattern non implementato (compatibility > 0 per inerzia di altri campi).
-  const isPatternSupported = (pattern) => Object.values(DX).some(dx => {
-    const exp = dx.major?.pattern_primario;
-    return Array.isArray(exp) ? exp.includes(pattern) : exp === pattern;
-  });
+    // Prima, compilare un criterio minore di una DX diversa poteva far sparire il warning
+    // su un pattern non implementato (compatibility > 0 per inerzia di altri campi).
+    const isPatternSupported = (pattern) => Object.values(DX).some(dx => {
+      const exp = dx.major?.pattern_primario;
+      return Array.isArray(exp) ? exp.includes(pattern) : exp === pattern;
+    });
 
-  const unsupportedPattern = d.pattern_primario && !isPatternSupported(d.pattern_primario);
+    const unsupportedPattern = d.pattern_primario && !isPatternSupported(d.pattern_primario);
+    const diagnoses = unsupportedPattern ? [] : scores.filter(x => x.pct >= SC.THRESH && !x.blocked);
+    const considered = unsupportedPattern ? [] : scores.filter(x => x.pct > 0 && !diagnoses.includes(x)).slice(0,5);
     return {diagnoses, considered, allScores:scores, flags, unsupportedPattern};
   }
 };
@@ -510,7 +516,7 @@ const DxCard = memo(({dx,idx,considered=false}) => {
 const Step1 = memo(({data,upd,onNext}) => (
   <div>
     <h2 className="text-2xl font-bold mb-2">1. Pattern primario</h2>
-    <p className="text-sm text-slate-600 mb-4">Seleziona il pattern dominante. I pattern non ancora implementati verranno segnalati come tali, senza inventare diagnosi.</p>
+    <p className="text-sm text-slate-600 mb-4">Seleziona il pattern dominante. I pattern non ancora implementati verranno segnalati come tali, senza inventare diagnosi o diagnosi "da considerare" generate per inerzia.</p>
     <div className="space-y-3">
       {PATTERNS.map(o => {
         const supported = Object.values(DX).some(dx => {
@@ -534,7 +540,8 @@ const Step1 = memo(({data,upd,onNext}) => (
 
 const Step2 = memo(({data,upd,onBack,onNext}) => (
   <div>
-    <h2 className="text-2xl font-bold mb-4">2. Epidermide</h2>
+    <h2 className="text-2xl font-bold mb-2">2. Epidermide</h2>
+    <p className="text-sm text-slate-600 mb-4">Le checkbox sono clue positivi: se non selezionate vengono trattate come non documentate, non come assenze provate.</p>
     <div className="grid grid-2">
       <Sel label="Spongiosi" value={data.spongiosi} onChange={v=>upd('spongiosi',v)} opts={['assente','lieve','moderata','marcata'].map(v=>({value:v,label:v}))} />
       <Sel label="Esocitosi" value={data.esocitosi} onChange={v=>upd('esocitosi',v)} opts={['assente','lieve','presente','marcata'].map(v=>({value:v,label:v}))} />
@@ -574,11 +581,19 @@ const Step3 = memo(({data,upd,onBack,onNext}) => (
         {value:'abbondanti',label:'Abbondanti: sifilide da escludere'}
       ]} />
       <Sel label="Linfociti atipici" value={data.linfociti_atipici} onChange={v=>upd('linfociti_atipici',v)} opts={['assenti','rari','presenti','abbondanti'].map(v=>({value:v,label:v}))} />
-      <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>upd('epidermotropismo',v)} opts={['assente','presente','marcato'].map(v=>({value:v,label:v}))} help="Scala coerente con il motore: assente/presente/marcato." />
+      <Sel label="Epidermotropismo" value={data.epidermotropismo} onChange={v=>{
+        upd('epidermotropismo',v);
+        if(!['presente','marcato'].includes(v)){
+          upd('spongiosi_proporzionata','');
+          upd('alone_chiaro','');
+        }
+      }} opts={['assente','presente','marcato'].map(v=>({value:v,label:v}))} help="Scala coerente con il motore: assente/presente/marcato. I campi dipendenti vengono azzerati se assente/vuoto." />
       {['presente','marcato'].includes(data.epidermotropismo) && (
-        <TS label="Spongiosi proporzionata all'epidermotropismo?" value={data.spongiosi_proporzionata} onChange={v=>upd('spongiosi_proporzionata',v)} help="Sì = dermatite più probabile; No = possibile MF se gli altri criteri reggono." />
+        <>
+          <TS label="Spongiosi proporzionata all'epidermotropismo?" value={data.spongiosi_proporzionata} onChange={v=>upd('spongiosi_proporzionata',v)} help="Sì = dermatite più probabile; No = possibile MF se gli altri criteri reggono." />
+          <TS label="Alone chiaro attorno ai linfociti epidermotropi" value={data.alone_chiaro} onChange={v=>upd('alone_chiaro',v)} />
+        </>
       )}
-      <TS label="Alone chiaro attorno ai linfociti epidermotropi" value={data.alone_chiaro} onChange={v=>upd('alone_chiaro',v)} />
     </div>
     <Nav onBack={onBack} onNext={onNext} />
   </div>
@@ -636,8 +651,8 @@ const App = () => {
       <div className="card">
         <div className="flex flex-mobile items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.11.2</h1>
-            <p className="text-sm text-slate-600 mt-1">Fix: required condizionale MF (spongiosi_proporzionata); unsupportedPattern robusto; confronto esatto per paracheratosi/pattern/infiltrato.</p>
+            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.11.4</h1>
+            <p className="text-sm text-slate-600 mt-1">Come usarlo: scegli il pattern, compila solo i reperti osservati, poi genera una valutazione. Se il pattern non è implementato, il prototipo deve fermarsi senza suggerire diagnosi.</p>
           </div>
           <button onClick={handleReset} className="btn btn-slate mt-3">Reset</button>
         </div>
@@ -653,9 +668,10 @@ const App = () => {
           <FlagBox flags={res.flags} />
 
           {res.unsupportedPattern && (
-            <div className="p-6 bg-slate-50 border-2 border-slate-300 rounded-xl mb-6 text-center">
-              <p className="font-bold text-slate-700">Pattern riconosciuto, ma modulo diagnostico non ancora implementato.</p>
-              <p className="text-sm text-slate-600 mt-2">Meglio nessuna diagnosi che una diagnosi generata per inerzia.</p>
+            <div className="p-6 bg-slate-50 border-2 border-slate-300 rounded-xl mb-6">
+              <p className="font-bold text-slate-700 text-center">Pattern riconosciuto, ma modulo diagnostico non ancora implementato.</p>
+              <p className="text-sm text-slate-600 mt-2 text-center">Cosa fare: non usare il ranking per questo caso; descrivi il pattern e integra con clinica, colorazioni/IHC e diagnosi differenziale esterna al prototipo.</p>
+              <p className="text-sm text-slate-600 mt-2 text-center">Meglio nessuna diagnosi che una diagnosi o una lista “da considerare” generate per inerzia.</p>
             </div>
           )}
 
@@ -681,6 +697,7 @@ const App = () => {
           <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl mb-6">
             <h3 className="text-lg font-bold text-blue-800 mb-2">Nota interpretativa</h3>
             <p className="text-sm text-slate-700">La percentuale è una compatibilità euristica corretta per completezza, required mancanti, elementi contro e red flags. Non è una probabilità diagnostica.</p>
+            <p className="text-sm text-slate-700 mt-2"><b>Cosa fare:</b> usa l'elenco come promemoria dei criteri da verificare, non come referto automatico; se required, red flag o pattern non implementati bloccano il risultato, fermati e documenta il limite.</p>
           </div>
 
           <button onClick={()=>setShowRes(false)} className="btn btn-slate">← Modifica dati</button>
