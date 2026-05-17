@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DermPath v2.11.5</title>
+  <title>DermPath v2.12.0</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5;background:#eef2ff;color:#1e293b}
@@ -39,104 +39,10 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="engine.js"></script>
 
   <script type="text/babel">
 const {useState,useMemo,useCallback,memo} = React;
-
-// FIX 1: MIN_ANSWERED_WEIGHT 4→6, MIN_CRITERIA_FOR_HIGH 2→3
-// Motivazione: con MIN=4 bastava 1 major + 1 minor per sbloccare (2 criteri).
-// Con 6 servono almeno 2 major (6) oppure 1 major + 3 minor (6).
-// MIN_CRITERIA_FOR_HIGH=3: almeno 3 criteri matched, non 2.
-const SC = {
-  MAJOR: 3,
-  MINOR: 1,
-  THRESH: 50,
-  MIN_CRITERIA_FOR_HIGH: 3,
-  MIN_ANSWERED_WEIGHT: 6,
-  RED_PENALTY: 25,
-  REQUIRED_CAP: 49,
-  LOW_DATA_CAP: 49,
-  AGAINST_PENALTY: 12
-};
-
-const ORD = {
-  epidermotropismo:['assente','presente','marcato'],
-  linfociti_atipici:['assenti','rari','presenti','abbondanti'],
-  necrosi_keratinociti:['assente','presente','marcata'],
-  plasmacellule:['assenti','presenti','abbondanti'],
-  spongiosi:['assente','lieve','moderata','marcata'],
-  esocitosi:['assente','lieve','presente','marcata'],
-  neutrofili:['assenti','rari','presenti','abbondanti'],
-  eosinofili:['assenti','rari','presenti','abbondanti'],
-  vacuolizzazione_basale:['assente','presente','marcata'],
-  acantosi:['assente','lieve','moderata','marcata'],
-  paracheratosi:['assente','focale','moderata','marcata'],
-  infiltrato_densita:['assente','lieve','moderata','marcata']
-};
-
-const EXACT_ARRAY_FIELDS = new Set(['spongiosi','paracheratosi','neutrofili']);
-
-// FIX 3: campi non realmente ordinali — "marcata" non implica "focale" in dermpath.
-// paracheratosi focale ≠ paracheratosi marcata (una goccia non è una pozzanghera).
-// pattern_primario, infiltrato_distribuzione, spongiosi_proporzionata: sempre esatto.
-const EXACT_FIELDS = new Set([
-  'paracheratosi',
-  'pattern_primario',
-  'infiltrato_distribuzione',
-  'spongiosi_proporzionata'
-]);
-
-const isMissing = (v) => v === '' || v === null || v === undefined;
-const isUnansweredCriterion = (expected, actual) => {
-  // Checkbox-only true clues have no explicit "unknown" state in the UI.
-  // Treat an unchecked optional positive clue as undocumented, not as a documented absence.
-  if(expected === true && actual === false) return true;
-  return isMissing(actual);
-};
-
-const labelize = (field) => ({
-  pattern_primario:'pattern primario',
-  spongiosi:'spongiosi',
-  esocitosi:'esocitosi',
-  acantosi:'acantosi',
-  paracheratosi:'paracheratosi',
-  ipogranulosi:'ipogranulosi',
-  ipergranulosi:'ipergranulosi',
-  vacuolizzazione_basale:'vacuolizzazione basale',
-  necrosi_keratinociti:'necrosi cheratinocitaria',
-  infiltrato_distribuzione:'distribuzione infiltrato',
-  eosinofili:'eosinofili',
-  neutrofili:'neutrofili',
-  plasmacellule:'plasmacellule',
-  linfociti_atipici:'linfociti atipici',
-  epidermotropismo:'epidermotropismo',
-  spongiosi_proporzionata:'spongiosi proporzionata',
-  alone_chiaro:'alone chiaro',
-  microascessi_munro:'microascessi di Munro',
-  corpi_civatte:'corpi di Civatte',
-  saw_toothing:'saw-toothing',
-  assottigliamento_soprapapillare:'assottigliamento sovrapapillare',
-  capillari_dilatati_papille:'capillari dilatati nelle papille'
-}[field] || field.replaceAll('_',' '));
-
-const matchAtLeast = (field, expected, actual) => {
-  if(EXACT_FIELDS.has(field)) return actual === expected;
-  const rank = ORD[field];
-  if(!rank) return actual === expected;
-  const eIdx = rank.indexOf(expected);
-  const aIdx = rank.indexOf(actual);
-  if(eIdx < 0 || aIdx < 0) return actual === expected;
-  return aIdx >= eIdx;
-};
-
-const matches = (field, expected, actual) => {
-  if(typeof expected === 'boolean') return actual === expected;
-  if(Array.isArray(expected)){
-    if(EXACT_ARRAY_FIELDS.has(field)) return expected.includes(actual);
-    return expected.some(e => matchAtLeast(field,e,actual));
-  }
-  return matchAtLeast(field,expected,actual);
-};
 
 const getCompClass = (pct, blocked) => {
   if(blocked) return {label:'Non proponibile',emoji:'⛔',color:'text-red-700',bg:'bg-red-50',border:'border-red-300'};
@@ -145,249 +51,6 @@ const getCompClass = (pct, blocked) => {
   return {label:'Bassa',emoji:'🔴',color:'text-red-700',bg:'bg-red-50',border:'border-red-300'};
 };
 
-const INIT = {
-  pattern_primario:'',
-  spongiosi:'', esocitosi:'', acantosi:'', paracheratosi:'', ipogranulosi:'', ipergranulosi:'',
-  vacuolizzazione_basale:'', necrosi_keratinociti:'',
-  infiltrato_distribuzione:'', infiltrato_densita:'',
-  eosinofili:'', neutrofili:'', plasmacellule:'', linfociti_atipici:'', epidermotropismo:'',
-  spongiosi_proporzionata:'', alone_chiaro:'', microascessi_munro:'', corpi_civatte:'',
-  saw_toothing:false, assottigliamento_soprapapillare:false, capillari_dilatati_papille:false,
-  necrosi_cheratinociti_diffusa:false, eritrociti_extravasati_intraepidermici:false,
-  sede_anatomica:'', note_cliniche:''
-};
-
-const PATTERNS = [
-  {value:'spongotico',label:'Spongotico',desc:'Edema intercellulare, esocitosi, eczema-like'},
-  {value:'psoriasiforme',label:'Psoriasiforme',desc:'Allungamento regolare/irregolare delle creste'},
-  {value:'interfaccia_lichenoide',label:'Interfaccia lichenoide',desc:'Infiltrato a banda, danno basale'},
-  {value:'interfaccia_vacuolare',label:'Interfaccia vacuolare',desc:'Vacuoli basali, infiltrato meno denso'},
-  {value:'perivascolare',label:'Perivascolare',desc:'Infiltrato attorno ai vasi'},
-  {value:'perivascolare_eosinofilo',label:'Perivascolare eosinofilo',desc:'Iperergia/puntura/farmaco'},
-  {value:'vasculitico',label:'Vasculitico',desc:'Necrosi fibrinoide, leucocitoclasia'},
-  {value:'vasculopatico',label:'Vasculopatico',desc:'Trombi senza vera vasculite'},
-  {value:'granulomatoso',label:'Granulomatoso',desc:'Granulomi dermici'},
-  {value:'granulomatoso_palizzata',label:'Granulomatoso a palizzata',desc:'Necrobiosi + istiociti'},
-  {value:'subcorneo',label:'Subcorneo',desc:'Pustole sottocornee'},
-  {value:'intraepidermico',label:'Intraepidermico bolloso',desc:'Acantolisi o vescicole intraepidermiche'},
-  {value:'subepidermico_bolloso',label:'Subepidermico bolloso',desc:'Bolla sottoepidermica'},
-  {value:'interstiziale_eosinofilo',label:'Interstiziale eosinofilo',desc:'Eosinofili interstiziali diffusi'},
-  {value:'panniculitico',label:'Panniculitico',desc:'Sottocute prevalente'},
-  {value:'mastocitario',label:'Mastocitario',desc:'Infiltrato mastocitario'}
-];
-
-const DX = {
-  dermatite_allergica_contatto:{
-    nome:'Dermatite allergica da contatto', cat:'Spongotico',
-    required:['pattern_primario','spongiosi','esocitosi'],
-    major:{pattern_primario:'spongotico', spongiosi:['moderata','marcata'], esocitosi:'presente'},
-    minor:{eosinofili:['presenti','abbondanti'], infiltrato_distribuzione:'perivascolare_superficiale', spongiosi_proporzionata:'si'},
-    against:{linfociti_atipici:'presenti', epidermotropismo:'presente', microascessi_munro:'si'},
-    note:'Pattern di dermatite spongiotica. Diagnosi da integrare con sede, esposizione e cronologia clinica.',
-    workup:['PAS se dubbio dermatofiti','correlazione clinica/espositiva','evitare diagnosi specifica se quadro aspecifico']
-  },
-  dermatite_atopica_acuta:{
-    nome:'Dermatite atopica, fase acuta', cat:'Spongotico',
-    required:['pattern_primario','spongiosi','esocitosi'],
-    major:{pattern_primario:'spongotico', spongiosi:['moderata','marcata'], esocitosi:'presente'},
-    minor:{eosinofili:['presenti','abbondanti'], paracheratosi:'focale', spongiosi_proporzionata:'si'},
-    against:{linfociti_atipici:'presenti', epidermotropismo:'presente', microascessi_munro:'si'},
-    note:'Spongiosi proporzionata al danno epidermico: favorisce dermatite rispetto a MF early.',
-    workup:['PAS se indicato','correlare con atopia/distribuzione/recidive']
-  },
-  psoriasi_vulgaris:{
-    nome:'Psoriasi vulgaris', cat:'Psoriasiforme',
-    required:['pattern_primario','acantosi','paracheratosi','ipogranulosi'],
-    major:{pattern_primario:'psoriasiforme', acantosi:'marcata', paracheratosi:['moderata','marcata'], ipogranulosi:'si'},
-    minor:{neutrofili:['presenti','abbondanti'], microascessi_munro:'si', assottigliamento_soprapapillare:true, capillari_dilatati_papille:true},
-    against:{plasmacellule:'presenti', eosinofili:'abbondanti', spongiosi:'marcata'},
-    note:'Richiede architettura psoriasiforme coerente: creste regolari, ipogranulosi, paracheratosi neutrofilica, capillari papillari.',
-    workup:['PAS se pattern psoriasiforme atipico','se plasmacellule: escludere sifilide','evitare chiusura se eosinofili marcati/spongiosi dominante']
-  },
-  lichen_planus:{
-    nome:'Lichen planus', cat:'Interfaccia/Lichenoide',
-    required:['pattern_primario','infiltrato_distribuzione','vacuolizzazione_basale'],
-    major:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente'},
-    minor:{necrosi_keratinociti:'presente', ipergranulosi:'si', corpi_civatte:'si', saw_toothing:true},
-    against:{plasmacellule:'presenti', spongiosi:'marcata'},
-    note:'Banda lichenoide vera, danno basale e cheratinociti apoptotici. Se manca la banda, pensare a interfaccia vacuolare/drug/lupus.',
-    workup:['DIF se sede/clinica compatibile','considerare lupus/drug reaction se pattern non classico']
-  },
-  // FIX 2: spongiosi_proporzionata rimosso dai required.
-  // Motivazione: il campo appare in UI solo se epidermotropismo ∈ ['presente','marcato'].
-  // Se epidermotropismo è assente/vuoto, MF è già bloccata da required 'epidermotropismo'
-  // e da mancato match del major. Averlo anche nei required generava un secondo
-  // missingRequired fantasma, con messaggio fuorviante ("required mancanti: epidermotropismo,
-  // spongiosi_proporzionata") quando in realtà il problema è solo il primo.
-  // spongiosi_proporzionata rimane in major (peso 3 se 'no') e in against (penalità se 'si'):
-  // se compilato contribuisce; se non compilato non blocca.
-  dermatite_seborroica:{
-    nome:'Dermatite seborroica', cat:'Spongotico/Psoriasiforme',
-    required:['pattern_primario'],
-    major:{pattern_primario:['spongotico','psoriasiforme'], infiltrato_distribuzione:'perivascolare_superficiale', paracheratosi:'focale'},
-    minor:{spongiosi:['lieve','moderata'], neutrofili:['presenti','abbondanti'], esocitosi:['lieve','presente'], acantosi:['lieve','moderata']},
-    against:{infiltrato_distribuzione:'banda_lichenoide', eosinofili:'abbondanti', spongiosi:'marcata', ipogranulosi:'si'},
-    note:'Pattern spongotico con spongiosi lieve-moderata e paracheratosi focale (spesso periostiale/follicolare). Neutrofili frequenti nel corneo. La distinzione da psoriasi si basa su spongiosi presente, ipogranulosi assente, acantosi irregolare. Diagnosi fortemente supportata dalla sede (cuoio capelluto, volto, area sternale) e dalla clinica.',
-    workup:['PAS se dubbio dermatofiti','correlare con sede anatomica: cuoio capelluto/volto/petto/area sternale','se quadro psoriasiforme pulito con ipogranulosi: escludere psoriasi','se eosinofili prominenti: considerare reazione da farmaci o dermatite atopica']
-  },
-  micosi_fungoide_early:{
-    nome:'Micosi fungoide, fase iniziale', cat:'Linfoma cutaneo T',
-    required:['pattern_primario','linfociti_atipici','epidermotropismo'],
-    // FIX 1: required condizionale — spongiosi_proporzionata è cruciale
-    // ma solo se epidermotropismo è presente/marcato.
-    // Senza risposta, MF resta "da considerare, non chiudibile".
-    conditionalRequired:[
-      {field:'spongiosi_proporzionata', when:d => ['presente','marcato'].includes(d.epidermotropismo)}
-    ],
-    major:{pattern_primario:['spongotico','interfaccia_lichenoide'], linfociti_atipici:'presenti', epidermotropismo:'presente', spongiosi_proporzionata:'no'},
-    minor:{alone_chiaro:'si'},
-    against:{spongiosi_proporzionata:'si', eosinofili:'abbondanti', necrosi_keratinociti:'marcata'},
-    note:'Da proporre come sospetto morfologico solo se epidermotropismo sproporzionato e linfociti atipici sono documentati. La clinica pesa molto.',
-    workup:['CD3/CD4/CD8/CD7/CD5','TOX con cautela','TCR clonality, meglio su più sedi/campioni','integrazione clinica: persistenza, recidiva, distribuzione']
-  },
-  eritema_multiforme:{
-    nome:'Eritema multiforme / interfaccia vacuolare', cat:'Interfaccia vacuolare',
-    required:['pattern_primario','vacuolizzazione_basale','necrosi_keratinociti'],
-    major:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'marcata', necrosi_keratinociti:'presente'},
-    minor:{corpi_civatte:'si', eosinofili:['presenti','abbondanti'], infiltrato_distribuzione:'perivascolare_superficiale'},
-    against:{microascessi_munro:'si', infiltrato_distribuzione:'banda_lichenoide', acantosi:'marcata'},
-    note:'Danno vacuolare basale con necrosi cheratinocitaria. Vacuolizzazione marcata + necrosi + corpi di Civatte orientano verso EM/TEN. Distingui da lupus (DIF, distribuzione, clinica) e da reazione lichenoide se l\'infiltrato tende a banda. TEN: valutare estensione della necrosi epidermica.',
-    workup:['DIF se sospetto lupus eritematoso','escludere farmaci (causa più frequente di interfaccia vacuolare drug-indotta)','ricerca HSV/Mycoplasma se clinica EM classica','se necrosi epidermica estesa: considerare TEN — conta cheratinociti necrotici vs bulla subepidermica']
-  }
-};
-
-const RED_FLAGS = [
-  {
-    flag:'microascessi_munro', label:'Microascessi di Munro', diagnosi:'Psoriasi',
-    test:d => d.microascessi_munro === 'si',
-    escludi:['dermatite_allergica_contatto','dermatite_atopica_acuta']
-  },
-  {
-    flag:'corpi_civatte', label:'Corpi di Civatte', diagnosi:'Interfaccia lichenoide',
-    test:d => d.corpi_civatte === 'si',
-    escludi:['psoriasi_vulgaris']
-  },
-  {
-    flag:'plasmacellule_psoriasiforme', label:'Plasmacellule in pattern psoriasiforme', diagnosi:'Escludere sifilide secondaria',
-    test:d => d.pattern_primario === 'psoriasiforme' && ['presenti','abbondanti'].includes(d.plasmacellule),
-    escludi:['psoriasi_vulgaris']
-  },
-  {
-    flag:'epidermotropismo_alone', label:'Epidermotropismo con alone chiaro', diagnosi:'Sospetto linfoproliferativo T',
-    test:d => ['presente','marcato'].includes(d.epidermotropismo) && d.alone_chiaro === 'si',
-    escludi:['dermatite_allergica_contatto']
-  },
-  {
-    flag:'spongiosi_proporzionata_mf', label:'Epidermotropismo con spongiosi proporzionata', diagnosi:'Dermatite più probabile di MF',
-    test:d => d.spongiosi_proporzionata === 'si' && ['presente','marcato'].includes(d.epidermotropismo),
-    escludi:['micosi_fungoide_early']
-  },
-  {
-    flag:'pleva_necrosi_eritrociti', label:'Necrosi cheratinocitaria diffusa + eritrociti intraepidermici', diagnosi:'Considerare PLEVA/Mucha-Habermann',
-    test:d => d.necrosi_cheratinociti_diffusa === true && d.eritrociti_extravasati_intraepidermici === true,
-    escludi:['micosi_fungoide_early']
-  }
-];
-
-const findCriterionExpected = (dx, field) => {
-  if(dx.major && Object.prototype.hasOwnProperty.call(dx.major,field)) return dx.major[field];
-  if(dx.minor && Object.prototype.hasOwnProperty.call(dx.minor,field)) return dx.minor[field];
-  return undefined;
-};
-
-const Engine = {
-  scoreDx:(key,dx,d,flags) => {
-    let raw = 0, answeredWeight = 0, totalWeight = 0, matchedCriteria = 0;
-    const matched = [], unmatched = [], missing = [], missingRequired = [], failedRequired = [], againstHits = [];
-
-    const addCrit = (field, expected, weight, tier) => {
-      totalWeight += weight;
-      const actual = d[field];
-      if(isUnansweredCriterion(expected, actual)){
-        missing.push(field);
-        return;
-      }
-      answeredWeight += weight;
-      const hit = matches(field, expected, actual);
-      if(hit){
-        raw += weight;
-        matchedCriteria += 1;
-        matched.push({field, expected, actual, tier});
-      }else{
-        unmatched.push({field, expected, actual, tier});
-      }
-    };
-
-    Object.entries(dx.major || {}).forEach(([f,e]) => addCrit(f,e,SC.MAJOR,'major'));
-    Object.entries(dx.minor || {}).forEach(([f,e]) => addCrit(f,e,SC.MINOR,'minor'));
-
-    (dx.required || []).forEach(field => {
-      const actual = d[field];
-      const expected = findCriterionExpected(dx,field);
-      if(isMissing(actual)) {
-        missingRequired.push(field);
-      } else if(expected !== undefined && !matches(field,expected,actual)) {
-        const rank = ORD[field];
-        const isOrdinal = rank && !EXACT_FIELDS.has(field);
-        // Campi ordinali: failedRequired solo se esplicitamente al minimo (assente/assenti).
-        // Sub-threshold è penalizzato dallo scoring (unmatched), non bloccante.
-        // Campi categoriali (EXACT_FIELDS): sempre failedRequired se non corrisponde.
-        if(!isOrdinal || actual === rank[0]) failedRequired.push(field);
-      }
-    });
-
-    // FIX 1: required condizionali — valutati solo se la condizione è vera
-    (dx.conditionalRequired || []).forEach(rule => {
-      if(rule.when(d)){
-        const actual = d[rule.field];
-        if(isMissing(actual)) missingRequired.push(rule.field);
-      }
-    });
-
-    Object.entries(dx.against || {}).forEach(([field,expected]) => {
-      const actual = d[field];
-      if(!isMissing(actual) && matches(field,expected,actual)) againstHits.push({field,expected,actual});
-    });
-
-    const compatibility = answeredWeight > 0 ? Math.round((raw / answeredWeight) * 100) : 0;
-    const completeness = totalWeight > 0 ? Math.round((answeredWeight / totalWeight) * 100) : 0;
-    const excludedByFlags = flags.filter(rf => rf.escludi.includes(key));
-
-    let pct = compatibility;
-    const lowData = answeredWeight < SC.MIN_ANSWERED_WEIGHT || matchedCriteria < SC.MIN_CRITERIA_FOR_HIGH;
-    const requiredProblem = missingRequired.length > 0 || failedRequired.length > 0;
-
-    if(lowData) pct = Math.min(pct,SC.LOW_DATA_CAP);
-    if(requiredProblem) pct = Math.min(pct,SC.REQUIRED_CAP);
-    if(againstHits.length) pct = Math.max(0,pct - againstHits.length * SC.AGAINST_PENALTY);
-    if(excludedByFlags.length) pct = Math.max(5,pct - SC.RED_PENALTY);
-
-    const blocked = pct < SC.THRESH || lowData || requiredProblem || excludedByFlags.length > 0;
-
-    return {
-      key,...dx,
-      pct, compatibility, completeness, answeredWeight, totalWeight, matchedCriteria,
-      matched, unmatched, missing, missingRequired, failedRequired, againstHits, excludedByFlags,
-      lowData, requiredProblem, blocked
-    };
-  },
-  calc:(d) => {
-    const flags = RED_FLAGS.filter(rf => rf.test(d));
-    const scores = Object.entries(DX).map(([key,dx]) => Engine.scoreDx(key,dx,d,flags)).sort((a,b)=>b.pct-a.pct);
-    // FIX 2: isPatternSupported controlla direttamente sui DX, non su compatibility.
-    // Prima, compilare un criterio minore di una DX diversa poteva far sparire il warning
-    // su un pattern non implementato (compatibility > 0 per inerzia di altri campi).
-    const isPatternSupported = (pattern) => Object.values(DX).some(dx => {
-      const exp = dx.major?.pattern_primario;
-      return Array.isArray(exp) ? exp.includes(pattern) : exp === pattern;
-    });
-
-    const unsupportedPattern = d.pattern_primario && !isPatternSupported(d.pattern_primario);
-    const diagnoses = unsupportedPattern ? [] : scores.filter(x => x.pct >= SC.THRESH && !x.blocked);
-    const considered = unsupportedPattern ? [] : scores.filter(x => x.pct > 0 && !diagnoses.includes(x)).slice(0,5);
-    return {diagnoses, considered, allScores:scores, flags, unsupportedPattern};
-  }
-};
 
 const useForm = (init=1) => {
   const [step,setStep] = useState(init);
@@ -415,43 +78,6 @@ const useData = () => {
   return {data, upd, reset};
 };
 
-const buildExportText = (data, res) => {
-  const fmt = (arr) => arr.map(s=>`  • ${s}`).join('\n');
-  const lines = [
-    `DERMPATH v2.11.5 — Valutazione morfologica`,
-    `Pattern: ${data.pattern_primario || '—'}`,
-    data.sede_anatomica ? `Sede: ${data.sede_anatomica}` : null,
-    data.note_cliniche ? `Note cliniche: ${data.note_cliniche}` : null,
-    '',
-  ];
-  if(res.flags.length) {
-    lines.push('RED FLAGS ATTIVE:');
-    res.flags.forEach(f => lines.push(`  ⚠ ${f.label}: ${f.diagnosi}`));
-    lines.push('');
-  }
-  if(res.unsupportedPattern) {
-    lines.push('Pattern riconosciuto ma modulo diagnostico non implementato.');
-  } else if(res.diagnoses.length) {
-    lines.push('DIAGNOSI PROPONIBILI:');
-    res.diagnoses.forEach((dx,i) => {
-      lines.push(`${i+1}. ${dx.nome} (compatibilità corretta: ${dx.pct}%)`);
-      if(dx.matched.length) lines.push(`   Criteri presenti: ${dx.matched.map(c=>labelize(c.field)).join(', ')}`);
-      if(dx.workup?.length) { lines.push('   Workup:'); dx.workup.forEach(w=>lines.push(`     – ${w}`)); }
-    });
-    lines.push('');
-  } else {
-    lines.push('Nessuna diagnosi proponibile con i dati inseriti.');
-    lines.push('');
-  }
-  if(res.considered.length) {
-    lines.push('DA CONSIDERARE (non chiudibili):');
-    res.considered.forEach((dx,i) => lines.push(`${i+1}. ${dx.nome} (${dx.pct}%) — ${[...dx.missingRequired,...dx.failedRequired].map(labelize).join(', ') || 'dati insufficienti'}`));
-    lines.push('');
-  }
-  lines.push('---');
-  lines.push('Compatibilità euristica corretta. Non sostituisce la valutazione morfologica diretta del preparato istologico.');
-  return lines.filter(l=>l!==null).join('\n');
-};
 
 const Sel = memo(({label,value,onChange,opts,help}) => (
   <div>
@@ -629,6 +255,8 @@ const Step2 = memo(({data,upd,onBack,onNext}) => (
       <Chk label="Saw-toothing" checked={data.saw_toothing} onChange={v=>upd('saw_toothing',v)} />
       <Chk label="Assottigliamento sovrapapillare" checked={data.assottigliamento_soprapapillare} onChange={v=>upd('assottigliamento_soprapapillare',v)} />
       <Chk label="Capillari dilatati nelle papille" checked={data.capillari_dilatati_papille} onChange={v=>upd('capillari_dilatati_papille',v)} />
+      <TS label="Atrofia epidermica" value={data.atrofia_epidermica} onChange={v=>upd('atrofia_epidermica',v)} help="Assottigliamento dell'epidermide con perdita delle creste. Suggestivo di lupus discoide cronico." />
+      <TS label="Ispessimento BMZ (membrana basale)" value={data.ispessimento_bmz} onChange={v=>upd('ispessimento_bmz',v)} help="Membrana basale ispessita, PAS-positiva. Caratteristica del lupus discoide." />
     </div>
     <Nav onBack={onBack} onNext={onNext} />
   </div>
@@ -666,6 +294,8 @@ const Step3 = memo(({data,upd,onBack,onNext}) => (
           <TS label="Alone chiaro attorno ai linfociti epidermotropi" value={data.alone_chiaro} onChange={v=>upd('alone_chiaro',v)} />
         </>
       )}
+      <TS label="Mucina dermica" value={data.mucina_dermica} onChange={v=>upd('mucina_dermica',v)} help="Mucina interstiziale nel derma reticolare (Alcian/colloidal iron). Caratteristica di lupus." />
+      <TS label="Infiltrato anche perianessiale" value={data.infiltrato_perianessiale} onChange={v=>upd('infiltrato_perianessiale',v)} help="Componente perianessiale aggiuntiva (oltre al pattern perivascolare). Suggestiva di lupus." />
     </div>
     <Nav onBack={onBack} onNext={onNext} />
   </div>
@@ -723,7 +353,7 @@ const App = () => {
       <div className="card">
         <div className="flex flex-mobile items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.11.5</h1>
+            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.12.0</h1>
             <p className="text-sm text-slate-600 mt-1">Come usarlo: scegli il pattern, compila solo i reperti osservati, poi genera una valutazione. Se il pattern non è implementato, il prototipo deve fermarsi senza suggerire diagnosi.</p>
           </div>
           <button onClick={handleReset} className="btn btn-slate mt-3">Reset</button>

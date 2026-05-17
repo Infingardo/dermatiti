@@ -1,4 +1,4 @@
-# DermPath v2.11.5
+# DermPath v2.12.0
 
 Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
@@ -145,8 +145,44 @@ Calcolato direttamente sui DX, non su `compatibility > 0`. Robusto a contaminazi
 | `lichen_planus` | Lichen planus | Interfaccia lichenoide |
 | `micosi_fungoide_early` | Micosi fungoide, fase iniziale | Spongotico / Interfaccia lichenoide |
 | `eritema_multiforme` | Eritema multiforme / TEN | Interfaccia vacuolare |
+| `lupus_eritematoso` | Lupus eritematoso (DLE/SCLE) | Interfaccia vacuolare |
 
 Pattern riconosciuti ma non ancora implementati: perivascolare, perivascolare eosinofilo, vasculitico, vasculopatico, granulomatoso, granulomatoso a palizzata, subcorneo, intraepidermico bolloso, subepidermico bolloso, interstiziale eosinofilo, panniculitico, mastocitario.
+
+---
+
+## Architettura del codice
+
+```
+engine.js     — motore puro JS (SC, ORD, DX, RED_FLAGS, Engine, buildExportText)
+                Single source of truth. Caricato sia da index.html che da test.html.
+                Export Node-compatible per esecuzione test da CLI.
+
+index.html    — UI React (single-page). Carica engine.js, contiene solo componenti,
+                hook (useForm, useData), getCompClass e App.
+
+test.html     — Suite di regressione browser. Carica engine.js, esegue ~33 casi,
+                visualizza pass/fail. Aprire localmente o in preview.
+```
+
+Per eseguire i test da CLI (Node):
+
+```bash
+node -e "
+const { Engine, INIT } = require('./engine.js');
+const html = require('fs').readFileSync('./test.html','utf-8');
+const m = html.match(/const CASES = \[([\s\S]*?)\];\s*\n\s*\/\/ Run/);
+const tmp = '/tmp/_dermpath_cases.js';
+require('fs').writeFileSync(tmp, 'const topScore = (res,key) => res.allScores.find(x => x.key===key);\nconst CASES = [' + m[1] + ']; module.exports = CASES;');
+const CASES = require(tmp);
+let p=0,f=0,t=0;
+CASES.forEach(c => { if(c.group) return; t++;
+  try { const r=Engine.calc({...INIT,...c.input}); const x=c.check(r); if(x){f++;console.log('✗',c.name,'—',x);} else p++; }
+  catch(e){f++;console.log('✗',c.name,'—THROW:',e.message);}
+});
+console.log(p+'/'+t+' passati');
+"
+```
 
 ---
 
@@ -185,6 +221,7 @@ Il comportamento atteso sarebbe: blocca solo se **assente** (campo vuoto) o **es
 
 | Versione | Modifiche |
 |---|---|
+| v2.12.0 | Refactor architetturale: motore estratto in `engine.js` (pure JS), `index.html` solo UI React; aggiunta `test.html` con suite di regressione (33 casi, eseguibili anche da Node); aggiunta diagnosi `lupus_eritematoso` (DLE/SCLE); nuovi campi morfologici: mucina dermica, infiltrato perianessiale, atrofia epidermica, ispessimento BMZ |
 | v2.11.5 | Fix `failedRequired`: campi ordinali bloccano solo se esplicitamente assenti, non sub-threshold; aggiunte diagnosi `dermatite_seborroica` e `eritema_multiforme`; export referto (copia testo); localStorage draft |
 | v2.11.4 | Allineamento versione; nessuna modifica al motore rispetto a v2.11.3 |
 | v2.11.3 | Aggiunta `isUnansweredCriterion`: checkbox boolean non compilate trattate come non documentate, non come assenze provate |

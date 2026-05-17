@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>DermPath — Test suite</title>
+  <style>
+    body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#1e293b;margin:0;padding:24px;max-width:1100px;margin:0 auto}
+    h1{font-size:1.5rem;margin:0 0 8px}
+    .meta{color:#64748b;margin-bottom:16px;font-size:.875rem}
+    .summary{padding:16px;border-radius:8px;margin-bottom:16px;font-weight:600}
+    .summary.pass{background:#dcfce7;color:#15803d;border:2px solid #4ade80}
+    .summary.fail{background:#fee2e2;color:#b91c1c;border:2px solid #f87171}
+    table{width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e2e8f0;font-size:.875rem;vertical-align:top}
+    th{background:#f1f5f9;color:#475569;font-weight:600;position:sticky;top:0}
+    tr.pass{background:white}
+    tr.fail{background:#fef2f2}
+    tr.fail td:first-child{color:#b91c1c;font-weight:600}
+    tr.pass td:first-child{color:#16a34a}
+    .badge{display:inline-block;padding:2px 8px;border-radius:9999px;font-size:.75rem;font-weight:600}
+    .badge.pass{background:#dcfce7;color:#15803d}
+    .badge.fail{background:#fee2e2;color:#b91c1c}
+    code{font-family:ui-monospace,Menlo,monospace;background:#f1f5f9;padding:1px 4px;border-radius:3px;font-size:.8rem}
+    .reason{color:#64748b;font-size:.8rem;margin-top:4px}
+    .group{font-weight:700;background:#e2e8f0;color:#334155}
+  </style>
+</head>
+<body>
+  <h1>DermPath — Test suite</h1>
+  <div class="meta">Esegue casi di regressione contro <code>engine.js</code>. Ricarica la pagina per rieseguire.</div>
+  <div id="summary"></div>
+  <table id="results">
+    <thead><tr><th>Esito</th><th>Caso</th><th>Atteso vs ottenuto</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="engine.js"></script>
+  <script>
+// Helpers
+const base = () => ({...INIT});
+const topScore = (res, key) => res.allScores.find(x => x.key === key);
+
+// Ogni caso: {group, name, input, check: (res) => null se ok, string se fail}
+const CASES = [
+  // ─── GRUPPO: pipeline & semantica motore ───────────────────────
+  {group:'engine'},
+  {
+    name:'pattern vuoto → nessuna diagnosi, niente unsupportedPattern',
+    input:{},
+    check:(res) => res.diagnoses.length===0 && !res.unsupportedPattern ? null : `diagnoses=${res.diagnoses.length}, unsupp=${res.unsupportedPattern}`
+  },
+  {
+    name:'pattern non implementato → unsupportedPattern=true, diagnoses=[]',
+    input:{pattern_primario:'vasculitico'},
+    check:(res) => res.unsupportedPattern && res.diagnoses.length===0 ? null : `unsupp=${res.unsupportedPattern}, dx=${res.diagnoses.length}`
+  },
+  {
+    name:'checkbox boolean false (saw_toothing) NON penalizza lichen planus',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', ipergranulosi:'si', saw_toothing:false},
+    check:(res) => {
+      const lp = topScore(res,'lichen_planus');
+      // saw_toothing è minor (peso 1, expected:true). Con false deve essere "missing", non "unmatched".
+      return lp.missing.includes('saw_toothing') ? null : `saw_toothing in missing? ${lp.missing.includes('saw_toothing')}, in unmatched=${lp.unmatched.map(x=>x.field).includes('saw_toothing')}`;
+    }
+  },
+  {
+    name:'EXACT_FIELDS: paracheratosi focale ≠ marcata',
+    input:{pattern_primario:'psoriasiforme', acantosi:'marcata', paracheratosi:'focale', ipogranulosi:'si'},
+    check:(res) => {
+      const ps = topScore(res,'psoriasi_vulgaris');
+      // paracheratosi è in EXACT_FIELDS, atteso ['moderata','marcata'] → 'focale' non matcha.
+      // È required → essendo present ma non al minimo ('assente'), con il fix v2.11.5 NON dovrebbe failedRequired.
+      // (la paracheratosi è in ORD ma EXACT_FIELDS la rende non ordinale → con fix isOrdinal=false → failedRequired)
+      // Aspettativa: failedRequired include paracheratosi (paracheratosi è EXACT_FIELDS → non ordinale → categoriale)
+      return ps.failedRequired.includes('paracheratosi') ? null : `failedRequired=${JSON.stringify(ps.failedRequired)}`;
+    }
+  },
+  {
+    name:'EXACT_ARRAY_FIELDS: spongiosi marcata matcha [moderata,marcata]',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata', esocitosi:'presente'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      return dac.matched.some(c=>c.field==='spongiosi') ? null : `spongiosi non matcha: ${JSON.stringify(dac.matched.map(c=>c.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: bug fix v2.11.5 (failedRequired sub-threshold) ────
+  {group:'fix v2.11.5 — failedRequired'},
+  {
+    name:'spongiosi lieve (sub-threshold ma presente) NON blocca DAC',
+    input:{pattern_primario:'spongotico', spongiosi:'lieve', esocitosi:'presente', eosinofili:'presenti'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      // spongiosi è ordinale (in ORD, NON in EXACT_FIELDS). Con valore 'lieve' (non 'assente'), non deve essere in failedRequired.
+      return !dac.failedRequired.includes('spongiosi') ? null : `failedRequired contiene spongiosi: ${JSON.stringify(dac.failedRequired)}`;
+    }
+  },
+  {
+    name:'spongiosi assente (al minimo) BLOCCA DAC via failedRequired',
+    input:{pattern_primario:'spongotico', spongiosi:'assente', esocitosi:'presente'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      return dac.failedRequired.includes('spongiosi') && dac.blocked ? null : `failedRequired=${JSON.stringify(dac.failedRequired)}, blocked=${dac.blocked}`;
+    }
+  },
+  {
+    name:'linfociti_atipici rari (sub-threshold) NON blocca MF early',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'rari', epidermotropismo:'presente', spongiosi_proporzionata:'no'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return !mf.failedRequired.includes('linfociti_atipici') ? null : `failedRequired contiene linfociti_atipici: ${JSON.stringify(mf.failedRequired)}`;
+    }
+  },
+  {
+    name:'linfociti_atipici assenti (al minimo) blocca MF early',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'assenti', epidermotropismo:'presente'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return mf.failedRequired.includes('linfociti_atipici') ? null : `failedRequired=${JSON.stringify(mf.failedRequired)}`;
+    }
+  },
+  {
+    name:'pattern_primario psoriasiforme (categoriale) blocca DAC',
+    input:{pattern_primario:'psoriasiforme', spongiosi:'marcata', esocitosi:'presente'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      return dac.failedRequired.includes('pattern_primario') && dac.blocked ? null : `failedRequired=${JSON.stringify(dac.failedRequired)}, blocked=${dac.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: required mancanti ─────────────────────────────────
+  {group:'required mancanti'},
+  {
+    name:'DAC senza esocitosi → missingRequired include esocitosi',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      return dac.missingRequired.includes('esocitosi') && dac.blocked ? null : `missingRequired=${JSON.stringify(dac.missingRequired)}, blocked=${dac.blocked}`;
+    }
+  },
+  {
+    name:'MF con epidermotropismo presente ma spongiosi_proporzionata vuota → conditionalRequired',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'presenti', epidermotropismo:'presente'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return mf.missingRequired.includes('spongiosi_proporzionata') && mf.blocked ? null : `missingRequired=${JSON.stringify(mf.missingRequired)}, blocked=${mf.blocked}`;
+    }
+  },
+  {
+    name:'MF con epidermotropismo assente → conditionalRequired NON scatta',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'presenti', epidermotropismo:'assente'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return !mf.missingRequired.includes('spongiosi_proporzionata') ? null : `missingRequired contiene spongiosi_proporzionata: ${JSON.stringify(mf.missingRequired)}`;
+    }
+  },
+
+  // ─── GRUPPO: red flags ─────────────────────────────────────────
+  {group:'red flags'},
+  {
+    name:'microascessi Munro: attiva flag, esclude DAC e DA',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata', esocitosi:'presente', microascessi_munro:'si'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      const flagOk = res.flags.some(f => f.flag==='microascessi_munro');
+      const dacExcl = dac.excludedByFlags.some(f=>f.flag==='microascessi_munro');
+      return flagOk && dacExcl ? null : `flag=${flagOk}, dacExcl=${dacExcl}`;
+    }
+  },
+  {
+    name:'corpi di Civatte: attiva flag, esclude psoriasi',
+    input:{pattern_primario:'psoriasiforme', corpi_civatte:'si'},
+    check:(res) => {
+      const ps = topScore(res,'psoriasi_vulgaris');
+      return ps.excludedByFlags.some(f=>f.flag==='corpi_civatte') ? null : `psoriasi non esclusa: ${JSON.stringify(ps.excludedByFlags.map(f=>f.flag))}`;
+    }
+  },
+  {
+    name:'plasmacellule + pattern psoriasiforme → red flag sifilide',
+    input:{pattern_primario:'psoriasiforme', plasmacellule:'presenti'},
+    check:(res) => res.flags.some(f => f.flag==='plasmacellule_psoriasiforme') ? null : `flags=${JSON.stringify(res.flags.map(f=>f.flag))}`
+  },
+  {
+    name:'PLEVA: necrosi diffusa + eritrociti intraepidermici → flag PLEVA, esclude MF',
+    input:{pattern_primario:'spongotico', necrosi_cheratinociti_diffusa:true, eritrociti_extravasati_intraepidermici:true, linfociti_atipici:'presenti', epidermotropismo:'presente', spongiosi_proporzionata:'no'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      const pleva = res.flags.some(f => f.flag==='pleva_necrosi_eritrociti');
+      return pleva && mf.excludedByFlags.some(f=>f.flag==='pleva_necrosi_eritrociti') ? null : `pleva=${pleva}, mfExcl=${JSON.stringify(mf.excludedByFlags.map(f=>f.flag))}`;
+    }
+  },
+  {
+    name:'spongiosi proporzionata + epidermotropismo → flag MF→dermatite',
+    input:{pattern_primario:'spongotico', epidermotropismo:'presente', spongiosi_proporzionata:'si', linfociti_atipici:'presenti'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return res.flags.some(f=>f.flag==='spongiosi_proporzionata_mf') && mf.blocked ? null : `flags=${JSON.stringify(res.flags.map(f=>f.flag))}, mfBlocked=${mf.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: DX classiche (alta compatibilità) ──────────────────
+  {group:'DX classiche'},
+  {
+    name:'DAC classica: spongiosi marcata + esocitosi + eosinofili → proponibile',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata', esocitosi:'presente', eosinofili:'presenti', infiltrato_distribuzione:'perivascolare_superficiale', spongiosi_proporzionata:'si'},
+    check:(res) => {
+      const dac = res.diagnoses.find(x => x.key==='dermatite_allergica_contatto');
+      return dac && dac.pct >= 50 ? null : `dac.pct=${dac?.pct}, blocked=${dac?.blocked}, diagnoses=${res.diagnoses.length}`;
+    }
+  },
+  {
+    name:'Psoriasi classica: acantosi marcata + paracheratosi marcata + ipogranulosi + Munro → proponibile',
+    input:{pattern_primario:'psoriasiforme', acantosi:'marcata', paracheratosi:'marcata', ipogranulosi:'si', neutrofili:'presenti', microascessi_munro:'si', assottigliamento_soprapapillare:true, capillari_dilatati_papille:true},
+    check:(res) => {
+      // microascessi_munro è red flag che esclude DAC/DA (non psoriasi). Psoriasi deve essere proponibile.
+      const ps = res.diagnoses.find(x => x.key==='psoriasi_vulgaris');
+      return ps && ps.pct >= 50 ? null : `ps.pct=${ps?.pct}, blocked=${ps?.blocked}`;
+    }
+  },
+  {
+    name:'Lichen planus classico: banda lichenoide + vacuolizzazione + corpi Civatte',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', ipergranulosi:'si', corpi_civatte:'si', saw_toothing:true},
+    check:(res) => {
+      const lp = res.diagnoses.find(x => x.key==='lichen_planus');
+      return lp && lp.pct >= 50 ? null : `lp.pct=${lp?.pct}, blocked=${lp?.blocked}`;
+    }
+  },
+  {
+    name:'Dermatite seborroica classica: spongiosi lieve + paracheratosi focale + perivascolare',
+    input:{pattern_primario:'spongotico', spongiosi:'moderata', esocitosi:'lieve', paracheratosi:'focale', infiltrato_distribuzione:'perivascolare_superficiale', neutrofili:'presenti', acantosi:'moderata'},
+    check:(res) => {
+      const ds = res.diagnoses.find(x => x.key==='dermatite_seborroica');
+      return ds && ds.pct >= 50 ? null : `ds.pct=${ds?.pct}, blocked=${ds?.blocked}`;
+    }
+  },
+  {
+    name:'Eritema multiforme classico: vacuolizzazione marcata + necrosi cheratinocitaria + corpi Civatte',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'marcata', necrosi_keratinociti:'presente', corpi_civatte:'si', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const em = res.diagnoses.find(x => x.key==='eritema_multiforme');
+      return em && em.pct >= 50 ? null : `em.pct=${em?.pct}, blocked=${em?.blocked}`;
+    }
+  },
+  {
+    name:'MF early classico: epidermotropismo + linfociti atipici + spongiosi NON proporzionata + alone chiaro',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'presenti', epidermotropismo:'marcato', spongiosi_proporzionata:'no', alone_chiaro:'si', spongiosi:'lieve'},
+    check:(res) => {
+      const mf = res.diagnoses.find(x => x.key==='micosi_fungoide_early');
+      return mf && mf.pct >= 50 ? null : `mf.pct=${mf?.pct}, blocked=${mf?.blocked}, missingRequired=${JSON.stringify(mf?.missingRequired)}`;
+    }
+  },
+
+  // ─── GRUPPO: lupus eritematoso ─────────────────────────────────
+  {group:'lupus eritematoso'},
+  {
+    name:'DLE classico: vacuolare + mucina + perianessiale + atrofia + BMZ → proponibile',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'presente', mucina_dermica:'si', infiltrato_perianessiale:'si', atrofia_epidermica:'si', ispessimento_bmz:'si', plasmacellule:'presenti'},
+    check:(res) => {
+      const le = res.diagnoses.find(x => x.key==='lupus_eritematoso');
+      return le && le.pct >= 50 ? null : `le.pct=${le?.pct}, blocked=${le?.blocked}, missing=${JSON.stringify(le?.missingRequired)}`;
+    }
+  },
+  {
+    name:'Lupus vs EM: vacuolare + mucina + perianessiale → lupus > EM',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'presente', mucina_dermica:'si', infiltrato_perianessiale:'si', necrosi_keratinociti:'presente'},
+    check:(res) => {
+      const le = topScore(res,'lupus_eritematoso');
+      const em = topScore(res,'eritema_multiforme');
+      return le.pct >= em.pct ? null : `le.pct=${le.pct} < em.pct=${em.pct}`;
+    }
+  },
+  {
+    name:'EM vs lupus: vacuolare marcata + necrosi marcata, senza mucina → EM > lupus',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'marcata', necrosi_keratinociti:'marcata', corpi_civatte:'si', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const em = topScore(res,'eritema_multiforme');
+      const le = topScore(res,'lupus_eritematoso');
+      // necrosi marcata è against per lupus (-12), em ha required matchati
+      return em.pct > le.pct ? null : `em.pct=${em.pct} ≤ le.pct=${le.pct}`;
+    }
+  },
+  {
+    name:'Lupus senza vacuolizzazione (assente) → bloccato via failedRequired',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'assente', mucina_dermica:'si'},
+    check:(res) => {
+      const le = topScore(res,'lupus_eritematoso');
+      return le.failedRequired.includes('vacuolizzazione_basale') && le.blocked ? null : `failedRequired=${JSON.stringify(le.failedRequired)}, blocked=${le.blocked}`;
+    }
+  },
+  {
+    name:'Lupus con banda lichenoide → against -12',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'presente', mucina_dermica:'si', infiltrato_distribuzione:'banda_lichenoide'},
+    check:(res) => {
+      const le = topScore(res,'lupus_eritematoso');
+      return le.againstHits.some(h=>h.field==='infiltrato_distribuzione') ? null : `againstHits=${JSON.stringify(le.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: penalità against ──────────────────────────────────
+  {group:'against'},
+  {
+    name:'Lichen planus con plasmacellule: against -12',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', ipergranulosi:'si', plasmacellule:'presenti'},
+    check:(res) => {
+      const lp = topScore(res,'lichen_planus');
+      return lp.againstHits.some(h=>h.field==='plasmacellule') ? null : `againstHits=${JSON.stringify(lp.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Psoriasi con spongiosi marcata: against -12',
+    input:{pattern_primario:'psoriasiforme', acantosi:'marcata', paracheratosi:'marcata', ipogranulosi:'si', spongiosi:'marcata'},
+    check:(res) => {
+      const ps = topScore(res,'psoriasi_vulgaris');
+      return ps.againstHits.some(h=>h.field==='spongiosi') ? null : `againstHits=${JSON.stringify(ps.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: lowData / cap ─────────────────────────────────────
+  {group:'low data'},
+  {
+    name:'Solo pattern compilato → lowData attivo, tutte bloccate',
+    input:{pattern_primario:'spongotico'},
+    check:(res) => res.diagnoses.length===0 && res.allScores.every(s=>s.blocked) ? null : `diagnoses=${res.diagnoses.length}, allBlocked=${res.allScores.every(s=>s.blocked)}`
+  },
+  {
+    name:'lowData cap a 49: solo 2 criteri matched, compatibility 100% → pct ≤ 49',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      // pattern + spongiosi = 2 major hits (matchedCriteria=2 < MIN=3) → lowData → cap 49
+      return dac.pct <= 49 && dac.lowData ? null : `dac.pct=${dac.pct}, lowData=${dac.lowData}, matched=${dac.matchedCriteria}, answeredWeight=${dac.answeredWeight}, compatibility=${dac.compatibility}`;
+    }
+  },
+];
+
+// Run
+const tbody = document.querySelector('#results tbody');
+const summary = document.querySelector('#summary');
+let passed=0, failed=0, total=0;
+
+CASES.forEach(c => {
+  if(c.group) {
+    const tr = document.createElement('tr');
+    tr.className = 'group';
+    tr.innerHTML = `<td colspan="3">${c.group}</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+  total++;
+  let reason = null;
+  let err = null;
+  try {
+    const data = {...base(), ...c.input};
+    const res = Engine.calc(data);
+    reason = c.check(res);
+  } catch(e) {
+    err = e.message;
+  }
+  const pass = !reason && !err;
+  if(pass) passed++; else failed++;
+  const tr = document.createElement('tr');
+  tr.className = pass ? 'pass' : 'fail';
+  tr.innerHTML = `
+    <td><span class="badge ${pass?'pass':'fail'}">${pass?'✓':'✗'}</span></td>
+    <td>${c.name}</td>
+    <td>${pass ? '' : (err ? `<code>throw: ${err}</code>` : `<div class="reason">${reason}</div>`)}</td>
+  `;
+  tbody.appendChild(tr);
+});
+
+summary.className = `summary ${failed===0?'pass':'fail'}`;
+summary.textContent = `${passed}/${total} test passati${failed?` — ${failed} falliti`:''}`;
+  </script>
+</body>
+</html>
