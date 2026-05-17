@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DermPath v2.11.4</title>
+  <title>DermPath v2.11.5</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5;background:#eef2ff;color:#1e293b}
@@ -221,6 +221,15 @@ const DX = {
   // spongiosi_proporzionata") quando in realtà il problema è solo il primo.
   // spongiosi_proporzionata rimane in major (peso 3 se 'no') e in against (penalità se 'si'):
   // se compilato contribuisce; se non compilato non blocca.
+  dermatite_seborroica:{
+    nome:'Dermatite seborroica', cat:'Spongotico/Psoriasiforme',
+    required:['pattern_primario'],
+    major:{pattern_primario:['spongotico','psoriasiforme'], infiltrato_distribuzione:'perivascolare_superficiale', paracheratosi:'focale'},
+    minor:{spongiosi:['lieve','moderata'], neutrofili:['presenti','abbondanti'], esocitosi:['lieve','presente'], acantosi:['lieve','moderata']},
+    against:{infiltrato_distribuzione:'banda_lichenoide', eosinofili:'abbondanti', spongiosi:'marcata', ipogranulosi:'si'},
+    note:'Pattern spongotico con spongiosi lieve-moderata e paracheratosi focale (spesso periostiale/follicolare). Neutrofili frequenti nel corneo. La distinzione da psoriasi si basa su spongiosi presente, ipogranulosi assente, acantosi irregolare. Diagnosi fortemente supportata dalla sede (cuoio capelluto, volto, area sternale) e dalla clinica.',
+    workup:['PAS se dubbio dermatofiti','correlare con sede anatomica: cuoio capelluto/volto/petto/area sternale','se quadro psoriasiforme pulito con ipogranulosi: escludere psoriasi','se eosinofili prominenti: considerare reazione da farmaci o dermatite atopica']
+  },
   micosi_fungoide_early:{
     nome:'Micosi fungoide, fase iniziale', cat:'Linfoma cutaneo T',
     required:['pattern_primario','linfociti_atipici','epidermotropismo'],
@@ -235,6 +244,15 @@ const DX = {
     against:{spongiosi_proporzionata:'si', eosinofili:'abbondanti', necrosi_keratinociti:'marcata'},
     note:'Da proporre come sospetto morfologico solo se epidermotropismo sproporzionato e linfociti atipici sono documentati. La clinica pesa molto.',
     workup:['CD3/CD4/CD8/CD7/CD5','TOX con cautela','TCR clonality, meglio su più sedi/campioni','integrazione clinica: persistenza, recidiva, distribuzione']
+  },
+  eritema_multiforme:{
+    nome:'Eritema multiforme / interfaccia vacuolare', cat:'Interfaccia vacuolare',
+    required:['pattern_primario','vacuolizzazione_basale','necrosi_keratinociti'],
+    major:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'marcata', necrosi_keratinociti:'presente'},
+    minor:{corpi_civatte:'si', eosinofili:['presenti','abbondanti'], infiltrato_distribuzione:'perivascolare_superficiale'},
+    against:{microascessi_munro:'si', infiltrato_distribuzione:'banda_lichenoide', acantosi:'marcata'},
+    note:'Danno vacuolare basale con necrosi cheratinocitaria. Vacuolizzazione marcata + necrosi + corpi di Civatte orientano verso EM/TEN. Distingui da lupus (DIF, distribuzione, clinica) e da reazione lichenoide se l\'infiltrato tende a banda. TEN: valutare estensione della necrosi epidermica.',
+    workup:['DIF se sospetto lupus eritematoso','escludere farmaci (causa più frequente di interfaccia vacuolare drug-indotta)','ricerca HSV/Mycoplasma se clinica EM classica','se necrosi epidermica estesa: considerare TEN — conta cheratinociti necrotici vs bulla subepidermica']
   }
 };
 
@@ -306,8 +324,16 @@ const Engine = {
     (dx.required || []).forEach(field => {
       const actual = d[field];
       const expected = findCriterionExpected(dx,field);
-      if(isMissing(actual)) missingRequired.push(field);
-      else if(expected !== undefined && !matches(field,expected,actual)) failedRequired.push(field);
+      if(isMissing(actual)) {
+        missingRequired.push(field);
+      } else if(expected !== undefined && !matches(field,expected,actual)) {
+        const rank = ORD[field];
+        const isOrdinal = rank && !EXACT_FIELDS.has(field);
+        // Campi ordinali: failedRequired solo se esplicitamente al minimo (assente/assenti).
+        // Sub-threshold è penalizzato dallo scoring (unmatched), non bloccante.
+        // Campi categoriali (EXACT_FIELDS): sempre failedRequired se non corrisponde.
+        if(!isOrdinal || actual === rank[0]) failedRequired.push(field);
+      }
     });
 
     // FIX 1: required condizionali — valutati solo se la condizione è vera
@@ -373,12 +399,58 @@ const useForm = (init=1) => {
   };
 };
 const useData = () => {
-  const [data,setData] = useState(INIT);
-  return {
-    data,
-    upd:useCallback((field,value)=>setData(prev=>({...prev,[field]:value})),[]),
-    reset:useCallback(()=>setData(INIT),[])
-  };
+  const [data,setData] = useState(() => {
+    try { return {...INIT,...JSON.parse(localStorage.getItem('dermpath_draft'))}; }
+    catch { return INIT; }
+  });
+  const upd = useCallback((field,value)=>setData(prev=>{
+    const next = {...prev,[field]:value};
+    localStorage.setItem('dermpath_draft', JSON.stringify(next));
+    return next;
+  }),[]);
+  const reset = useCallback(()=>{
+    localStorage.removeItem('dermpath_draft');
+    setData(INIT);
+  },[]);
+  return {data, upd, reset};
+};
+
+const buildExportText = (data, res) => {
+  const fmt = (arr) => arr.map(s=>`  • ${s}`).join('\n');
+  const lines = [
+    `DERMPATH v2.11.5 — Valutazione morfologica`,
+    `Pattern: ${data.pattern_primario || '—'}`,
+    data.sede_anatomica ? `Sede: ${data.sede_anatomica}` : null,
+    data.note_cliniche ? `Note cliniche: ${data.note_cliniche}` : null,
+    '',
+  ];
+  if(res.flags.length) {
+    lines.push('RED FLAGS ATTIVE:');
+    res.flags.forEach(f => lines.push(`  ⚠ ${f.label}: ${f.diagnosi}`));
+    lines.push('');
+  }
+  if(res.unsupportedPattern) {
+    lines.push('Pattern riconosciuto ma modulo diagnostico non implementato.');
+  } else if(res.diagnoses.length) {
+    lines.push('DIAGNOSI PROPONIBILI:');
+    res.diagnoses.forEach((dx,i) => {
+      lines.push(`${i+1}. ${dx.nome} (compatibilità corretta: ${dx.pct}%)`);
+      if(dx.matched.length) lines.push(`   Criteri presenti: ${dx.matched.map(c=>labelize(c.field)).join(', ')}`);
+      if(dx.workup?.length) { lines.push('   Workup:'); dx.workup.forEach(w=>lines.push(`     – ${w}`)); }
+    });
+    lines.push('');
+  } else {
+    lines.push('Nessuna diagnosi proponibile con i dati inseriti.');
+    lines.push('');
+  }
+  if(res.considered.length) {
+    lines.push('DA CONSIDERARE (non chiudibili):');
+    res.considered.forEach((dx,i) => lines.push(`${i+1}. ${dx.nome} (${dx.pct}%) — ${[...dx.missingRequired,...dx.failedRequired].map(labelize).join(', ') || 'dati insufficienti'}`));
+    lines.push('');
+  }
+  lines.push('---');
+  lines.push('Compatibilità euristica corretta. Non sostituisce la valutazione morfologica diretta del preparato istologico.');
+  return lines.filter(l=>l!==null).join('\n');
 };
 
 const Sel = memo(({label,value,onChange,opts,help}) => (
@@ -651,7 +723,7 @@ const App = () => {
       <div className="card">
         <div className="flex flex-mobile items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.11.4</h1>
+            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.11.5</h1>
             <p className="text-sm text-slate-600 mt-1">Come usarlo: scegli il pattern, compila solo i reperti osservati, poi genera una valutazione. Se il pattern non è implementato, il prototipo deve fermarsi senza suggerire diagnosi.</p>
           </div>
           <button onClick={handleReset} className="btn btn-slate mt-3">Reset</button>
@@ -700,7 +772,17 @@ const App = () => {
             <p className="text-sm text-slate-700 mt-2"><b>Cosa fare:</b> usa l'elenco come promemoria dei criteri da verificare, non come referto automatico; se required, red flag o pattern non implementati bloccano il risultato, fermati e documenta il limite.</p>
           </div>
 
-          <button onClick={()=>setShowRes(false)} className="btn btn-slate">← Modifica dati</button>
+          <div className="flex gap-4">
+            <button onClick={()=>setShowRes(false)} className="btn btn-slate flex-1">← Modifica dati</button>
+            <button onClick={()=>{
+              const txt = buildExportText(data,res);
+              navigator.clipboard.writeText(txt).then(()=>alert('Testo copiato negli appunti.')).catch(()=>{
+                const w=window.open('','_blank');
+                w.document.write('<pre style="font-family:monospace;padding:16px;white-space:pre-wrap">'+txt.replace(/</g,'&lt;')+'</pre>');
+                w.document.close();
+              });
+            }} className="btn btn-slate flex-1">📋 Copia referto</button>
+          </div>
         </div>
       )}
     </div>

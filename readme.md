@@ -1,4 +1,4 @@
-# DermPath v2.11.2
+# DermPath v2.11.5
 
 Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
@@ -68,7 +68,20 @@ Per la maggior parte dei campi ordinali (`epidermotropismo`, `linfociti_atipici`
 | `infiltrato_distribuzione` | categoriale puro |
 | `spongiosi_proporzionata` | booleano semantico |
 
-**Eccezione — `EXACT_ARRAY_FIELDS`**: per `spongiosi`, `paracheratosi`, `neutrofili` passati come array in `against`, usa `includes()` invece di `some(matchAtLeast)`.
+**Eccezione — `EXACT_ARRAY_FIELDS`**: per `spongiosi`, `paracheratosi`, `neutrofili` passati come array in major/minor, usa `includes()` invece di `some(matchAtLeast)`. Effetto: se il major attende `['moderata','marcata']`, solo quei valori esatti soddisfano il criterio — non il valore superiore per inferenza ordinale.
+
+### Semantica dei campi non compilati: `isUnansweredCriterion`
+
+```javascript
+const isUnansweredCriterion = (expected, actual) => {
+  if(expected === true && actual === false) return true;
+  return isMissing(actual);
+};
+```
+
+I campi checkbox con valore atteso `true` (es. `saw_toothing`, `assottigliamento_soprapapillare`) non hanno stato "non so" esplicito nell'UI. Se non spuntati (`false`), vengono trattati come *non documentati*, non come *assenza provata*. Non contribuiscono al punteggio, ma non penalizzano.
+
+Questo evita che l'assenza di documentazione di un reperto positivo opzionale venga interpretata come evidenza contraria.
 
 ### required condizionali
 
@@ -127,11 +140,13 @@ Calcolato direttamente sui DX, non su `compatibility > 0`. Robusto a contaminazi
 |---|---|---|
 | `dermatite_allergica_contatto` | Dermatite allergica da contatto | Spongotico |
 | `dermatite_atopica_acuta` | Dermatite atopica, fase acuta | Spongotico |
+| `dermatite_seborroica` | Dermatite seborroica | Spongotico / Psoriasiforme |
 | `psoriasi_vulgaris` | Psoriasi vulgaris | Psoriasiforme |
 | `lichen_planus` | Lichen planus | Interfaccia lichenoide |
 | `micosi_fungoide_early` | Micosi fungoide, fase iniziale | Spongotico / Interfaccia lichenoide |
+| `eritema_multiforme` | Eritema multiforme / TEN | Interfaccia vacuolare |
 
-Pattern riconosciuti ma non ancora implementati: interfaccia vacuolare, perivascolare, perivascolare eosinofilo, vasculitico, vasculopatico, granulomatoso, granulomatoso a palizzata, subcorneo, intraepidermico bolloso, subepidermico bolloso, interstiziale eosinofilo, panniculitico, mastocitario.
+Pattern riconosciuti ma non ancora implementati: perivascolare, perivascolare eosinofilo, vasculitico, vasculopatico, granulomatoso, granulomatoso a palizzata, subcorneo, intraepidermico bolloso, subepidermico bolloso, interstiziale eosinofilo, panniculitico, mastocitario.
 
 ---
 
@@ -153,10 +168,26 @@ const SC = {
 
 ---
 
+## Bug noti / limitazioni del motore
+
+### failedRequired troppo aggressivo
+
+`required` blocca la diagnosi non solo se il campo è **assente** ma anche se è **presente ma sotto-soglia** rispetto al major. Esempio:
+
+- `spongiosi: lieve` con DAC → `matches('spongiosi', ['moderata','marcata'], 'lieve')` → false → **failedRequired → DAC bloccata**
+- `linfociti_atipici: rari` con MF → `matches('linfociti_atipici', 'presenti', 'rari')` → false → **failedRequired → MF bloccata**
+
+Il comportamento atteso sarebbe: blocca solo se **assente** (campo vuoto) o **esplicitamente contrario** (es. spongiosi assente in DAC); penalizza invece se presente ma sub-threshold. Il fix richiede separare la logica di required in due livelli: presenza vs coerenza.
+
+---
+
 ## Changelog
 
 | Versione | Modifiche |
 |---|---|
+| v2.11.5 | Fix `failedRequired`: campi ordinali bloccano solo se esplicitamente assenti, non sub-threshold; aggiunte diagnosi `dermatite_seborroica` e `eritema_multiforme`; export referto (copia testo); localStorage draft |
+| v2.11.4 | Allineamento versione; nessuna modifica al motore rispetto a v2.11.3 |
+| v2.11.3 | Aggiunta `isUnansweredCriterion`: checkbox boolean non compilate trattate come non documentate, non come assenze provate |
 | v2.11.2 | required condizionale per MF (spongiosi_proporzionata); isPatternSupported robusto; EXACT_FIELDS per paracheratosi/pattern/infiltrato/spongiosi_proporzionata |
 | v2.11.1 | MIN_ANSWERED_WEIGHT 4→6; MIN_CRITERIA_FOR_HIGH 2→3; spongiosi_proporzionata rimossa dai required globali di MF |
 | v2.11.0 | Motore conservativo con matchAtLeast ordinale, EXACT_ARRAY_FIELDS, required/against pipeline, red flags layer separato |
