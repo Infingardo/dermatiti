@@ -50,8 +50,8 @@ const CASES = [
     check:(res) => res.diagnoses.length===0 && !res.unsupportedPattern ? null : `diagnoses=${res.diagnoses.length}, unsupp=${res.unsupportedPattern}`
   },
   {
-    name:'pattern non implementato → unsupportedPattern=true, diagnoses=[]',
-    input:{pattern_primario:'panniculitico'},
+    name:'pattern non valido (stringa inesistente) → unsupportedPattern=true',
+    input:{pattern_primario:'pattern_inesistente_xyz'},
     check:(res) => res.unsupportedPattern && res.diagnoses.length===0 ? null : `unsupp=${res.unsupportedPattern}, dx=${res.diagnoses.length}`
   },
   {
@@ -543,6 +543,104 @@ const CASES = [
     check:(res) => {
       const vt = topScore(res,'vasculopatia_trombotica');
       return vt.missingRequired.includes('trombi_vasali') && vt.blocked ? null : `missing=${JSON.stringify(vt.missingRequired)}, blocked=${vt.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern interstiziale eosinofilo ──────────────────
+  {group:'pattern interstiziale eosinofilo'},
+  {
+    name:'Wells syndrome classico: interstiziale eosinofilo + eosinofili abbondanti + figure a fiamma',
+    input:{pattern_primario:'interstiziale_eosinofilo', eosinofili:'abbondanti', infiltrato_distribuzione:'interstiziale', figure_a_fiamma:'si'},
+    check:(res) => {
+      const w = res.diagnoses.find(x => x.key==='wells_syndrome');
+      return w && w.pct >= 50 ? null : `w.pct=${w?.pct}, blocked=${w?.blocked}`;
+    }
+  },
+  {
+    name:'Wells con plasmacellule abbondanti → against',
+    input:{pattern_primario:'interstiziale_eosinofilo', eosinofili:'abbondanti', infiltrato_distribuzione:'interstiziale', plasmacellule:'abbondanti'},
+    check:(res) => {
+      const w = topScore(res,'wells_syndrome');
+      return w.againstHits.some(h=>h.field==='plasmacellule') ? null : `againstHits=${JSON.stringify(w.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern panniculitico ─────────────────────────────
+  {group:'pattern panniculitico'},
+  {
+    name:'Eritema nodoso classico: panniculitico settale, no vasculite',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'settale', neutrofili:'presenti', infiltrato_distribuzione:'perivascolare_profondo'},
+    check:(res) => {
+      const en = res.diagnoses.find(x => x.key==='eritema_nodoso');
+      return en && en.pct >= 50 ? null : `en.pct=${en?.pct}, blocked=${en?.blocked}`;
+    }
+  },
+  {
+    name:'Eritema nodoso con vasculite → against (sospetto Bazin)',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'settale', vasculite_subcutanea:'si'},
+    check:(res) => {
+      const en = topScore(res,'eritema_nodoso');
+      return en.againstHits.some(h=>h.field==='vasculite_subcutanea') ? null : `againstHits=${JSON.stringify(en.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Lupus profundus classico: lobulare + plasmacellule + mucina + interfaccia',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare', plasmacellule:'abbondanti', mucina_dermica:'si', vacuolizzazione_basale:'presente'},
+    check:(res) => {
+      const lp = res.diagnoses.find(x => x.key==='lupus_profundus');
+      return lp && lp.pct >= 50 ? null : `lp.pct=${lp?.pct}, blocked=${lp?.blocked}`;
+    }
+  },
+  {
+    name:'Eritema indurato Bazin: lobulare + vasculite sottocutanea + granuloma tubercolare',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare', vasculite_subcutanea:'si', tipo_granuloma:'tubercolare_caseoso', necrobiosi:'si'},
+    check:(res) => {
+      const eb = res.diagnoses.find(x => x.key==='eritema_indurato_bazin');
+      return eb && eb.pct >= 50 ? null : `eb.pct=${eb?.pct}, blocked=${eb?.blocked}`;
+    }
+  },
+  {
+    name:'Lupus profundus vs Bazin: stesso lobulare ma plasmacellule abbondanti → lupus > Bazin',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare', plasmacellule:'abbondanti', mucina_dermica:'si'},
+    check:(res) => {
+      const lp = topScore(res,'lupus_profundus');
+      const eb = topScore(res,'eritema_indurato_bazin');
+      return lp.pct > eb.pct ? null : `lp.pct=${lp.pct} ≤ eb.pct=${eb.pct}`;
+    }
+  },
+  {
+    name:'Bazin senza vasculite sottocutanea → bloccato via missingRequired',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare'},
+    check:(res) => {
+      const eb = topScore(res,'eritema_indurato_bazin');
+      return eb.missingRequired.includes('vasculite_subcutanea') && eb.blocked ? null : `missing=${JSON.stringify(eb.missingRequired)}, blocked=${eb.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern mastocitario ──────────────────────────────
+  {group:'pattern mastocitario'},
+  {
+    name:'Mastocitosi classica: mastocitario + mastociti aumentati + eosinofili',
+    input:{pattern_primario:'mastocitario', mastociti_aumentati:'si', eosinofili:'presenti', infiltrato_distribuzione:'perivascolare_superficiale', infiltrato_densita:'moderata'},
+    check:(res) => {
+      const mc = res.diagnoses.find(x => x.key==='mastocitosi_cutanea');
+      return mc && mc.pct >= 50 ? null : `mc.pct=${mc?.pct}, blocked=${mc?.blocked}`;
+    }
+  },
+  {
+    name:'Mastocitosi senza mastociti aumentati → bloccata via missingRequired',
+    input:{pattern_primario:'mastocitario'},
+    check:(res) => {
+      const mc = topScore(res,'mastocitosi_cutanea');
+      return mc.missingRequired.includes('mastociti_aumentati') && mc.blocked ? null : `missing=${JSON.stringify(mc.missingRequired)}, blocked=${mc.blocked}`;
+    }
+  },
+  {
+    name:'Mastocitosi con linfociti atipici → against (sospetto linfoma)',
+    input:{pattern_primario:'mastocitario', mastociti_aumentati:'si', linfociti_atipici:'presenti'},
+    check:(res) => {
+      const mc = topScore(res,'mastocitosi_cutanea');
+      return mc.againstHits.some(h=>h.field==='linfociti_atipici') ? null : `againstHits=${JSON.stringify(mc.againstHits.map(h=>h.field))}`;
     }
   },
 

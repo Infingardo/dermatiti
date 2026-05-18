@@ -38,7 +38,8 @@ const EXACT_FIELDS = new Set([
   'infiltrato_distribuzione',
   'spongiosi_proporzionata',
   'sede_bolla',
-  'tipo_granuloma'
+  'tipo_granuloma',
+  'tipo_panniculite'
 ]);
 
 const isMissing = (v) => v === '' || v === null || v === undefined;
@@ -83,7 +84,11 @@ const labelize = (field) => ({
   necrosi_fibrinoide:'necrosi fibrinoide vasale',
   leucocitoclasia:'leucocitoclasia (frammenti nucleari)',
   eritrociti_extravasati_dermici:'eritrociti extravasati nel derma',
-  trombi_vasali:'trombi vasali luminali'
+  trombi_vasali:'trombi vasali luminali',
+  figure_a_fiamma:'figure a fiamma (eosinofile)',
+  tipo_panniculite:'tipo di panniculite',
+  vasculite_subcutanea:'vasculite sottocutanea',
+  mastociti_aumentati:'mastociti aumentati'
 }[field] || field.replaceAll('_',' '));
 
 const matchAtLeast = (field, expected, actual) => {
@@ -119,6 +124,7 @@ const INIT = {
   tipo_granuloma:'', necrobiosi:'',
   necrosi_fibrinoide:'', leucocitoclasia:'', eritrociti_extravasati_dermici:'',
   trombi_vasali:'',
+  figure_a_fiamma:'', tipo_panniculite:'', vasculite_subcutanea:'', mastociti_aumentati:'',
   sede_anatomica:'', note_cliniche:''
 };
 
@@ -351,6 +357,51 @@ const DX = {
     against:{necrosi_fibrinoide:'si', leucocitoclasia:'si', neutrofili:'abbondanti'},
     note:'Trombi luminali nei piccoli vasi del derma SENZA necrosi fibrinoide della parete vasale e SENZA infiltrato infiammatorio significativo. Distingue dalla vera vasculite (necrosi fibrinoide + leucocitoclasia + neutrofili). Eziologie multiple: sindrome da anticorpi antifosfolipidi, calcifilassi, embolismo da colesterolo, CIVD, livedoid vasculopathy, criofibrinogenemia.',
     workup:['anti-fosfolipidi: LAC, anticardiolipina (IgG/IgM), anti-beta2-glicoproteina 1','crioglobuline, criofibrinogeno','proteina C, proteina S, fattore V Leiden, mutazione protrombina','elettroforesi sieroproteica + immunofissazione (mieloma → CIVD/calcifilassi)','calcio/fosforo/PTH/vitamina D se sospetta calcifilassi (insufficienza renale, dialisi)','clinica: livedo racemosa, ulcere "a stampo", distretti acrali, retiform purpura']
+  },
+  wells_syndrome:{
+    nome:'Wells syndrome (cellulite eosinofila)', cat:'Interstiziale eosinofilo',
+    required:['pattern_primario'],
+    major:{pattern_primario:'interstiziale_eosinofilo', eosinofili:['presenti','abbondanti'], infiltrato_distribuzione:'interstiziale'},
+    minor:{figure_a_fiamma:'si'},
+    against:{necrosi_fibrinoide:'si', linfociti_atipici:'presenti', plasmacellule:'abbondanti'},
+    note:'Infiltrato eosinofilo interstiziale denso che attraversa tutto il derma, spesso con "figure a fiamma" (eosinophilic flame figures) — degenerazione del collagene rivestita da proteina granulare eosinofila. In fase tardiva: granulomi flogistici con istiociti palizzati attorno alle figure. Clinica: placche calde tipo cellulite ma con eosinofilia ematica e niente febbre/PCR alta.',
+    workup:['emocromo: eosinofilia ematica (spesso > 1500/μL)','escludere parassitosi (strongyloides, toxocara), reazioni a farmaci, neoplasie ematologiche (linfoma T cutaneo)','differenziare da Churg-Strauss (sintomi sistemici, asma)','clinica: placche pruriginose ricorrenti, non risponde ad antibiotici']
+  },
+  eritema_nodoso:{
+    nome:'Eritema nodoso', cat:'Panniculitico settale',
+    required:['pattern_primario','tipo_panniculite'],
+    major:{pattern_primario:'panniculitico', tipo_panniculite:'settale'},
+    minor:{neutrofili:['rari','presenti'], infiltrato_distribuzione:'perivascolare_profondo'},
+    against:{vasculite_subcutanea:'si', plasmacellule:'abbondanti'},
+    note:'Panniculite settale senza vasculite: infiltrato infiammatorio prevalente nei setti interlobulari, con neutrofili nella fase acuta e istiociti / granulomi di Miescher (granulomi radiali multinucleati) nella fase subacuta-cronica. Lobuli adiposi preservati. Cause: infezioni (streptococco, TB, Yersinia, EBV), sarcoidosi, IBD, farmaci, gravidanza, neoplasie ematologiche.',
+    workup:['ricerca causa: tampone faringeo + ASO, RX torace (sarcoide, TB), IGRA/Mantoux, sierologie virali, coprocoltura','clinica: noduli eritematosi pretibiali bilaterali, dolenti, non ulcerati, risoluzione in 4-8 settimane','differenziare da eritema indurato di Bazin (lobulare con vasculite, TB)']
+  },
+  lupus_profundus:{
+    nome:'Lupus profundus (panniculite lupica)', cat:'Panniculitico lobulare',
+    required:['pattern_primario','tipo_panniculite'],
+    major:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare', plasmacellule:['presenti','abbondanti']},
+    minor:{mucina_dermica:'si', vacuolizzazione_basale:'presente', infiltrato_distribuzione:'perianessiale'},
+    against:{vasculite_subcutanea:'si', tipo_granuloma:'tubercolare_caseoso'},
+    note:'Panniculite lobulare linfocitica densa con plasmacellule prominenti, ialinizzazione/necrosi del grasso, talvolta noduli linfoidi con centri germinativi. Possibile interfaccia vacuolare sovrastante (LE-pannitite con DLE). Sede tipica: viso, braccia prossimali, glutei (sedi grasse). Differenziale critico con linfoma T pannicolitico subcutaneo (SPTCL).',
+    workup:['DIF dell\'epidermide sovrastante: depositi alla BMZ se DLE coesistente','ANA, anti-Ro/SSA, complemento','differenziare da SPTCL: cellule atipiche, "rimming" perilipidico, CD8+, citotossici, TCR clonale','correlare con LES sistemico (10-30% dei casi)']
+  },
+  eritema_indurato_bazin:{
+    nome:'Eritema indurato di Bazin', cat:'Panniculitico lobulare con vasculite',
+    required:['pattern_primario','tipo_panniculite','vasculite_subcutanea'],
+    major:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare', vasculite_subcutanea:'si'},
+    minor:{tipo_granuloma:'tubercolare_caseoso', necrobiosi:'si'},
+    against:{plasmacellule:'abbondanti'},
+    note:'Panniculite lobulare con vasculite di medio calibro (vena sottocutanea) e granulomi tubercoloidi/caseosi. Forma "tuberculide" — reazione di ipersensibilità a Mycobacterium tuberculosis, raramente colorabile con Ziehl-Neelsen. Sede tipica: regione pretibiale posteriore (polpaccio), spesso donne adulte. Lesioni croniche, ulcerative, recidivanti.',
+    workup:['IGRA (QuantiFERON) o Mantoux: solitamente positivi','RX torace + ricerca TB attiva','PCR per M. tuberculosis su tessuto (Ziehl-Neelsen spesso negativo)','differenziare da eritema nodoso (settale, no vasculite), poliarterite nodosa cutanea (vasculite arteriolare, no granulomi)','terapia: antitubercolare empirica → risoluzione conferma diagnosi']
+  },
+  mastocitosi_cutanea:{
+    nome:'Mastocitosi cutanea', cat:'Mastocitario',
+    required:['pattern_primario','mastociti_aumentati'],
+    major:{pattern_primario:'mastocitario', mastociti_aumentati:'si'},
+    minor:{eosinofili:['presenti','abbondanti'], infiltrato_distribuzione:'perivascolare_superficiale', infiltrato_densita:['moderata','marcata']},
+    against:{linfociti_atipici:'presenti', plasmacellule:'abbondanti', necrosi_fibrinoide:'si'},
+    note:'Infiltrato monomorfo di mastociti (citoplasma granulare basofilo) prevalente nel derma superficiale, talvolta perivascolare-interstiziale denso. Distribuzione varia per forma clinica: mastocitoma (focale), urticaria pigmentosa (multipla nodulare-maculare), TMEP (telangectasia macularis eruptiva perstans, mastociti perivascolari + telangectasie). Bullosa nei bambini. Forme aggressive nell\'adulto possono indicare mastocitosi sistemica.',
+    workup:['colorazioni: blu di toluidina (mastociti metacromatici), Giemsa, triptasi IHC, CD117 (KIT), CD25 (aberrante, suggestivo)','triptasi sierica (> 20 ng/mL → sospetto sistemico)','escludere mastocitosi sistemica nell\'adulto: biopsia midollare, mutazione KIT D816V, ecografia milza/fegato','clinica: segno di Darier (dermografismo orticarioide alla lesione), flushing, sintomi mediator-related']
   }
 };
 
@@ -483,7 +534,7 @@ const Engine = {
   }
 };
 
-const buildExportText = (data, res, version='v2.15.0') => {
+const buildExportText = (data, res, version='v2.16.0') => {
   const lines = [
     `DERMPATH ${version} — Valutazione morfologica`,
     `Pattern: ${data.pattern_primario || '—'}`,

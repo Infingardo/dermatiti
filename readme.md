@@ -1,4 +1,4 @@
-# DermPath v2.15.0
+# DermPath v2.16.0
 
 Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
@@ -161,8 +161,13 @@ Calcolato direttamente sui DX, non su `compatibility > 0`. Robusto a contaminazi
 | `reazione_puntura` | Reazione a puntura / scabbia | Perivascolare eosinofilo |
 | `drug_eruption_morbilliforme` | Reazione a farmaci morbilliforme | Perivascolare eosinofilo |
 | `vasculopatia_trombotica` | Vasculopatia trombotica | Vasculopatico |
+| `wells_syndrome` | Wells syndrome (cellulite eosinofila) | Interstiziale eosinofilo |
+| `eritema_nodoso` | Eritema nodoso | Panniculitico settale |
+| `lupus_profundus` | Lupus profundus (panniculite lupica) | Panniculitico lobulare |
+| `eritema_indurato_bazin` | Eritema indurato di Bazin | Panniculitico lobulare con vasculite |
+| `mastocitosi_cutanea` | Mastocitosi cutanea | Mastocitario |
 
-Pattern riconosciuti ma non ancora implementati: interstiziale eosinofilo, panniculitico, mastocitario.
+**Tutti i 16 pattern riconosciuti sono ora implementati.**
 
 ---
 
@@ -236,6 +241,7 @@ Il comportamento atteso sarebbe: blocca solo se **assente** (campo vuoto) o **es
 
 | Versione | Modifiche |
 |---|---|
+| v2.16.0 | +5 diagnosi: Wells syndrome, eritema nodoso, lupus profundus, eritema indurato di Bazin, mastocitosi cutanea. **Tutti i 16 pattern ora coperti**. Nuovi campi: figure a fiamma, tipo di panniculite, vasculite sottocutanea, mastociti aumentati. Test suite a 77 casi (77/77) |
 | v2.15.0 | +5 diagnosi: pitiriasi rosea, urticaria, reazione a puntura/scabbia, reazione a farmaci morbilliforme, vasculopatia trombotica; pattern perivascolare, perivascolare eosinofilo e vasculopatico ora coperti; nuovo campo: trombi vasali luminali; test suite a 66 casi (66/66) |
 | v2.14.0 | +4 diagnosi: vasculite leucocitoclastica, impetigine bollosa, AGEP, pustolosi Sneddon-Wilkinson; pattern vasculitico e subcorneo ora coperti; nuovi campi: necrosi fibrinoide vasale, leucocitoclasia, eritrociti extravasati dermici; test suite a 56 casi (56/56) |
 | v2.13.0 | +6 diagnosi: reazione lichenoide da farmaci, pemfigoide bolloso, pemfigo volgare, granuloma anulare, necrobiosi lipoide, sarcoide cutaneo; nuovi campi: sede della bolla, acantolisi, tipo di granuloma, necrobiosi; PDF print (`window.print()` + CSS @media print); test suite estesa a 48 casi (48/48) |

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DermPath v2.15.0</title>
+  <title>DermPath v2.16.0</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5;background:#eef2ff;color:#1e293b}
@@ -323,6 +323,14 @@ const Step3 = memo(({data,upd,onBack,onNext}) => (
         {value:'suppurativo',label:'Suppurativo'}
       ]} help="Compilare solo se pattern granulomatoso o granulomatoso a palizzata." />
       <TS label="Necrobiosi" value={data.necrobiosi} onChange={v=>upd('necrobiosi',v)} help="Degenerazione del collagene al centro del granuloma a palizzata. Presente in GA e NL, assente in sarcoide." />
+      <TS label="Figure a fiamma (eosinofile)" value={data.figure_a_fiamma} onChange={v=>upd('figure_a_fiamma',v)} help="Degenerazione del collagene rivestita da proteina granulare eosinofila. Caratteristica di Wells syndrome." />
+      <Sel label="Tipo di panniculite" value={data.tipo_panniculite} onChange={v=>upd('tipo_panniculite',v)} opts={[
+        {value:'settale',label:'Settale (infiltrato nei setti)'},
+        {value:'lobulare',label:'Lobulare (infiltrato nei lobuli)'},
+        {value:'mista',label:'Mista (settale + lobulare)'}
+      ]} help="Compilare solo se pattern panniculitico. Distingue eritema nodoso (settale) da lupus profundus / Bazin (lobulare)." />
+      <TS label="Vasculite sottocutanea" value={data.vasculite_subcutanea} onChange={v=>upd('vasculite_subcutanea',v)} help="Vasculite nei vasi medi/grandi del sottocute. Caratteristica di eritema indurato di Bazin e poliarterite nodosa cutanea." />
+      <TS label="Mastociti aumentati" value={data.mastociti_aumentati} onChange={v=>upd('mastociti_aumentati',v)} help="Aumento di mastociti nel derma (toluidina/triptasi/CD117). Cardine della mastocitosi cutanea." />
     </div>
     <Nav onBack={onBack} onNext={onNext} />
   </div>
@@ -380,7 +388,7 @@ const App = () => {
       <div className="card">
         <div className="flex flex-mobile items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.15.0</h1>
+            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.16.0</h1>
             <p className="text-sm text-slate-600 mt-1">Come usarlo: scegli il pattern, compila solo i reperti osservati, poi genera una valutazione. Se il pattern non è implementato, il prototipo deve fermarsi senza suggerire diagnosi.</p>
           </div>
           <button onClick={handleReset} className="btn btn-slate mt-3 no-print">Reset</button>
