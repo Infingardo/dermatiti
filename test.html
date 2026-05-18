@@ -51,7 +51,7 @@ const CASES = [
   },
   {
     name:'pattern non implementato → unsupportedPattern=true, diagnoses=[]',
-    input:{pattern_primario:'vasculopatico'},
+    input:{pattern_primario:'panniculitico'},
     check:(res) => res.unsupportedPattern && res.diagnoses.length===0 ? null : `unsupp=${res.unsupportedPattern}, dx=${res.diagnoses.length}`
   },
   {
@@ -454,6 +454,95 @@ const CASES = [
     check:(res) => {
       const sw = res.diagnoses.find(x => x.key==='sneddon_wilkinson');
       return sw && sw.pct >= 50 ? null : `sw.pct=${sw?.pct}, blocked=${sw?.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern perivascolare ─────────────────────────────
+  {group:'pattern perivascolare'},
+  {
+    name:'Pitiriasi rosea classica: perivascolare + paracheratosi focale + spongiosi lieve',
+    input:{pattern_primario:'perivascolare', infiltrato_distribuzione:'perivascolare_superficiale', paracheratosi:'focale', spongiosi:'lieve', eritrociti_extravasati_dermici:'si'},
+    check:(res) => {
+      const pr = res.diagnoses.find(x => x.key==='pitiriasi_rosea');
+      return pr && pr.pct >= 50 ? null : `pr.pct=${pr?.pct}, blocked=${pr?.blocked}`;
+    }
+  },
+  {
+    name:'Pitiriasi rosea con plasmacellule abbondanti → against (sospetto sifilide)',
+    input:{pattern_primario:'perivascolare', paracheratosi:'focale', spongiosi:'lieve', plasmacellule:'abbondanti'},
+    check:(res) => {
+      const pr = topScore(res,'pitiriasi_rosea');
+      return pr.againstHits.some(h=>h.field==='plasmacellule') ? null : `againstHits=${JSON.stringify(pr.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Urticaria classica: perivascolare + eosinofili + neutrofili rari, no necrosi fibrinoide',
+    input:{pattern_primario:'perivascolare', infiltrato_distribuzione:'perivascolare_superficiale', eosinofili:'presenti', neutrofili:'rari'},
+    check:(res) => {
+      const u = res.diagnoses.find(x => x.key==='urticaria');
+      return u && u.pct >= 50 ? null : `u.pct=${u?.pct}, blocked=${u?.blocked}`;
+    }
+  },
+  {
+    name:'Urticaria con necrosi fibrinoide → against (verso vasculite urticarioide)',
+    input:{pattern_primario:'perivascolare', eosinofili:'presenti', necrosi_fibrinoide:'si', leucocitoclasia:'si'},
+    check:(res) => {
+      const u = topScore(res,'urticaria');
+      return u.againstHits.some(h=>h.field==='necrosi_fibrinoide') && u.againstHits.some(h=>h.field==='leucocitoclasia') ? null : `againstHits=${JSON.stringify(u.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern perivascolare eosinofilo ──────────────────
+  {group:'pattern perivascolare eosinofilo'},
+  {
+    name:'Reazione puntura classica: perivascolare eosinofilo + eosinofili abbondanti',
+    input:{pattern_primario:'perivascolare_eosinofilo', eosinofili:'abbondanti', infiltrato_distribuzione:'perivascolare_profondo', spongiosi:'lieve'},
+    check:(res) => {
+      const p = res.diagnoses.find(x => x.key==='reazione_puntura');
+      return p && p.pct >= 50 ? null : `p.pct=${p?.pct}, blocked=${p?.blocked}`;
+    }
+  },
+  {
+    name:'Drug eruption morbilliforme classica: perivascolare eosinofilo + eosinofili + interfaccia minima',
+    input:{pattern_primario:'perivascolare_eosinofilo', eosinofili:'presenti', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const drug = res.diagnoses.find(x => x.key==='drug_eruption_morbilliforme');
+      return drug && drug.pct >= 50 ? null : `drug.pct=${drug?.pct}, blocked=${drug?.blocked}`;
+    }
+  },
+  {
+    name:'Drug eruption con necrosi marcata → against (verso SJS/TEN)',
+    input:{pattern_primario:'perivascolare_eosinofilo', eosinofili:'presenti', necrosi_keratinociti:'marcata'},
+    check:(res) => {
+      const drug = topScore(res,'drug_eruption_morbilliforme');
+      return drug.againstHits.some(h=>h.field==='necrosi_keratinociti') ? null : `againstHits=${JSON.stringify(drug.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern vasculopatico ─────────────────────────────
+  {group:'pattern vasculopatico'},
+  {
+    name:'Vasculopatia trombotica classica: trombi vasali, NO necrosi fibrinoide, NO leucocitoclasia',
+    input:{pattern_primario:'vasculopatico', trombi_vasali:'si', eritrociti_extravasati_dermici:'si', infiltrato_densita:'lieve'},
+    check:(res) => {
+      const vt = res.diagnoses.find(x => x.key==='vasculopatia_trombotica');
+      return vt && vt.pct >= 50 ? null : `vt.pct=${vt?.pct}, blocked=${vt?.blocked}, missing=${JSON.stringify(vt?.missingRequired)}`;
+    }
+  },
+  {
+    name:'Vasculopatia con necrosi fibrinoide → against (verso vasculite vera)',
+    input:{pattern_primario:'vasculopatico', trombi_vasali:'si', necrosi_fibrinoide:'si', leucocitoclasia:'si'},
+    check:(res) => {
+      const vt = topScore(res,'vasculopatia_trombotica');
+      return vt.againstHits.some(h=>h.field==='necrosi_fibrinoide') && vt.againstHits.some(h=>h.field==='leucocitoclasia') ? null : `againstHits=${JSON.stringify(vt.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Vasculopatico senza trombi → bloccato via missingRequired',
+    input:{pattern_primario:'vasculopatico'},
+    check:(res) => {
+      const vt = topScore(res,'vasculopatia_trombotica');
+      return vt.missingRequired.includes('trombi_vasali') && vt.blocked ? null : `missing=${JSON.stringify(vt.missingRequired)}, blocked=${vt.blocked}`;
     }
   },
 

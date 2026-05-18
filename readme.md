@@ -1,4 +1,4 @@
-# DermPath v2.14.0
+# DermPath v2.15.0
 
 Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
@@ -156,8 +156,13 @@ Calcolato direttamente sui DX, non su `compatibility > 0`. Robusto a contaminazi
 | `impetigine_bollosa` | Impetigine bollosa | Subcorneo |
 | `agep` | AGEP (pustolosi esantematica acuta) | Subcorneo |
 | `sneddon_wilkinson` | Pustolosi subcornea Sneddon-Wilkinson | Subcorneo |
+| `pitiriasi_rosea` | Pitiriasi rosea | Perivascolare |
+| `urticaria` | Urticaria | Perivascolare |
+| `reazione_puntura` | Reazione a puntura / scabbia | Perivascolare eosinofilo |
+| `drug_eruption_morbilliforme` | Reazione a farmaci morbilliforme | Perivascolare eosinofilo |
+| `vasculopatia_trombotica` | Vasculopatia trombotica | Vasculopatico |
 
-Pattern riconosciuti ma non ancora implementati: perivascolare, perivascolare eosinofilo, vasculopatico, interstiziale eosinofilo, panniculitico, mastocitario.
+Pattern riconosciuti ma non ancora implementati: interstiziale eosinofilo, panniculitico, mastocitario.
 
 ---
 
@@ -231,6 +236,7 @@ Il comportamento atteso sarebbe: blocca solo se **assente** (campo vuoto) o **es
 
 | Versione | Modifiche |
 |---|---|
+| v2.15.0 | +5 diagnosi: pitiriasi rosea, urticaria, reazione a puntura/scabbia, reazione a farmaci morbilliforme, vasculopatia trombotica; pattern perivascolare, perivascolare eosinofilo e vasculopatico ora coperti; nuovo campo: trombi vasali luminali; test suite a 66 casi (66/66) |
 | v2.14.0 | +4 diagnosi: vasculite leucocitoclastica, impetigine bollosa, AGEP, pustolosi Sneddon-Wilkinson; pattern vasculitico e subcorneo ora coperti; nuovi campi: necrosi fibrinoide vasale, leucocitoclasia, eritrociti extravasati dermici; test suite a 56 casi (56/56) |
 | v2.13.0 | +6 diagnosi: reazione lichenoide da farmaci, pemfigoide bolloso, pemfigo volgare, granuloma anulare, necrobiosi lipoide, sarcoide cutaneo; nuovi campi: sede della bolla, acantolisi, tipo di granuloma, necrobiosi; PDF print (`window.print()` + CSS @media print); test suite estesa a 48 casi (48/48) |
 | v2.12.0 | Refactor architetturale: motore estratto in `engine.js` (pure JS), `index.html` solo UI React; aggiunta `test.html` con suite di regressione (33 casi, eseguibili anche da Node); aggiunta diagnosi `lupus_eritematoso` (DLE/SCLE); nuovi campi morfologici: mucina dermica, infiltrato perianessiale, atrofia epidermica, ispessimento BMZ |

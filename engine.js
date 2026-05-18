@@ -82,7 +82,8 @@ const labelize = (field) => ({
   necrobiosi:'necrobiosi',
   necrosi_fibrinoide:'necrosi fibrinoide vasale',
   leucocitoclasia:'leucocitoclasia (frammenti nucleari)',
-  eritrociti_extravasati_dermici:'eritrociti extravasati nel derma'
+  eritrociti_extravasati_dermici:'eritrociti extravasati nel derma',
+  trombi_vasali:'trombi vasali luminali'
 }[field] || field.replaceAll('_',' '));
 
 const matchAtLeast = (field, expected, actual) => {
@@ -117,6 +118,7 @@ const INIT = {
   sede_bolla:'', acantolisi:'',
   tipo_granuloma:'', necrobiosi:'',
   necrosi_fibrinoide:'', leucocitoclasia:'', eritrociti_extravasati_dermici:'',
+  trombi_vasali:'',
   sede_anatomica:'', note_cliniche:''
 };
 
@@ -304,6 +306,51 @@ const DX = {
     against:{eosinofili:'abbondanti', acantolisi:'si', necrosi_keratinociti:'marcata'},
     note:'Pustole subcornee neutrofiliche con livello fluido netto ("half-half pustule"), andamento cronico-recidivante, distribuzione intertriginosa/flexural. Differenziale: AGEP (acuta, drug, eosinofili), pemfigo IgA (DIF + IgA intercellulare), impetigine (batteri). Forte associazione con gammopatia IgA monoclonale.',
     workup:['DIF: negativa (vs pemfigo IgA, IgA intercellulare)','elettroforesi sieroproteica + immunofissazione (IgA monoclonale)','clinica: andamento cronico-recidivante, sede intertriginosa, donne 40-60 anni','differenziale stretto con pemfigo IgA: solo DIF distingue']
+  },
+  pitiriasi_rosea:{
+    nome:'Pitiriasi rosea', cat:'Perivascolare',
+    required:['pattern_primario'],
+    major:{pattern_primario:'perivascolare', infiltrato_distribuzione:'perivascolare_superficiale', paracheratosi:'focale', spongiosi:['lieve','moderata']},
+    minor:{eritrociti_extravasati_dermici:'si', esocitosi:['lieve','presente']},
+    against:{eosinofili:'abbondanti', plasmacellule:'abbondanti', necrosi_fibrinoide:'si'},
+    note:'Pattern perivascolare superficiale lieve con paracheratosi focale "a monticelli" (mounds), spongiosi focale, infiltrato linfocitario perivascolare ed eritrociti extravasati. Spongiosi proporzionata al danno. Differenziale: dermatite spongiotica aspecifica, esantema virale, sifilide secondaria (plasmacellule), eritema anulare centrifugo (infiltrato a manicotto più denso).',
+    workup:['anamnesi: chiazza madre (herald patch), distribuzione "ad albero di Natale" sul tronco, durata 6-8 settimane','escludere sifilide se plasmacellule prominenti: TPHA, VDRL','escludere tinea corporis (PAS)','HHV-6/HHV-7: associazione nota, test non routinari']
+  },
+  urticaria:{
+    nome:'Urticaria (orticaria)', cat:'Perivascolare',
+    required:['pattern_primario'],
+    major:{pattern_primario:'perivascolare', infiltrato_distribuzione:'perivascolare_superficiale'},
+    minor:{eosinofili:['presenti','abbondanti'], neutrofili:['rari','presenti']},
+    against:{necrosi_fibrinoide:'si', leucocitoclasia:'si', eritrociti_extravasati_dermici:'si'},
+    note:'Pattern perivascolare lieve-moderato con edema dermico (spesso poco evidente su EE), infiltrato misto perivascolare con eosinofili e neutrofili sparsi. Cardine diagnostico: vasi NON necrotici, NESSUNA leucocitoclasia (altrimenti vasculite urticarioide). Diagnosi spesso clinica più che istologica.',
+    workup:['differenziare da vasculite urticarioide: durata > 24h, leucocitoclasia, complemento basso (C4)','clinica: pomfi evanescenti < 24h, prurito, dermografismo','escludere cause sistemiche se cronica: autoimmunità tiroidea, infezioni, neoplasie occulte','test al ghiaccio/pressione se sospetto orticaria fisica']
+  },
+  reazione_puntura:{
+    nome:'Reazione a puntura di insetto / scabbia', cat:'Perivascolare eosinofilo',
+    required:['pattern_primario'],
+    major:{pattern_primario:'perivascolare_eosinofilo', eosinofili:['presenti','abbondanti']},
+    minor:{infiltrato_distribuzione:'perivascolare_profondo', spongiosi:['lieve','moderata']},
+    against:{plasmacellule:'abbondanti', necrosi_fibrinoide:'si', linfociti_atipici:'presenti'},
+    note:'Infiltrato perivascolare ed interstiziale ricco di eosinofili, spesso con distribuzione "a cuneo" (cuneiforme superficiale-profondo). Pattern altamente suggestivo ma non specifico per una singola eziologia. Per scabbia: cercare Sarcoptes scabiei (femmine, uova, feci) nello strato corneo.',
+    workup:['scraping/biopsia ravvicinata per Sarcoptes nel corneo','clinica: distribuzione (interdigitale, polsi, areola), prurito notturno, contatti familiari','differenziale con Wells syndrome (figure a fiamma, eosinofilia ematica) e reazione a farmaci','dermatoscopia: "delta wing" di Sarcoptes']
+  },
+  drug_eruption_morbilliforme:{
+    nome:'Reazione a farmaci morbilliforme', cat:'Perivascolare eosinofilo',
+    required:['pattern_primario'],
+    major:{pattern_primario:'perivascolare_eosinofilo', eosinofili:['presenti','abbondanti']},
+    minor:{infiltrato_distribuzione:'perivascolare_superficiale', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente'},
+    against:{necrosi_keratinociti:'marcata', plasmacellule:'abbondanti'},
+    note:'Pattern perivascolare con eosinofili e interfaccia vacuolare lieve/focale, con cheratinociti necrotici sparsi. Differenziale: reazione a puntura (distribuzione "a cuneo", focale), DRESS (eosinofilia ematica, linfadenopatia, alterazioni epatiche), SJS/TEN (necrosi cheratinocitaria estesa, bolle).',
+    workup:['anamnesi farmacologica: latenza tipica 7-14 giorni','escludere DRESS: eosinofilia > 1500, febbre, linfadenopatia, transaminasi alterate, RegiSCAR score','escludere SJS/TEN: necrosi epidermica estesa, mucose, BSA bullosa','sospensione farmaco causale → risoluzione in 1-2 settimane']
+  },
+  vasculopatia_trombotica:{
+    nome:'Vasculopatia trombotica', cat:'Vasculopatico',
+    required:['pattern_primario','trombi_vasali'],
+    major:{pattern_primario:'vasculopatico', trombi_vasali:'si'},
+    minor:{eritrociti_extravasati_dermici:'si', infiltrato_densita:'lieve'},
+    against:{necrosi_fibrinoide:'si', leucocitoclasia:'si', neutrofili:'abbondanti'},
+    note:'Trombi luminali nei piccoli vasi del derma SENZA necrosi fibrinoide della parete vasale e SENZA infiltrato infiammatorio significativo. Distingue dalla vera vasculite (necrosi fibrinoide + leucocitoclasia + neutrofili). Eziologie multiple: sindrome da anticorpi antifosfolipidi, calcifilassi, embolismo da colesterolo, CIVD, livedoid vasculopathy, criofibrinogenemia.',
+    workup:['anti-fosfolipidi: LAC, anticardiolipina (IgG/IgM), anti-beta2-glicoproteina 1','crioglobuline, criofibrinogeno','proteina C, proteina S, fattore V Leiden, mutazione protrombina','elettroforesi sieroproteica + immunofissazione (mieloma → CIVD/calcifilassi)','calcio/fosforo/PTH/vitamina D se sospetta calcifilassi (insufficienza renale, dialisi)','clinica: livedo racemosa, ulcere "a stampo", distretti acrali, retiform purpura']
   }
 };
 
@@ -436,7 +483,7 @@ const Engine = {
   }
 };
 
-const buildExportText = (data, res, version='v2.14.0') => {
+const buildExportText = (data, res, version='v2.15.0') => {
   const lines = [
     `DERMPATH ${version} — Valutazione morfologica`,
     `Pattern: ${data.pattern_primario || '—'}`,
