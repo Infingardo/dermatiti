@@ -250,6 +250,141 @@ const CASES = [
     }
   },
 
+  // ─── GRUPPO: reazione lichenoide da farmaci ────────────────────
+  {group:'reazione lichenoide farmaci'},
+  {
+    name:'Drug lichenoide classico: banda + vacuolizzazione + eosinofili + paracheratosi focale',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', eosinofili:'presenti', paracheratosi:'focale', necrosi_keratinociti:'presente'},
+    check:(res) => {
+      const drug = res.diagnoses.find(x => x.key==='reazione_lichenoide_farmaci');
+      return drug && drug.pct >= 50 ? null : `drug.pct=${drug?.pct}, blocked=${drug?.blocked}`;
+    }
+  },
+  {
+    name:'Drug vs LP: con saw_toothing → LP > drug (against -12)',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', saw_toothing:true, ipergranulosi:'si', corpi_civatte:'si', necrosi_keratinociti:'presente'},
+    check:(res) => {
+      const lp = topScore(res,'lichen_planus');
+      const drug = topScore(res,'reazione_lichenoide_farmaci');
+      const drugAgainst = drug.againstHits.some(h=>h.field==='saw_toothing') && drug.againstHits.some(h=>h.field==='ipergranulosi');
+      return lp.pct > drug.pct && drugAgainst ? null : `lp.pct=${lp.pct}, drug.pct=${drug.pct}, drugAgainst=${drugAgainst}`;
+    }
+  },
+  {
+    name:'Drug vs LP: con eosinofili senza saw_toothing/ipergranulosi → drug ≥ LP',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', eosinofili:'abbondanti', paracheratosi:'focale', necrosi_keratinociti:'presente'},
+    check:(res) => {
+      const lp = topScore(res,'lichen_planus');
+      const drug = topScore(res,'reazione_lichenoide_farmaci');
+      return drug.pct >= lp.pct ? null : `drug.pct=${drug.pct} < lp.pct=${lp.pct}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern bolloso ───────────────────────────────────
+  {group:'pattern bolloso'},
+  {
+    name:'Pemfigoide bolloso classico: subepidermica + eosinofili abbondanti, no acantolisi',
+    input:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', eosinofili:'abbondanti', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const bp = res.diagnoses.find(x => x.key==='pemfigoide_bolloso');
+      return bp && bp.pct >= 50 ? null : `bp.pct=${bp?.pct}, blocked=${bp?.blocked}`;
+    }
+  },
+  {
+    name:'Pemfigoide con acantolisi → against -12',
+    input:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', eosinofili:'abbondanti', acantolisi:'si'},
+    check:(res) => {
+      const bp = topScore(res,'pemfigoide_bolloso');
+      return bp.againstHits.some(h=>h.field==='acantolisi') ? null : `againstHits=${JSON.stringify(bp.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Pemfigo volgare classico: intraepidermica + acantolisi',
+    input:{pattern_primario:'intraepidermico', sede_bolla:'intraepidermica', acantolisi:'si', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const pv = res.diagnoses.find(x => x.key==='pemfigo_volgare');
+      return pv && pv.pct >= 50 ? null : `pv.pct=${pv?.pct}, blocked=${pv?.blocked}, missing=${JSON.stringify(pv?.missingRequired)}`;
+    }
+  },
+  {
+    name:'Pemfigo senza acantolisi → bloccato via failedRequired',
+    input:{pattern_primario:'intraepidermico', sede_bolla:'intraepidermica', acantolisi:'no'},
+    check:(res) => {
+      const pv = topScore(res,'pemfigo_volgare');
+      return pv.failedRequired.includes('acantolisi') && pv.blocked ? null : `failedRequired=${JSON.stringify(pv.failedRequired)}, blocked=${pv.blocked}`;
+    }
+  },
+  {
+    name:'sede_bolla è EXACT_FIELDS: subepidermica non matcha intraepidermica',
+    input:{pattern_primario:'intraepidermico', sede_bolla:'subepidermica', acantolisi:'si'},
+    check:(res) => {
+      const pv = topScore(res,'pemfigo_volgare');
+      // sede_bolla è EXACT_FIELDS, non ordinale → mismatch categoriale → failedRequired sempre
+      return pv.failedRequired.includes('sede_bolla') ? null : `failedRequired=${JSON.stringify(pv.failedRequired)}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern granulomatoso ─────────────────────────────
+  {group:'pattern granulomatoso'},
+  {
+    name:'Granuloma anulare classico: palizzata + necrobiosi + mucina, no plasmacellule',
+    input:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si', mucina_dermica:'si', infiltrato_distribuzione:'interstiziale'},
+    check:(res) => {
+      const ga = res.diagnoses.find(x => x.key==='granuloma_anulare');
+      return ga && ga.pct >= 50 ? null : `ga.pct=${ga?.pct}, blocked=${ga?.blocked}`;
+    }
+  },
+  {
+    name:'GA con plasmacellule abbondanti → against -12 (verso NL)',
+    input:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si', plasmacellule:'abbondanti'},
+    check:(res) => {
+      const ga = topScore(res,'granuloma_anulare');
+      return ga.againstHits.some(h=>h.field==='plasmacellule') ? null : `againstHits=${JSON.stringify(ga.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Necrobiosi lipoide classica: palizzata + necrobiosi + plasmacellule abbondanti',
+    input:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si', plasmacellule:'abbondanti', infiltrato_distribuzione:'perivascolare_profondo'},
+    check:(res) => {
+      const nl = res.diagnoses.find(x => x.key==='necrobiosi_lipoide');
+      return nl && nl.pct >= 50 ? null : `nl.pct=${nl?.pct}, blocked=${nl?.blocked}`;
+    }
+  },
+  {
+    name:'NL vs GA: con plasmacellule abbondanti → NL > GA',
+    input:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si', plasmacellule:'abbondanti'},
+    check:(res) => {
+      const nl = topScore(res,'necrobiosi_lipoide');
+      const ga = topScore(res,'granuloma_anulare');
+      return nl.pct > ga.pct ? null : `nl.pct=${nl.pct} ≤ ga.pct=${ga.pct}`;
+    }
+  },
+  {
+    name:'Sarcoide cutaneo classico: granulomatoso + sarcoide-like, no necrobiosi',
+    input:{pattern_primario:'granulomatoso', tipo_granuloma:'sarcoide_like', infiltrato_distribuzione:'perivascolare_profondo', infiltrato_densita:'moderata'},
+    check:(res) => {
+      const sa = res.diagnoses.find(x => x.key==='sarcoide_cutaneo');
+      return sa && sa.pct >= 50 ? null : `sa.pct=${sa?.pct}, blocked=${sa?.blocked}`;
+    }
+  },
+  {
+    name:'Sarcoide con necrobiosi → against -12',
+    input:{pattern_primario:'granulomatoso', tipo_granuloma:'sarcoide_like', necrobiosi:'si'},
+    check:(res) => {
+      const sa = topScore(res,'sarcoide_cutaneo');
+      return sa.againstHits.some(h=>h.field==='necrobiosi') ? null : `againstHits=${JSON.stringify(sa.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Sarcoide con tipo a_palizzata → against (array EXACT_FIELDS)',
+    input:{pattern_primario:'granulomatoso', tipo_granuloma:'a_palizzata'},
+    check:(res) => {
+      const sa = topScore(res,'sarcoide_cutaneo');
+      // against:{tipo_granuloma:['a_palizzata','tubercolare_caseoso']} → 'a_palizzata' matcha → hit
+      return sa.againstHits.some(h=>h.field==='tipo_granuloma') ? null : `againstHits=${JSON.stringify(sa.againstHits.map(h=>h.field))}`;
+    }
+  },
+
   // ─── GRUPPO: lupus eritematoso ─────────────────────────────────
   {group:'lupus eritematoso'},
   {

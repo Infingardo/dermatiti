@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DermPath v2.12.0</title>
+  <title>DermPath v2.13.0</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5;background:#eef2ff;color:#1e293b}
@@ -31,6 +31,15 @@
     .step-dot{width:2.5rem;height:2.5rem;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-weight:800}.step-line{height:.25rem;flex:1;margin:0 .5rem;border-radius:9999px}
     .criterion-list{padding-left:1.2rem}.criterion-list li{margin-top:.25rem}
     table{width:100%;border-collapse:collapse}th,td{padding:.5rem;text-align:left;border-bottom:1px solid #e2e8f0;font-size:.875rem}th{background:#f8fafc;color:#475569}
+    @media print {
+      body{background:white;padding:0}
+      .no-print{display:none !important}
+      .card{box-shadow:none;border:1px solid #cbd5e1;page-break-inside:avoid;margin-bottom:8px;padding:12px}
+      h1{font-size:1.25rem !important}
+      .scorebox{border:1px solid #94a3b8 !important;background:white !important}
+      .border-2{border-width:1px !important}
+      .bg-blue-50,.bg-green-50,.bg-amber-50,.bg-red-50,.bg-slate-50,.bg-amber-100,.bg-red-100,.bg-purple-50,.bg-purple-100{background:white !important}
+    }
   </style>
 </head>
 <body>
@@ -257,6 +266,12 @@ const Step2 = memo(({data,upd,onBack,onNext}) => (
       <Chk label="Capillari dilatati nelle papille" checked={data.capillari_dilatati_papille} onChange={v=>upd('capillari_dilatati_papille',v)} />
       <TS label="Atrofia epidermica" value={data.atrofia_epidermica} onChange={v=>upd('atrofia_epidermica',v)} help="Assottigliamento dell'epidermide con perdita delle creste. Suggestivo di lupus discoide cronico." />
       <TS label="Ispessimento BMZ (membrana basale)" value={data.ispessimento_bmz} onChange={v=>upd('ispessimento_bmz',v)} help="Membrana basale ispessita, PAS-positiva. Caratteristica del lupus discoide." />
+      <Sel label="Sede della bolla" value={data.sede_bolla} onChange={v=>upd('sede_bolla',v)} opts={[
+        {value:'subcornea',label:'Subcornea'},
+        {value:'intraepidermica',label:'Intraepidermica (soprabasale)'},
+        {value:'subepidermica',label:'Subepidermica (sottoepidermica)'}
+      ]} help="Localizzazione della separazione: dirimente per il differenziale tra pemfigo (intraepidermica) e pemfigoide (subepidermica)." />
+      <TS label="Acantolisi" value={data.acantolisi} onChange={v=>upd('acantolisi',v)} help="Perdita di adesione tra cheratinociti. Cardine del pemfigo." />
     </div>
     <Nav onBack={onBack} onNext={onNext} />
   </div>
@@ -294,8 +309,16 @@ const Step3 = memo(({data,upd,onBack,onNext}) => (
           <TS label="Alone chiaro attorno ai linfociti epidermotropi" value={data.alone_chiaro} onChange={v=>upd('alone_chiaro',v)} />
         </>
       )}
-      <TS label="Mucina dermica" value={data.mucina_dermica} onChange={v=>upd('mucina_dermica',v)} help="Mucina interstiziale nel derma reticolare (Alcian/colloidal iron). Caratteristica di lupus." />
+      <TS label="Mucina dermica" value={data.mucina_dermica} onChange={v=>upd('mucina_dermica',v)} help="Mucina interstiziale nel derma reticolare (Alcian/colloidal iron). Caratteristica di lupus e granuloma anulare." />
       <TS label="Infiltrato anche perianessiale" value={data.infiltrato_perianessiale} onChange={v=>upd('infiltrato_perianessiale',v)} help="Componente perianessiale aggiuntiva (oltre al pattern perivascolare). Suggestiva di lupus." />
+      <Sel label="Tipo di granuloma" value={data.tipo_granuloma} onChange={v=>upd('tipo_granuloma',v)} opts={[
+        {value:'sarcoide_like',label:'Sarcoide-like (nudo, non caseoso)'},
+        {value:'a_palizzata',label:'A palizzata (con necrobiosi al centro)'},
+        {value:'tubercolare_caseoso',label:'Tubercolare/caseoso'},
+        {value:'corpi_estranei',label:'Da corpi estranei'},
+        {value:'suppurativo',label:'Suppurativo'}
+      ]} help="Compilare solo se pattern granulomatoso o granulomatoso a palizzata." />
+      <TS label="Necrobiosi" value={data.necrobiosi} onChange={v=>upd('necrobiosi',v)} help="Degenerazione del collagene al centro del granuloma a palizzata. Presente in GA e NL, assente in sarcoide." />
     </div>
     <Nav onBack={onBack} onNext={onNext} />
   </div>
@@ -353,10 +376,10 @@ const App = () => {
       <div className="card">
         <div className="flex flex-mobile items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.12.0</h1>
+            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.13.0</h1>
             <p className="text-sm text-slate-600 mt-1">Come usarlo: scegli il pattern, compila solo i reperti osservati, poi genera una valutazione. Se il pattern non è implementato, il prototipo deve fermarsi senza suggerire diagnosi.</p>
           </div>
-          <button onClick={handleReset} className="btn btn-slate mt-3">Reset</button>
+          <button onClick={handleReset} className="btn btn-slate mt-3 no-print">Reset</button>
         </div>
       </div>
 
@@ -402,7 +425,7 @@ const App = () => {
             <p className="text-sm text-slate-700 mt-2"><b>Cosa fare:</b> usa l'elenco come promemoria dei criteri da verificare, non come referto automatico; se required, red flag o pattern non implementati bloccano il risultato, fermati e documenta il limite.</p>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-4 no-print">
             <button onClick={()=>setShowRes(false)} className="btn btn-slate flex-1">← Modifica dati</button>
             <button onClick={()=>{
               const txt = buildExportText(data,res);
@@ -412,6 +435,7 @@ const App = () => {
                 w.document.close();
               });
             }} className="btn btn-slate flex-1">📋 Copia referto</button>
+            <button onClick={()=>window.print()} className="btn btn-slate flex-1">🖨️ Stampa / PDF</button>
           </div>
         </div>
       )}

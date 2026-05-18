@@ -36,7 +36,9 @@ const EXACT_FIELDS = new Set([
   'paracheratosi',
   'pattern_primario',
   'infiltrato_distribuzione',
-  'spongiosi_proporzionata'
+  'spongiosi_proporzionata',
+  'sede_bolla',
+  'tipo_granuloma'
 ]);
 
 const isMissing = (v) => v === '' || v === null || v === undefined;
@@ -73,7 +75,11 @@ const labelize = (field) => ({
   mucina_dermica:'mucina dermica',
   infiltrato_perianessiale:'infiltrato perianessiale',
   atrofia_epidermica:'atrofia epidermica',
-  ispessimento_bmz:'ispessimento BMZ (membrana basale)'
+  ispessimento_bmz:'ispessimento BMZ (membrana basale)',
+  sede_bolla:'sede della bolla',
+  acantolisi:'acantolisi',
+  tipo_granuloma:'tipo di granuloma',
+  necrobiosi:'necrobiosi'
 }[field] || field.replaceAll('_',' '));
 
 const matchAtLeast = (field, expected, actual) => {
@@ -105,6 +111,8 @@ const INIT = {
   saw_toothing:false, assottigliamento_soprapapillare:false, capillari_dilatati_papille:false,
   necrosi_cheratinociti_diffusa:false, eritrociti_extravasati_intraepidermici:false,
   mucina_dermica:'', infiltrato_perianessiale:'', atrofia_epidermica:'', ispessimento_bmz:'',
+  sede_bolla:'', acantolisi:'',
+  tipo_granuloma:'', necrobiosi:'',
   sede_anatomica:'', note_cliniche:''
 };
 
@@ -164,6 +172,15 @@ const DX = {
     note:'Banda lichenoide vera, danno basale e cheratinociti apoptotici. Se manca la banda, pensare a interfaccia vacuolare/drug/lupus.',
     workup:['DIF se sede/clinica compatibile','considerare lupus/drug reaction se pattern non classico']
   },
+  reazione_lichenoide_farmaci:{
+    nome:'Reazione lichenoide da farmaci', cat:'Interfaccia/Lichenoide',
+    required:['pattern_primario','infiltrato_distribuzione','vacuolizzazione_basale'],
+    major:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', eosinofili:['presenti','abbondanti']},
+    minor:{necrosi_keratinociti:'presente', paracheratosi:'focale', plasmacellule:['presenti','abbondanti'], corpi_civatte:'si'},
+    against:{saw_toothing:true, ipergranulosi:'si'},
+    note:'Reazione lichenoide drug-indotta. Distingue dal lichen planus classico per: eosinofili (raramente nel LP), paracheratosi focale (LP è ortocheratosico), plasmacellule possibili, assenza di saw-toothing e ipergranulosi tipici del LP. Distribuzione spesso non orale, esordio temporalmente correlato al farmaco.',
+    workup:['anamnesi farmacologica accurata (ACE-inibitori, FANS, antimalarici, statine, beta-bloccanti, anti-TNF)','periodo di latenza farmaco-lesioni (settimane-mesi)','sospensione/switch del farmaco sospetto','DIF di solito negativa o aspecifica','rebiopsy dopo sospensione se persistenza']
+  },
   dermatite_seborroica:{
     nome:'Dermatite seborroica', cat:'Spongotico/Psoriasiforme',
     required:['pattern_primario'],
@@ -202,6 +219,51 @@ const DX = {
     against:{microascessi_munro:'si', infiltrato_distribuzione:'banda_lichenoide', acantosi:'marcata'},
     note:'Danno vacuolare basale con necrosi cheratinocitaria. Vacuolizzazione marcata + necrosi + corpi di Civatte orientano verso EM/TEN. Distingui da lupus (DIF, distribuzione, clinica) e da reazione lichenoide se l\'infiltrato tende a banda. TEN: valutare estensione della necrosi epidermica.',
     workup:['DIF se sospetto lupus eritematoso','escludere farmaci (causa più frequente di interfaccia vacuolare drug-indotta)','ricerca HSV/Mycoplasma se clinica EM classica','se necrosi epidermica estesa: considerare TEN — conta cheratinociti necrotici vs bulla subepidermica']
+  },
+  pemfigoide_bolloso:{
+    nome:'Pemfigoide bolloso', cat:'Subepidermico bolloso',
+    required:['pattern_primario','sede_bolla'],
+    major:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', eosinofili:['presenti','abbondanti']},
+    minor:{infiltrato_distribuzione:'perivascolare_superficiale'},
+    against:{acantolisi:'si', neutrofili:'abbondanti'},
+    note:'Bolla subepidermica con eosinofili nel derma superficiale e nella bolla, senza acantolisi. Maggiore distensione della bolla con tetto epidermico integro. Differenziale con altre malattie bollose subepidermiche (EBA, pemfigoide gestationis, dermatite erpetiforme con neutrofili).',
+    workup:['DIF su cute perilesionale: IgG e C3 lineari alla giunzione dermo-epidermica','salt-split skin: depositi sul tetto della bolla (BMZ epidermica)','autoantigeni circolanti: BP180 (NC16A), BP230','escludere LABD (IgA), EBA (depositi sotto la sublamina densa)']
+  },
+  pemfigo_volgare:{
+    nome:'Pemfigo volgare', cat:'Intraepidermico bolloso',
+    required:['pattern_primario','sede_bolla','acantolisi'],
+    major:{pattern_primario:'intraepidermico', sede_bolla:'intraepidermica', acantolisi:'si'},
+    minor:{infiltrato_distribuzione:'perivascolare_superficiale'},
+    against:{eosinofili:'abbondanti', neutrofili:'abbondanti'},
+    note:'Acantolisi soprabasale con cheratinociti basali "a lapide" rimasti adesi alla BMZ. Bolla intraepidermica fragile. Infiltrato di solito scarso. Eosinofili possibili ma meno prominenti del pemfigoide. Coinvolgimento mucoso quasi costante (Dsg3 mucoso).',
+    workup:['DIF: IgG intercellulari in epidermide ("a rete" / "fish-net")','autoantigeni: desmogleina 3 (mucoso), desmogleina 1 (cute)','IIF su esofago di scimmia','distinguere da Hailey-Hailey (acantolisi a tutti i livelli, no autoanticorpi) e Darier (acantolisi focale, corpi rotondi/grains)']
+  },
+  granuloma_anulare:{
+    nome:'Granuloma anulare', cat:'Granulomatoso a palizzata',
+    required:['pattern_primario','tipo_granuloma'],
+    major:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si'},
+    minor:{mucina_dermica:'si', infiltrato_distribuzione:'interstiziale'},
+    against:{plasmacellule:['presenti','abbondanti'], tipo_granuloma:'sarcoide_like'},
+    note:'Granulomi a palizzata di istiociti attorno a necrobiosi focale del collagene, con mucina interstiziale. Plasmacellule scarse o assenti (differenza con necrobiosi lipoide). Distribuzione tipica: dorso mani, piedi.',
+    workup:['Alcian/colloidal iron per mucina','correlare con sede: dorso mani/piedi (GA classico) vs arto inferiore (NL)','se plasmacellule prominenti: considerare necrobiosi lipoide','escludere GA generalizzato (diabete, dislipidemia) se lesioni multiple']
+  },
+  necrobiosi_lipoide:{
+    nome:'Necrobiosi lipoide', cat:'Granulomatoso a palizzata',
+    required:['pattern_primario','tipo_granuloma','necrobiosi'],
+    major:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si', plasmacellule:['presenti','abbondanti']},
+    minor:{infiltrato_distribuzione:'perivascolare_profondo'},
+    against:{tipo_granuloma:'sarcoide_like'},
+    note:'Granulomi a palizzata con necrobiosi diffusa "a strati" del collagene che attraversa tutto il derma, plasmacellule prominenti, ispessimento e ialinosi delle pareti vasali. Sede tipica: pretibiale. Forte associazione con diabete mellito.',
+    workup:['correlazione clinica: pretibiale, placche giallastre atrofiche','glicemia/HbA1c — fortemente associato a diabete','differenziale con GA: plasmacellule + necrobiosi a strati + sede pretibiale → NL','se ulcerazione: rischio carcinoma squamoso a lungo termine']
+  },
+  sarcoide_cutaneo:{
+    nome:'Sarcoide cutaneo', cat:'Granulomatoso',
+    required:['pattern_primario','tipo_granuloma'],
+    major:{pattern_primario:'granulomatoso', tipo_granuloma:'sarcoide_like'},
+    minor:{infiltrato_distribuzione:'perivascolare_profondo', infiltrato_densita:['lieve','moderata']},
+    against:{necrobiosi:'si', plasmacellule:['presenti','abbondanti'], tipo_granuloma:['a_palizzata','tubercolare_caseoso']},
+    note:'Granulomi epitelioidi "naked" (poco infiltrato linfocitario perilesionale), non caseificanti, senza necrobiosi. Cellule giganti di Langhans possibili. Differenziale principale con tubercolosi cutanea (caseosi, micobatteri), reazione a corpo estraneo (polariscopia), GA (palizzata + mucina) e NL.',
+    workup:['colorazione Ziehl-Neelsen e Fite per micobatteri','polariscopia per materiale rifrangente (corpi estranei)','PAS e Grocott per funghi','correlare con clinica sistemica: ACE, lisozima, calcio, RX torace, EGA, scintigrafia con gallio','differenziale con linfoma cutaneo se infiltrato denso atipico']
   }
 };
 
@@ -334,7 +396,7 @@ const Engine = {
   }
 };
 
-const buildExportText = (data, res, version='v2.12.0') => {
+const buildExportText = (data, res, version='v2.13.0') => {
   const lines = [
     `DERMPATH ${version} — Valutazione morfologica`,
     `Pattern: ${data.pattern_primario || '—'}`,
