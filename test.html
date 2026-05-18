@@ -731,6 +731,49 @@ const CASES = [
     }
   },
 
+  // ─── GRUPPO: red flags favorisce (v2.18.0) ─────────────────────
+  {group:'red flags — favorisce (esclusioni mutue)'},
+  {
+    name:'Ogni red flag ha array favorisce con almeno una DX valida',
+    input:{},
+    check:(res) => {
+      const bad = RED_FLAGS.filter(f => !Array.isArray(f.favorisce) || f.favorisce.length === 0 || f.favorisce.some(k => !DX[k]));
+      return bad.length === 0 ? null : `red flags con favorisce mancante/non valida: ${JSON.stringify(bad.map(f=>f.flag))}`;
+    }
+  },
+  {
+    name:'microascessi_munro favorisce psoriasi_vulgaris',
+    input:{},
+    check:(res) => {
+      const f = RED_FLAGS.find(x => x.flag==='microascessi_munro');
+      return f.favorisce.includes('psoriasi_vulgaris') ? null : `favorisce=${JSON.stringify(f.favorisce)}`;
+    }
+  },
+  {
+    name:'plasmacellule_psoriasiforme favorisce sifilide_secondaria',
+    input:{},
+    check:(res) => {
+      const f = RED_FLAGS.find(x => x.flag==='plasmacellule_psoriasiforme');
+      return f.favorisce.includes('sifilide_secondaria') ? null : `favorisce=${JSON.stringify(f.favorisce)}`;
+    }
+  },
+  {
+    name:'spongiosi_proporzionata_mf favorisce DAC e DA',
+    input:{},
+    check:(res) => {
+      const f = RED_FLAGS.find(x => x.flag==='spongiosi_proporzionata_mf');
+      return f.favorisce.includes('dermatite_allergica_contatto') && f.favorisce.includes('dermatite_atopica_acuta') ? null : `favorisce=${JSON.stringify(f.favorisce)}`;
+    }
+  },
+  {
+    name:'pleva_necrosi_eritrociti favorisce pleva',
+    input:{},
+    check:(res) => {
+      const f = RED_FLAGS.find(x => x.flag==='pleva_necrosi_eritrociti');
+      return f.favorisce.includes('pleva') ? null : `favorisce=${JSON.stringify(f.favorisce)}`;
+    }
+  },
+
   // ─── GRUPPO: differential explorer ─────────────────────────────
   {group:'differential explorer'},
   {

@@ -1,4 +1,4 @@
-# DermPath v2.17.0
+# DermPath v2.18.0
 
 Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
@@ -110,16 +110,16 @@ Layer separato dalla pipeline di scoring. Ogni red flag ha:
 
 Le red flags sono interrupt, non pesi. Una red flag attiva non blocca necessariamente la diagnosi correlata, ma la penalizza di 25 punti e la mostra esplicitamente nell'output.
 
-Red flags implementate:
+Red flags implementate (v2.18.0+: ognuna dichiara sia le DX *escluse* che quelle *favorite*, mostrate nell'UI):
 
-| Flag | Condizione | Diagnosi segnalata | DX penalizzate |
+| Flag | Condizione | Esclude (-25) | Favorisce |
 |---|---|---|---|
-| Microascessi di Munro | `microascessi_munro = 'si'` | Psoriasi | DAC, DA acuta |
-| Corpi di Civatte | `corpi_civatte = 'si'` | Interfaccia lichenoide | Psoriasi |
-| Plasmacellule in psoriasiforme | `pattern psoriasiforme + plasmacellule` | Escludere sifilide | Psoriasi |
-| Epidermotropismo + alone chiaro | epidermotropismo + alone_chiaro | Sospetto T-linfoproliferativo | DAC |
-| Spongiosi proporzionata in MF | spongiosi_proporzionata = sì + epidermotropismo | Dermatite > MF | MF early |
-| PLEVA | necrosi diffusa + eritrociti intraepidermici | Considerare PLEVA | MF early |
+| Microascessi di Munro | `microascessi_munro = 'si'` | DAC, DA acuta | Psoriasi vulgaris |
+| Corpi di Civatte | `corpi_civatte = 'si'` | Psoriasi | Lichen planus, drug lichenoide, lupus, EM |
+| Plasmacellule in psoriasiforme | `pattern psoriasiforme + plasmacellule` | Psoriasi | Sifilide secondaria |
+| Epidermotropismo + alone chiaro | epidermotropismo + alone_chiaro | DAC | MF early |
+| Spongiosi proporzionata in MF | spongiosi_proporzionata = sì + epidermotropismo | MF early | DAC, DA acuta |
+| PLEVA | necrosi diffusa + eritrociti intraepidermici | MF early | PLEVA |
 
 ### unsupportedPattern
 
@@ -199,13 +199,14 @@ Per eseguire i test da CLI (Node):
 ```bash
 node -e "
 const eng = require('./engine.js');
-const { Engine, INIT, DX, discriminantFields } = eng;
+const { Engine, INIT, DX, discriminantFields, RED_FLAGS } = eng;
 const html = require('fs').readFileSync('./test.html','utf-8');
 const m = html.match(/const CASES = \[([\s\S]*?)\];\s*\n\s*\/\/ Run/);
 const tmp = '/tmp/_dermpath_cases.js';
 require('fs').writeFileSync(tmp,
   'const topScore = (res,key) => res.allScores.find(x => x.key===key);\n' +
   'const DX = ' + JSON.stringify(DX) + ';\n' +
+  'const RED_FLAGS = ' + JSON.stringify(RED_FLAGS.map(f => ({flag:f.flag, label:f.label, diagnosi:f.diagnosi, escludi:f.escludi, favorisce:f.favorisce}))) + ';\n' +
   'const discriminantFields = ' + discriminantFields.toString() + ';\n' +
   'const CASES = [' + m[1] + ']; module.exports = CASES;'
 );
@@ -256,6 +257,7 @@ Il comportamento atteso sarebbe: blocca solo se **assente** (campo vuoto) o **es
 
 | Versione | Modifiche |
 |---|---|
+| v2.18.0 | **Esclusioni mutue esplicite**: ogni red flag ora dichiara `favorisce: [keys]` oltre a `escludi: [keys]`. UI: FlagBox mostra "→ orienta verso: X" accanto a ogni flag; DxCard penalizzato mostra "→ considera invece: X". Test suite a 95 casi (95/95). |
 | v2.17.0 | +5 diagnosi: PLEVA/Mucha-Habermann, sifilide secondaria, pemfigo foliaceo, dermatite erpetiforme (Duhring), lichen sclerosus. Nuovi campi: ialinosi del derma papillare (LS), microascessi neutrofilici nelle papille (DH). **Differential explorer**: card automatica con tabella dei campi che discriminano le prime due ipotesi proponibili. Test suite a 90 casi (90/90). Totale DX: 28 |
 | v2.16.0 | +5 diagnosi: Wells syndrome, eritema nodoso, lupus profundus, eritema indurato di Bazin, mastocitosi cutanea. **Tutti i 16 pattern ora coperti**. Nuovi campi: figure a fiamma, tipo di panniculite, vasculite sottocutanea, mastociti aumentati. Test suite a 77 casi (77/77) |
 | v2.15.0 | +5 diagnosi: pitiriasi rosea, urticaria, reazione a puntura/scabbia, reazione a farmaci morbilliforme, vasculopatia trombotica; pattern perivascolare, perivascolare eosinofilo e vasculopatico ora coperti; nuovo campo: trombi vasali luminali; test suite a 66 casi (66/66) |

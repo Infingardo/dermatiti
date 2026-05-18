@@ -453,36 +453,44 @@ const DX = {
   }
 };
 
+// Ogni red flag dichiara sia le DX che ESCLUDE (penalità -25) sia le DX che FAVORISCE
+// (linkate nell'UI per rendere esplicita l'esclusione mutua).
 const RED_FLAGS = [
   {
     flag:'microascessi_munro', label:'Microascessi di Munro', diagnosi:'Psoriasi',
     test:d => d.microascessi_munro === 'si',
-    escludi:['dermatite_allergica_contatto','dermatite_atopica_acuta']
+    escludi:['dermatite_allergica_contatto','dermatite_atopica_acuta'],
+    favorisce:['psoriasi_vulgaris']
   },
   {
     flag:'corpi_civatte', label:'Corpi di Civatte', diagnosi:'Interfaccia lichenoide',
     test:d => d.corpi_civatte === 'si',
-    escludi:['psoriasi_vulgaris']
+    escludi:['psoriasi_vulgaris'],
+    favorisce:['lichen_planus','reazione_lichenoide_farmaci','lupus_eritematoso','eritema_multiforme']
   },
   {
     flag:'plasmacellule_psoriasiforme', label:'Plasmacellule in pattern psoriasiforme', diagnosi:'Escludere sifilide secondaria',
     test:d => d.pattern_primario === 'psoriasiforme' && ['presenti','abbondanti'].includes(d.plasmacellule),
-    escludi:['psoriasi_vulgaris']
+    escludi:['psoriasi_vulgaris'],
+    favorisce:['sifilide_secondaria']
   },
   {
     flag:'epidermotropismo_alone', label:'Epidermotropismo con alone chiaro', diagnosi:'Sospetto linfoproliferativo T',
     test:d => ['presente','marcato'].includes(d.epidermotropismo) && d.alone_chiaro === 'si',
-    escludi:['dermatite_allergica_contatto']
+    escludi:['dermatite_allergica_contatto'],
+    favorisce:['micosi_fungoide_early']
   },
   {
     flag:'spongiosi_proporzionata_mf', label:'Epidermotropismo con spongiosi proporzionata', diagnosi:'Dermatite più probabile di MF',
     test:d => d.spongiosi_proporzionata === 'si' && ['presente','marcato'].includes(d.epidermotropismo),
-    escludi:['micosi_fungoide_early']
+    escludi:['micosi_fungoide_early'],
+    favorisce:['dermatite_allergica_contatto','dermatite_atopica_acuta']
   },
   {
     flag:'pleva_necrosi_eritrociti', label:'Necrosi cheratinocitaria diffusa + eritrociti intraepidermici', diagnosi:'Considerare PLEVA/Mucha-Habermann',
     test:d => d.necrosi_cheratinociti_diffusa === true && d.eritrociti_extravasati_intraepidermici === true,
-    escludi:['micosi_fungoide_early']
+    escludi:['micosi_fungoide_early'],
+    favorisce:['pleva']
   }
 ];
 
@@ -608,7 +616,7 @@ const formatExpected = (v) => {
   return String(v);
 };
 
-const buildExportText = (data, res, version='v2.17.0') => {
+const buildExportText = (data, res, version='v2.18.0') => {
   const lines = [
     `DERMPATH ${version} — Valutazione morfologica`,
     `Pattern: ${data.pattern_primario || '—'}`,
