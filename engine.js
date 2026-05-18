@@ -79,7 +79,10 @@ const labelize = (field) => ({
   sede_bolla:'sede della bolla',
   acantolisi:'acantolisi',
   tipo_granuloma:'tipo di granuloma',
-  necrobiosi:'necrobiosi'
+  necrobiosi:'necrobiosi',
+  necrosi_fibrinoide:'necrosi fibrinoide vasale',
+  leucocitoclasia:'leucocitoclasia (frammenti nucleari)',
+  eritrociti_extravasati_dermici:'eritrociti extravasati nel derma'
 }[field] || field.replaceAll('_',' '));
 
 const matchAtLeast = (field, expected, actual) => {
@@ -113,6 +116,7 @@ const INIT = {
   mucina_dermica:'', infiltrato_perianessiale:'', atrofia_epidermica:'', ispessimento_bmz:'',
   sede_bolla:'', acantolisi:'',
   tipo_granuloma:'', necrobiosi:'',
+  necrosi_fibrinoide:'', leucocitoclasia:'', eritrociti_extravasati_dermici:'',
   sede_anatomica:'', note_cliniche:''
 };
 
@@ -264,6 +268,42 @@ const DX = {
     against:{necrobiosi:'si', plasmacellule:['presenti','abbondanti'], tipo_granuloma:['a_palizzata','tubercolare_caseoso']},
     note:'Granulomi epitelioidi "naked" (poco infiltrato linfocitario perilesionale), non caseificanti, senza necrobiosi. Cellule giganti di Langhans possibili. Differenziale principale con tubercolosi cutanea (caseosi, micobatteri), reazione a corpo estraneo (polariscopia), GA (palizzata + mucina) e NL.',
     workup:['colorazione Ziehl-Neelsen e Fite per micobatteri','polariscopia per materiale rifrangente (corpi estranei)','PAS e Grocott per funghi','correlare con clinica sistemica: ACE, lisozima, calcio, RX torace, EGA, scintigrafia con gallio','differenziale con linfoma cutaneo se infiltrato denso atipico']
+  },
+  vasculite_leucocitoclastica:{
+    nome:'Vasculite leucocitoclastica', cat:'Vasculitico',
+    required:['pattern_primario','necrosi_fibrinoide'],
+    major:{pattern_primario:'vasculitico', necrosi_fibrinoide:'si', leucocitoclasia:'si', neutrofili:['presenti','abbondanti']},
+    minor:{eritrociti_extravasati_dermici:'si', infiltrato_distribuzione:'perivascolare_superficiale'},
+    against:{linfociti_atipici:'presenti', tipo_granuloma:'sarcoide_like'},
+    note:'Vasculite dei piccoli vasi del derma con necrosi fibrinoide della parete vasale, infiltrato neutrofilico perivascolare/intramurale, frammentazione nucleare (leucocitoclasia) ed eritrociti extravasati. Lesione fondamentale: distruzione neutrofilica della parete venulare postcapillare. Differenziale: IgA vasculitis (Henoch-Schönlein), vasculiti ANCA-associate, vasculite urticarioide, vasculite settica.',
+    workup:['DIF: depositi di IgA → IgA vasculitis (Henoch-Schönlein)','ANCA (c-ANCA/p-ANCA) per GPA/MPA/EGPA','crioglobuline, complemento, sierologie HCV/HBV','clinica: porpora palpabile, distribuzione, coinvolgimento sistemico (renale, GI, articolare)','biopsia entro 24-48 h dall\'esordio per leucocitoclasia ben visibile']
+  },
+  impetigine_bollosa:{
+    nome:'Impetigine bollosa', cat:'Subcorneo',
+    required:['pattern_primario','sede_bolla'],
+    major:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:['presenti','abbondanti']},
+    minor:{acantolisi:'si', spongiosi:['lieve','moderata']},
+    against:{eosinofili:'abbondanti', necrosi_keratinociti:'marcata'},
+    note:'Bolla subcornea con neutrofili abbondanti, acantolisi focale dello strato granuloso (esfoliatossina stafilococcica), cocchi Gram-positivi nella bolla. Quadro pediatrico tipico. Differenziale: pemfigo foliaceo (DIF+, no batteri), AGEP (drug, eosinofili), Sneddon-Wilkinson (cronica, no batteri).',
+    workup:['Gram: cocchi Gram+ nello strato corneo','colture cutanee per S. aureus','clinica: pediatrica, bambini < 5 anni, lesioni intertriginose','DIF negativa (esclude pemfigo foliaceo)']
+  },
+  agep:{
+    nome:'AGEP (pustolosi esantematica acuta generalizzata)', cat:'Subcorneo',
+    required:['pattern_primario','sede_bolla'],
+    major:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:['presenti','abbondanti']},
+    minor:{eosinofili:['presenti','abbondanti'], spongiosi:['lieve','moderata'], necrosi_keratinociti:'presente'},
+    against:{acantolisi:'si'},
+    note:'Pustole subcornee/intracornee neutrofiliche spongiformi disseminate, spesso con eosinofili (drug-indotta). Esordio rapido (1-3 giorni dopo farmaco), febbre, eruzione generalizzata. Differenziale: impetigine bollosa (batteri, no eosinofili), Sneddon-Wilkinson (cronica), psoriasi pustolosa (clinica preesistente), DRESS (interfaccia + linfadenopatia), SJS/TEN (interfaccia vacuolare).',
+    workup:['anamnesi farmacologica recente (beta-lattamici, macrolidi, diltiazem, idrossiclorochina)','EuroSCAR score (clinica + istologia)','distinguere da psoriasi pustolosa (storia di psoriasi, lesioni croniche)','distinguere da DRESS (linfadenopatia, eosinofilia ematica)','sospensione farmaco → risoluzione in 7-15 giorni con desquamazione']
+  },
+  sneddon_wilkinson:{
+    nome:'Pustolosi subcornea di Sneddon-Wilkinson', cat:'Subcorneo',
+    required:['pattern_primario','sede_bolla'],
+    major:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:['presenti','abbondanti']},
+    minor:{plasmacellule:['presenti','abbondanti']},
+    against:{eosinofili:'abbondanti', acantolisi:'si', necrosi_keratinociti:'marcata'},
+    note:'Pustole subcornee neutrofiliche con livello fluido netto ("half-half pustule"), andamento cronico-recidivante, distribuzione intertriginosa/flexural. Differenziale: AGEP (acuta, drug, eosinofili), pemfigo IgA (DIF + IgA intercellulare), impetigine (batteri). Forte associazione con gammopatia IgA monoclonale.',
+    workup:['DIF: negativa (vs pemfigo IgA, IgA intercellulare)','elettroforesi sieroproteica + immunofissazione (IgA monoclonale)','clinica: andamento cronico-recidivante, sede intertriginosa, donne 40-60 anni','differenziale stretto con pemfigo IgA: solo DIF distingue']
   }
 };
 
@@ -396,7 +436,7 @@ const Engine = {
   }
 };
 
-const buildExportText = (data, res, version='v2.13.0') => {
+const buildExportText = (data, res, version='v2.14.0') => {
   const lines = [
     `DERMPATH ${version} — Valutazione morfologica`,
     `Pattern: ${data.pattern_primario || '—'}`,

@@ -51,7 +51,7 @@ const CASES = [
   },
   {
     name:'pattern non implementato → unsupportedPattern=true, diagnoses=[]',
-    input:{pattern_primario:'vasculitico'},
+    input:{pattern_primario:'vasculopatico'},
     check:(res) => res.unsupportedPattern && res.diagnoses.length===0 ? null : `unsupp=${res.unsupportedPattern}, dx=${res.diagnoses.length}`
   },
   {
@@ -382,6 +382,78 @@ const CASES = [
       const sa = topScore(res,'sarcoide_cutaneo');
       // against:{tipo_granuloma:['a_palizzata','tubercolare_caseoso']} → 'a_palizzata' matcha → hit
       return sa.againstHits.some(h=>h.field==='tipo_granuloma') ? null : `againstHits=${JSON.stringify(sa.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern vasculitico ───────────────────────────────
+  {group:'pattern vasculitico'},
+  {
+    name:'LCV classica: necrosi fibrinoide + leucocitoclasia + neutrofili + eritrociti dermici',
+    input:{pattern_primario:'vasculitico', necrosi_fibrinoide:'si', leucocitoclasia:'si', neutrofili:'abbondanti', eritrociti_extravasati_dermici:'si', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const lcv = res.diagnoses.find(x => x.key==='vasculite_leucocitoclastica');
+      return lcv && lcv.pct >= 50 ? null : `lcv.pct=${lcv?.pct}, blocked=${lcv?.blocked}, missing=${JSON.stringify(lcv?.missingRequired)}`;
+    }
+  },
+  {
+    name:'LCV senza necrosi fibrinoide → bloccata via missingRequired',
+    input:{pattern_primario:'vasculitico', leucocitoclasia:'si', neutrofili:'abbondanti'},
+    check:(res) => {
+      const lcv = topScore(res,'vasculite_leucocitoclastica');
+      return lcv.missingRequired.includes('necrosi_fibrinoide') && lcv.blocked ? null : `missing=${JSON.stringify(lcv.missingRequired)}, blocked=${lcv.blocked}`;
+    }
+  },
+  {
+    name:'LCV con necrosi fibrinoide=no → bloccata via failedRequired',
+    input:{pattern_primario:'vasculitico', necrosi_fibrinoide:'no', leucocitoclasia:'si'},
+    check:(res) => {
+      const lcv = topScore(res,'vasculite_leucocitoclastica');
+      // necrosi_fibrinoide non è in ORD → matchAtLeast usa actual===expected → 'no' !== 'si' → failedRequired sempre (non ordinale)
+      return lcv.failedRequired.includes('necrosi_fibrinoide') && lcv.blocked ? null : `failedRequired=${JSON.stringify(lcv.failedRequired)}, blocked=${lcv.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern subcorneo ─────────────────────────────────
+  {group:'pattern subcorneo'},
+  {
+    name:'Impetigine bollosa classica: subcornea + neutrofili + acantolisi',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', acantolisi:'si', spongiosi:'lieve'},
+    check:(res) => {
+      const imp = res.diagnoses.find(x => x.key==='impetigine_bollosa');
+      return imp && imp.pct >= 50 ? null : `imp.pct=${imp?.pct}, blocked=${imp?.blocked}`;
+    }
+  },
+  {
+    name:'Impetigine con eosinofili abbondanti → against (verso AGEP)',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', eosinofili:'abbondanti'},
+    check:(res) => {
+      const imp = topScore(res,'impetigine_bollosa');
+      return imp.againstHits.some(h=>h.field==='eosinofili') ? null : `againstHits=${JSON.stringify(imp.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'AGEP classica: subcornea + neutrofili + eosinofili presenti',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', eosinofili:'presenti', spongiosi:'lieve'},
+    check:(res) => {
+      const agep = res.diagnoses.find(x => x.key==='agep');
+      return agep && agep.pct >= 50 ? null : `agep.pct=${agep?.pct}, blocked=${agep?.blocked}`;
+    }
+  },
+  {
+    name:'AGEP vs impetigine: con eosinofili abbondanti → AGEP > impetigine',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', eosinofili:'abbondanti'},
+    check:(res) => {
+      const agep = topScore(res,'agep');
+      const imp = topScore(res,'impetigine_bollosa');
+      return agep.pct > imp.pct ? null : `agep.pct=${agep.pct} ≤ imp.pct=${imp.pct}`;
+    }
+  },
+  {
+    name:'Sneddon-Wilkinson: subcornea + neutrofili + plasmacellule, no eosinofili abbondanti',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', plasmacellule:'presenti'},
+    check:(res) => {
+      const sw = res.diagnoses.find(x => x.key==='sneddon_wilkinson');
+      return sw && sw.pct >= 50 ? null : `sw.pct=${sw?.pct}, blocked=${sw?.blocked}`;
     }
   },
 

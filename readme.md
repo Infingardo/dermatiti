@@ -1,4 +1,4 @@
-# DermPath v2.13.0
+# DermPath v2.14.0
 
 Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
@@ -152,8 +152,12 @@ Calcolato direttamente sui DX, non su `compatibility > 0`. Robusto a contaminazi
 | `granuloma_anulare` | Granuloma anulare | Granulomatoso a palizzata |
 | `necrobiosi_lipoide` | Necrobiosi lipoide | Granulomatoso a palizzata |
 | `sarcoide_cutaneo` | Sarcoide cutaneo | Granulomatoso |
+| `vasculite_leucocitoclastica` | Vasculite leucocitoclastica | Vasculitico |
+| `impetigine_bollosa` | Impetigine bollosa | Subcorneo |
+| `agep` | AGEP (pustolosi esantematica acuta) | Subcorneo |
+| `sneddon_wilkinson` | Pustolosi subcornea Sneddon-Wilkinson | Subcorneo |
 
-Pattern riconosciuti ma non ancora implementati: perivascolare, perivascolare eosinofilo, vasculitico, vasculopatico, subcorneo, interstiziale eosinofilo, panniculitico, mastocitario.
+Pattern riconosciuti ma non ancora implementati: perivascolare, perivascolare eosinofilo, vasculopatico, interstiziale eosinofilo, panniculitico, mastocitario.
 
 ---
 
@@ -227,6 +231,7 @@ Il comportamento atteso sarebbe: blocca solo se **assente** (campo vuoto) o **es
 
 | Versione | Modifiche |
 |---|---|
+| v2.14.0 | +4 diagnosi: vasculite leucocitoclastica, impetigine bollosa, AGEP, pustolosi Sneddon-Wilkinson; pattern vasculitico e subcorneo ora coperti; nuovi campi: necrosi fibrinoide vasale, leucocitoclasia, eritrociti extravasati dermici; test suite a 56 casi (56/56) |
 | v2.13.0 | +6 diagnosi: reazione lichenoide da farmaci, pemfigoide bolloso, pemfigo volgare, granuloma anulare, necrobiosi lipoide, sarcoide cutaneo; nuovi campi: sede della bolla, acantolisi, tipo di granuloma, necrobiosi; PDF print (`window.print()` + CSS @media print); test suite estesa a 48 casi (48/48) |
 | v2.12.0 | Refactor architetturale: motore estratto in `engine.js` (pure JS), `index.html` solo UI React; aggiunta `test.html` con suite di regressione (33 casi, eseguibili anche da Node); aggiunta diagnosi `lupus_eritematoso` (DLE/SCLE); nuovi campi morfologici: mucina dermica, infiltrato perianessiale, atrofia epidermica, ispessimento BMZ |
 | v2.11.5 | Fix `failedRequired`: campi ordinali bloccano solo se esplicitamente assenti, non sub-threshold; aggiunte diagnosi `dermatite_seborroica` e `eritema_multiforme`; export referto (copia testo); localStorage draft |

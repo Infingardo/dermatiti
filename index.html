@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DermPath v2.13.0</title>
+  <title>DermPath v2.14.0</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5;background:#eef2ff;color:#1e293b}
@@ -311,6 +311,9 @@ const Step3 = memo(({data,upd,onBack,onNext}) => (
       )}
       <TS label="Mucina dermica" value={data.mucina_dermica} onChange={v=>upd('mucina_dermica',v)} help="Mucina interstiziale nel derma reticolare (Alcian/colloidal iron). Caratteristica di lupus e granuloma anulare." />
       <TS label="Infiltrato anche perianessiale" value={data.infiltrato_perianessiale} onChange={v=>upd('infiltrato_perianessiale',v)} help="Componente perianessiale aggiuntiva (oltre al pattern perivascolare). Suggestiva di lupus." />
+      <TS label="Necrosi fibrinoide vasale" value={data.necrosi_fibrinoide} onChange={v=>upd('necrosi_fibrinoide',v)} help="Necrosi della parete dei piccoli vasi del derma (eosinofila, fibrinosa). Cardine della vasculite." />
+      <TS label="Leucocitoclasia" value={data.leucocitoclasia} onChange={v=>upd('leucocitoclasia',v)} help="Frammenti nucleari di neutrofili (nuclear dust) attorno e dentro le pareti vasali." />
+      <TS label="Eritrociti extravasati nel derma" value={data.eritrociti_extravasati_dermici} onChange={v=>upd('eritrociti_extravasati_dermici',v)} help="Stravaso emorragico dermico. Comune in vasculiti e vasculopatie." />
       <Sel label="Tipo di granuloma" value={data.tipo_granuloma} onChange={v=>upd('tipo_granuloma',v)} opts={[
         {value:'sarcoide_like',label:'Sarcoide-like (nudo, non caseoso)'},
         {value:'a_palizzata',label:'A palizzata (con necrobiosi al centro)'},
@@ -376,7 +379,7 @@ const App = () => {
       <div className="card">
         <div className="flex flex-mobile items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.13.0</h1>
+            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.14.0</h1>
             <p className="text-sm text-slate-600 mt-1">Come usarlo: scegli il pattern, compila solo i reperti osservati, poi genera una valutazione. Se il pattern non è implementato, il prototipo deve fermarsi senza suggerire diagnosi.</p>
           </div>
           <button onClick={handleReset} className="btn btn-slate mt-3 no-print">Reset</button>
