@@ -1,4 +1,4 @@
-# DermPath v2.16.0
+# DermPath v2.17.0
 
 Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
@@ -166,8 +166,17 @@ Calcolato direttamente sui DX, non su `compatibility > 0`. Robusto a contaminazi
 | `lupus_profundus` | Lupus profundus (panniculite lupica) | Panniculitico lobulare |
 | `eritema_indurato_bazin` | Eritema indurato di Bazin | Panniculitico lobulare con vasculite |
 | `mastocitosi_cutanea` | Mastocitosi cutanea | Mastocitario |
+| `pleva` | PLEVA / Mucha-Habermann | Interfaccia vacuolare con necrosi |
+| `sifilide_secondaria` | Sifilide secondaria | Psoriasiforme / Lichenoide |
+| `pemfigo_foliaceo` | Pemfigo foliaceo | Intraepidermico bolloso superficiale |
+| `dermatite_erpetiforme` | Dermatite erpetiforme (Duhring) | Subepidermico bolloso |
+| `lichen_sclerosus` | Lichen sclerosus | Interfaccia vacuolare con sclerosi |
 
-**Tutti i 16 pattern riconosciuti sono ora implementati.**
+**Tutti i 16 pattern riconosciuti sono implementati. 28 DX totali.**
+
+### Differential explorer (v2.17.0+)
+
+Quando ci sono ≥ 2 diagnosi proponibili, il tool mostra automaticamente una tabella di campi che discriminano tra le prime due ipotesi. Per ogni campo: ruolo nella DX A (major/minor/contro/non usato) vs ruolo nella DX B. Aiuta a chiudere il differenziale identificando rapidamente i reperti da verificare.
 
 ---
 
@@ -189,11 +198,17 @@ Per eseguire i test da CLI (Node):
 
 ```bash
 node -e "
-const { Engine, INIT } = require('./engine.js');
+const eng = require('./engine.js');
+const { Engine, INIT, DX, discriminantFields } = eng;
 const html = require('fs').readFileSync('./test.html','utf-8');
 const m = html.match(/const CASES = \[([\s\S]*?)\];\s*\n\s*\/\/ Run/);
 const tmp = '/tmp/_dermpath_cases.js';
-require('fs').writeFileSync(tmp, 'const topScore = (res,key) => res.allScores.find(x => x.key===key);\nconst CASES = [' + m[1] + ']; module.exports = CASES;');
+require('fs').writeFileSync(tmp,
+  'const topScore = (res,key) => res.allScores.find(x => x.key===key);\n' +
+  'const DX = ' + JSON.stringify(DX) + ';\n' +
+  'const discriminantFields = ' + discriminantFields.toString() + ';\n' +
+  'const CASES = [' + m[1] + ']; module.exports = CASES;'
+);
 const CASES = require(tmp);
 let p=0,f=0,t=0;
 CASES.forEach(c => { if(c.group) return; t++;
@@ -241,6 +256,7 @@ Il comportamento atteso sarebbe: blocca solo se **assente** (campo vuoto) o **es
 
 | Versione | Modifiche |
 |---|---|
+| v2.17.0 | +5 diagnosi: PLEVA/Mucha-Habermann, sifilide secondaria, pemfigo foliaceo, dermatite erpetiforme (Duhring), lichen sclerosus. Nuovi campi: ialinosi del derma papillare (LS), microascessi neutrofilici nelle papille (DH). **Differential explorer**: card automatica con tabella dei campi che discriminano le prime due ipotesi proponibili. Test suite a 90 casi (90/90). Totale DX: 28 |
 | v2.16.0 | +5 diagnosi: Wells syndrome, eritema nodoso, lupus profundus, eritema indurato di Bazin, mastocitosi cutanea. **Tutti i 16 pattern ora coperti**. Nuovi campi: figure a fiamma, tipo di panniculite, vasculite sottocutanea, mastociti aumentati. Test suite a 77 casi (77/77) |
 | v2.15.0 | +5 diagnosi: pitiriasi rosea, urticaria, reazione a puntura/scabbia, reazione a farmaci morbilliforme, vasculopatia trombotica; pattern perivascolare, perivascolare eosinofilo e vasculopatico ora coperti; nuovo campo: trombi vasali luminali; test suite a 66 casi (66/66) |
 | v2.14.0 | +4 diagnosi: vasculite leucocitoclastica, impetigine bollosa, AGEP, pustolosi Sneddon-Wilkinson; pattern vasculitico e subcorneo ora coperti; nuovi campi: necrosi fibrinoide vasale, leucocitoclasia, eritrociti extravasati dermici; test suite a 56 casi (56/56) |

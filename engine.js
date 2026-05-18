@@ -88,7 +88,9 @@ const labelize = (field) => ({
   figure_a_fiamma:'figure a fiamma (eosinofile)',
   tipo_panniculite:'tipo di panniculite',
   vasculite_subcutanea:'vasculite sottocutanea',
-  mastociti_aumentati:'mastociti aumentati'
+  mastociti_aumentati:'mastociti aumentati',
+  ialinosi_dermica:'ialinosi/omogeneizzazione del derma papillare',
+  microascessi_papille_dermica:'microascessi neutrofilici nelle papille'
 }[field] || field.replaceAll('_',' '));
 
 const matchAtLeast = (field, expected, actual) => {
@@ -125,6 +127,7 @@ const INIT = {
   necrosi_fibrinoide:'', leucocitoclasia:'', eritrociti_extravasati_dermici:'',
   trombi_vasali:'',
   figure_a_fiamma:'', tipo_panniculite:'', vasculite_subcutanea:'', mastociti_aumentati:'',
+  ialinosi_dermica:'', microascessi_papille_dermica:'',
   sede_anatomica:'', note_cliniche:''
 };
 
@@ -394,6 +397,51 @@ const DX = {
     note:'Panniculite lobulare con vasculite di medio calibro (vena sottocutanea) e granulomi tubercoloidi/caseosi. Forma "tuberculide" — reazione di ipersensibilità a Mycobacterium tuberculosis, raramente colorabile con Ziehl-Neelsen. Sede tipica: regione pretibiale posteriore (polpaccio), spesso donne adulte. Lesioni croniche, ulcerative, recidivanti.',
     workup:['IGRA (QuantiFERON) o Mantoux: solitamente positivi','RX torace + ricerca TB attiva','PCR per M. tuberculosis su tessuto (Ziehl-Neelsen spesso negativo)','differenziare da eritema nodoso (settale, no vasculite), poliarterite nodosa cutanea (vasculite arteriolare, no granulomi)','terapia: antitubercolare empirica → risoluzione conferma diagnosi']
   },
+  pleva:{
+    nome:'PLEVA / Pityriasis lichenoides et varioliformis acuta (Mucha-Habermann)', cat:'Interfaccia vacuolare con necrosi',
+    required:['pattern_primario','necrosi_keratinociti'],
+    major:{pattern_primario:'interfaccia_vacuolare', necrosi_keratinociti:'marcata', necrosi_cheratinociti_diffusa:true, eritrociti_extravasati_intraepidermici:true},
+    minor:{vacuolizzazione_basale:'presente', neutrofili:['presenti','abbondanti'], paracheratosi:'focale'},
+    against:{mucina_dermica:'si', plasmacellule:'abbondanti'},
+    note:'Interfaccia vacuolare con necrosi cheratinocitaria diffusa "a cuneo", eritrociti extravasati intraepidermici (segno cardine), infiltrato lichenoide-vacuolare denso, esocitosi linfocitaria, paracheratosi focale "a tetto". Differenziale critico con MF (linfociti atipici), eritema multiforme (no eritrociti intraepidermici), HSV/VZV (cellule giganti multinucleate). Forma severa: Mucha-Habermann febbrile ulcero-necrotica (FUMHD).',
+    workup:['IHC: CD3+, CD8 prevalente (vs CD4 della MF), CD30 talvolta positivo','escludere HSV/VZV/EBV se ulcerazione severa o sintomi sistemici','TCR clonality: spesso clonale, NON significa linfoma','correlare con clinica: papulo-vescicole disseminate eritematose con croste, fasi successive di lesioni (variolaris)','distinguere da PLC (forma cronica, no necrosi marcata) e MF (atipia citologica, persistenza)']
+  },
+  sifilide_secondaria:{
+    nome:'Sifilide secondaria', cat:'Psoriasiforme/Lichenoide',
+    required:['pattern_primario','plasmacellule'],
+    major:{pattern_primario:['psoriasiforme','interfaccia_lichenoide'], plasmacellule:['presenti','abbondanti']},
+    minor:{paracheratosi:['focale','moderata'], acantosi:['lieve','moderata'], vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', infiltrato_distribuzione:'perivascolare_profondo'},
+    against:{linfociti_atipici:'presenti', spongiosi_proporzionata:'si'},
+    note:'"Great imitator": sifilide secondaria può mimare psoriasi, lichen planus, dermatite seborroica, vasculite, sarcoide. Cardine istopatologico: plasmacellule nell\'infiltrato (presenti nell\'80%, assenti nel 20%). Pattern psoriasiforme o lichenoide. Endotelite (vacuolizzazione cellule endoteliali, ispessimento pareti vasali) suggestiva. Treponemi visualizzabili con IHC anti-treponema (sensibilità 90-95%) o Warthin-Starry.',
+    workup:['TPHA, VDRL, FTA-ABS, RPR (test treponemici e non)','IHC anti-Treponema pallidum (più sensibile di Warthin-Starry)','PCR su tessuto se sierologia equivoca o coinfezione HIV','correlazione clinica: lesioni mucose, condyloma lata, alopecia "a chiazze a fungo", linfadenopatia generalizzata','sempre considerare se: plasmacellule + pattern psoriasiforme/lichenoide, lesioni palmo-plantari, contesto epidemiologico']
+  },
+  pemfigo_foliaceo:{
+    nome:'Pemfigo foliaceo', cat:'Intraepidermico bolloso superficiale',
+    required:['pattern_primario','acantolisi'],
+    major:{pattern_primario:'intraepidermico', acantolisi:'si', sede_bolla:'subcornea'},
+    minor:{eosinofili:['presenti','abbondanti'], spongiosi:['lieve','moderata']},
+    against:{neutrofili:'abbondanti'},
+    note:'Acantolisi a livello granuloso/subcorneale (vs pemfigo volgare che è suprabasale). Bolla molto superficiale e fragile, quindi spesso si vede solo la crosta o l\'erosione. NO coinvolgimento mucoso (Dsg1 è solo cutaneo). Pemfigo eritematoso (Senear-Usher) = variante con interfaccia tipo lupus + Dsg1+. Pemfigo brasiliano (fogo selvagem) = endemico, ambientale.',
+    workup:['DIF: IgG intercellulari prevalentemente nello strato superficiale dell\'epidermide','autoantigene: desmogleina 1 (cute, NO mucose)','ELISA anti-Dsg1','differenziare da: pemfigo volgare (acantolisi suprabasale, mucose, anti-Dsg3), impetigine bollosa (Gram+, DIF negativa), Sneddon-Wilkinson (neutrofili, no acantolisi, DIF negativa)']
+  },
+  dermatite_erpetiforme:{
+    nome:'Dermatite erpetiforme (Duhring)', cat:'Subepidermico bolloso',
+    required:['pattern_primario'],
+    major:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', microascessi_papille_dermica:'si', neutrofili:['presenti','abbondanti']},
+    minor:{eosinofili:['presenti','abbondanti'], infiltrato_distribuzione:'perivascolare_superficiale'},
+    against:{acantolisi:'si'},
+    note:'Microascessi neutrofilici nelle papille dermiche (cardine) con bolla subepidermica multiloculata che si forma per coalescenza dei microascessi. Eosinofili possibili. Differenziale principale con pemfigoide bolloso (eosinofili prevalenti, IgG/C3 lineari) e LABD (linear IgA bullous dermatosis) — quest\'ultima ha DIF identica (IgA lineari) ma istologia simile a DH/BP misti. Forte associazione con malattia celiaca.',
+    workup:['DIF su cute perilesionale: IgA granulari nelle papille dermiche (patognomonico)','sierologie celiachia: anti-tTG IgA, anti-endomisio IgA, anti-DGP IgG','HLA-DQ2/DQ8 (90% dei pazienti)','dieta gluten-free → risoluzione cutanea (mesi)','distinguere da LABD (DIF: IgA LINEARI, non granulari), pemfigoide bolloso (IgG/C3 lineari)']
+  },
+  lichen_sclerosus:{
+    nome:'Lichen sclerosus', cat:'Interfaccia vacuolare con sclerosi',
+    required:['pattern_primario','ialinosi_dermica'],
+    major:{pattern_primario:'interfaccia_vacuolare', ialinosi_dermica:'si', atrofia_epidermica:'si'},
+    minor:{vacuolizzazione_basale:'presente', infiltrato_distribuzione:'banda_lichenoide'},
+    against:{mucina_dermica:'si', necrosi_keratinociti:'marcata'},
+    note:'Caratteristico "sandwich sign": epidermide atrofica + banda di ialinosi/omogeneizzazione del derma papillare + infiltrato linfocitario a banda SOTTO la ialinosi (vs lichen planus che ha banda sotto epidermide). Vacuolizzazione basale. Ipercheratosi compatta ortocheratosica. Distribuzione tipica: anogenitale (rischio carcinoma squamoso a lungo termine), raramente extra-genitale. Distinguere da: lichen planus (banda lichenoide subito sotto epidermide, no ialinosi), morphea (sclerosi più profonda nel derma reticolare).',
+    workup:['biopsia adeguata: deve includere il derma papillare e reticolare','colorazione tricromica per evidenziare la sclerosi','follow-up oncologico: rischio carcinoma squamoso vulvare/peniero (3-5%)','differenziare da: lichen planus (banda lichenoide più alta, no sclerosi papillare), morfea (sclerosi del derma reticolare profondo), lichen simplex chronicus (acantosi, no sclerosi)','distinguere da reazione lichenoide da farmaco se eosinofili']
+  },
   mastocitosi_cutanea:{
     nome:'Mastocitosi cutanea', cat:'Mastocitario',
     required:['pattern_primario','mastociti_aumentati'],
@@ -534,7 +582,33 @@ const Engine = {
   }
 };
 
-const buildExportText = (data, res, version='v2.16.0') => {
+// Differential explorer: per due DX, restituisce i campi che le discriminano
+// (cioè dove i ruoli — expected/against/unused — differiscono).
+const discriminantFields = (dxA, dxB) => {
+  const all = new Set([
+    ...Object.keys(dxA.major || {}), ...Object.keys(dxA.minor || {}), ...Object.keys(dxA.against || {}),
+    ...Object.keys(dxB.major || {}), ...Object.keys(dxB.minor || {}), ...Object.keys(dxB.against || {})
+  ]);
+  // Esclude pattern_primario: già fissato dall'utente, non discrimina nelle considerazioni cliniche.
+  all.delete('pattern_primario');
+  const roleOf = (dx, f) => {
+    if (dx.major?.[f] !== undefined) return {role:'major', val:dx.major[f]};
+    if (dx.minor?.[f] !== undefined) return {role:'minor', val:dx.minor[f]};
+    if (dx.against?.[f] !== undefined) return {role:'against', val:dx.against[f]};
+    return {role:'unused', val:null};
+  };
+  return [...all].map(f => ({field:f, a:roleOf(dxA,f), b:roleOf(dxB,f)}))
+    .filter(({a,b}) => JSON.stringify(a) !== JSON.stringify(b));
+};
+
+const formatExpected = (v) => {
+  if (v === true) return 'positivo';
+  if (v === false) return 'negativo';
+  if (Array.isArray(v)) return v.join(' / ');
+  return String(v);
+};
+
+const buildExportText = (data, res, version='v2.17.0') => {
   const lines = [
     `DERMPATH ${version} — Valutazione morfologica`,
     `Pattern: ${data.pattern_primario || '—'}`,
@@ -573,5 +647,5 @@ const buildExportText = (data, res, version='v2.16.0') => {
 
 // Export per Node (test runner) e browser (script tag).
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { SC, ORD, EXACT_FIELDS, EXACT_ARRAY_FIELDS, isMissing, isUnansweredCriterion, labelize, matchAtLeast, matches, INIT, PATTERNS, DX, RED_FLAGS, findCriterionExpected, Engine, buildExportText };
+  module.exports = { SC, ORD, EXACT_FIELDS, EXACT_ARRAY_FIELDS, isMissing, isUnansweredCriterion, labelize, matchAtLeast, matches, INIT, PATTERNS, DX, RED_FLAGS, findCriterionExpected, Engine, buildExportText, discriminantFields, formatExpected };
 }

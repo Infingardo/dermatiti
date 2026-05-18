@@ -644,6 +644,122 @@ const CASES = [
     }
   },
 
+  // ─── GRUPPO: PLEVA / sifilide / lichen sclerosus / pemfigo foliaceo / DH ─
+  {group:'completamento pattern'},
+  {
+    name:'PLEVA classica: vacuolare + necrosi marcata + eritrociti intraepidermici',
+    input:{pattern_primario:'interfaccia_vacuolare', necrosi_keratinociti:'marcata', necrosi_cheratinociti_diffusa:true, eritrociti_extravasati_intraepidermici:true, vacuolizzazione_basale:'presente'},
+    check:(res) => {
+      const p = res.diagnoses.find(x => x.key==='pleva');
+      return p && p.pct >= 50 ? null : `pleva.pct=${p?.pct}, blocked=${p?.blocked}, missing=${JSON.stringify(p?.missingRequired)}`;
+    }
+  },
+  {
+    name:'PLEVA con mucina → against (verso lupus)',
+    input:{pattern_primario:'interfaccia_vacuolare', necrosi_keratinociti:'marcata', necrosi_cheratinociti_diffusa:true, eritrociti_extravasati_intraepidermici:true, mucina_dermica:'si'},
+    check:(res) => {
+      const p = topScore(res,'pleva');
+      return p.againstHits.some(h=>h.field==='mucina_dermica') ? null : `againstHits=${JSON.stringify(p.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Sifilide secondaria classica: psoriasiforme + plasmacellule abbondanti',
+    input:{pattern_primario:'psoriasiforme', plasmacellule:'abbondanti', paracheratosi:'focale', acantosi:'moderata', infiltrato_distribuzione:'perivascolare_profondo'},
+    check:(res) => {
+      const s = res.diagnoses.find(x => x.key==='sifilide_secondaria');
+      return s && s.pct >= 50 ? null : `sif.pct=${s?.pct}, blocked=${s?.blocked}`;
+    }
+  },
+  {
+    name:'Sifilide vs psoriasi: con plasmacellule abbondanti → sifilide > psoriasi (psoriasi ha red flag)',
+    input:{pattern_primario:'psoriasiforme', plasmacellule:'abbondanti', acantosi:'marcata', paracheratosi:'marcata', ipogranulosi:'si'},
+    check:(res) => {
+      const s = topScore(res,'sifilide_secondaria');
+      const psr = topScore(res,'psoriasi_vulgaris');
+      // psoriasi viene esclusa dalla red flag plasmacellule_psoriasiforme; sifilide deve risalire
+      return s.pct > psr.pct && psr.excludedByFlags.some(f=>f.flag==='plasmacellule_psoriasiforme') ? null : `sif=${s.pct}, psr=${psr.pct}, psr excluded=${psr.excludedByFlags.length}`;
+    }
+  },
+  {
+    name:'Pemfigo foliaceo: intraepidermico + acantolisi + sede subcornea',
+    input:{pattern_primario:'intraepidermico', acantolisi:'si', sede_bolla:'subcornea', eosinofili:'presenti'},
+    check:(res) => {
+      const pf = res.diagnoses.find(x => x.key==='pemfigo_foliaceo');
+      return pf && pf.pct >= 50 ? null : `pf.pct=${pf?.pct}, blocked=${pf?.blocked}`;
+    }
+  },
+  {
+    name:'PV vs PF: stessa pattern intraepidermico, sede_bolla discriminante',
+    input:{pattern_primario:'intraepidermico', acantolisi:'si', sede_bolla:'intraepidermica'},
+    check:(res) => {
+      const pv = topScore(res,'pemfigo_volgare');
+      const pf = topScore(res,'pemfigo_foliaceo');
+      // sede_bolla intraepidermica → favorisce PV; PF richiede subcornea (EXACT_FIELDS, failedRequired)
+      return pv.pct > pf.pct && pf.failedRequired.includes('sede_bolla')===false && pf.blocked ? null : `pv=${pv.pct}, pf=${pf.pct} blocked=${pf.blocked}, failedReq=${JSON.stringify(pf.failedRequired)}`;
+    }
+  },
+  {
+    name:'Dermatite erpetiforme classica: subepidermica + microascessi papille + neutrofili',
+    input:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', microascessi_papille_dermica:'si', neutrofili:'abbondanti'},
+    check:(res) => {
+      const dh = res.diagnoses.find(x => x.key==='dermatite_erpetiforme');
+      return dh && dh.pct >= 50 ? null : `dh.pct=${dh?.pct}, blocked=${dh?.blocked}`;
+    }
+  },
+  {
+    name:'DH con acantolisi → against (impossibile per definizione)',
+    input:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', microascessi_papille_dermica:'si', acantolisi:'si'},
+    check:(res) => {
+      const dh = topScore(res,'dermatite_erpetiforme');
+      return dh.againstHits.some(h=>h.field==='acantolisi') ? null : `againstHits=${JSON.stringify(dh.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Lichen sclerosus classico: vacuolare + ialinosi + atrofia',
+    input:{pattern_primario:'interfaccia_vacuolare', ialinosi_dermica:'si', atrofia_epidermica:'si', vacuolizzazione_basale:'presente'},
+    check:(res) => {
+      const ls = res.diagnoses.find(x => x.key==='lichen_sclerosus');
+      return ls && ls.pct >= 50 ? null : `ls.pct=${ls?.pct}, blocked=${ls?.blocked}`;
+    }
+  },
+  {
+    name:'LS senza ialinosi → bloccato via missingRequired',
+    input:{pattern_primario:'interfaccia_vacuolare', atrofia_epidermica:'si'},
+    check:(res) => {
+      const ls = topScore(res,'lichen_sclerosus');
+      return ls.missingRequired.includes('ialinosi_dermica') && ls.blocked ? null : `missing=${JSON.stringify(ls.missingRequired)}, blocked=${ls.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: differential explorer ─────────────────────────────
+  {group:'differential explorer'},
+  {
+    name:'discriminantFields esclude pattern_primario',
+    input:{},
+    check:(res) => {
+      const fields = discriminantFields(DX.dermatite_allergica_contatto, DX.dermatite_atopica_acuta);
+      return fields.every(f => f.field !== 'pattern_primario') ? null : `pattern_primario presente`;
+    }
+  },
+  {
+    name:'discriminantFields: DAC vs DA → paracheratosi e infiltrato_distribuzione discriminano',
+    input:{},
+    check:(res) => {
+      const fields = discriminantFields(DX.dermatite_allergica_contatto, DX.dermatite_atopica_acuta);
+      const fieldNames = fields.map(f => f.field);
+      // DAC ha infiltrato_distribuzione in minor, DA ha paracheratosi in minor → entrambi discriminano
+      return fieldNames.includes('paracheratosi') && fieldNames.includes('infiltrato_distribuzione') ? null : `discriminating fields: ${JSON.stringify(fieldNames)}`;
+    }
+  },
+  {
+    name:'discriminantFields: identità → array vuoto',
+    input:{},
+    check:(res) => {
+      const fields = discriminantFields(DX.psoriasi_vulgaris, DX.psoriasi_vulgaris);
+      return fields.length === 0 ? null : `fields non vuoto: ${fields.length}`;
+    }
+  },
+
   // ─── GRUPPO: lupus eritematoso ─────────────────────────────────
   {group:'lupus eritematoso'},
   {

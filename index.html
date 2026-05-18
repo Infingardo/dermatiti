@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DermPath v2.16.0</title>
+  <title>DermPath v2.17.0</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5;background:#eef2ff;color:#1e293b}
@@ -178,6 +178,43 @@ const CriteriaList = ({title,items,kind}) => {
   );
 };
 
+const renderRole = (r) => {
+  if (r.role === 'unused') return <span className="text-slate-400">—</span>;
+  if (r.role === 'major') return <><span className="pill" style={{background:'#dbeafe',color:'#1d4ed8',border:0,marginRight:6}}>major</span>{formatExpected(r.val)}</>;
+  if (r.role === 'minor') return <><span className="pill" style={{background:'#f1f5f9',color:'#475569',border:0,marginRight:6}}>minor</span>{formatExpected(r.val)}</>;
+  if (r.role === 'against') return <><span className="pill" style={{background:'#fee2e2',color:'#b91c1c',border:0,marginRight:6}}>contro</span>{formatExpected(r.val)}</>;
+  return null;
+};
+
+const DifferentialCard = memo(({a, b}) => {
+  const fields = discriminantFields(a, b);
+  if (!fields.length) return null;
+  return (
+    <div className="card" style={{borderLeft:'4px solid #2563eb'}}>
+      <h3 className="text-xl font-bold mb-2">Differenziale: {a.nome} vs {b.nome}</h3>
+      <p className="text-sm text-slate-600 mb-3">Campi che discriminano tra le prime due ipotesi proponibili. Verifica questi reperti per chiudere il differenziale.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Campo</th>
+            <th>{a.nome}</th>
+            <th>{b.nome}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {fields.map(f => (
+            <tr key={f.field}>
+              <td className="font-medium">{labelize(f.field)}</td>
+              <td>{renderRole(f.a)}</td>
+              <td>{renderRole(f.b)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
 const DxCard = memo(({dx,idx,considered=false}) => {
   const isLymph = dx.cat.includes('Linfoma');
   const cls = getCompClass(dx.pct, dx.blocked);
@@ -331,6 +368,8 @@ const Step3 = memo(({data,upd,onBack,onNext}) => (
       ]} help="Compilare solo se pattern panniculitico. Distingue eritema nodoso (settale) da lupus profundus / Bazin (lobulare)." />
       <TS label="Vasculite sottocutanea" value={data.vasculite_subcutanea} onChange={v=>upd('vasculite_subcutanea',v)} help="Vasculite nei vasi medi/grandi del sottocute. Caratteristica di eritema indurato di Bazin e poliarterite nodosa cutanea." />
       <TS label="Mastociti aumentati" value={data.mastociti_aumentati} onChange={v=>upd('mastociti_aumentati',v)} help="Aumento di mastociti nel derma (toluidina/triptasi/CD117). Cardine della mastocitosi cutanea." />
+      <TS label="Ialinosi del derma papillare" value={data.ialinosi_dermica} onChange={v=>upd('ialinosi_dermica',v)} help="Omogeneizzazione/ialinizzazione del collagene del derma papillare ('sandwich sign'). Cardine del lichen sclerosus." />
+      <TS label="Microascessi neutrofilici nelle papille" value={data.microascessi_papille_dermica} onChange={v=>upd('microascessi_papille_dermica',v)} help="Aggregati neutrofilici alla sommità delle papille dermiche. Cardine della dermatite erpetiforme." />
     </div>
     <Nav onBack={onBack} onNext={onNext} />
   </div>
@@ -388,7 +427,7 @@ const App = () => {
       <div className="card">
         <div className="flex flex-mobile items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.16.0</h1>
+            <h1 className="text-3xl font-bold text-slate-800">🔬 DermPath v2.17.0</h1>
             <p className="text-sm text-slate-600 mt-1">Come usarlo: scegli il pattern, compila solo i reperti osservati, poi genera una valutazione. Se il pattern non è implementato, il prototipo deve fermarsi senza suggerire diagnosi.</p>
           </div>
           <button onClick={handleReset} className="btn btn-slate mt-3 no-print">Reset</button>
@@ -416,6 +455,7 @@ const App = () => {
             <div className="mb-6">
               <h3 className="text-xl font-bold mb-3">Diagnosi proponibili</h3>
               {res.diagnoses.map((dx,i) => <DxCard key={dx.key} dx={dx} idx={i} />)}
+              {res.diagnoses.length >= 2 && <DifferentialCard a={res.diagnoses[0]} b={res.diagnoses[1]} />}
             </div>
           ) : (
             <div className="p-6 bg-slate-50 border-2 border-slate-300 rounded-xl mb-6 text-center">
