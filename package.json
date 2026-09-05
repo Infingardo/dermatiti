@@ -1,0 +1,9 @@
+{
+  "name": "dermpath",
+  "version": "2.18.1",
+  "private": true,
+  "description": "DermPath — supporto alla diagnosi morfologica delle dermatiti infiammatorie",
+  "scripts": {
+    "test": "node tests/run.mjs"
+  }
+}

@@ -2,6 +2,9 @@
 // Caricato sia da index.html (UI) sia da test.html (regressione).
 // Modifiche qui devono essere coperte da un test in test.html.
 
+// Versione del motore: unica fonte, allineata a package.json (verificata da un test).
+const VERSION = '2.18.1';
+
 const SC = {
   MAJOR: 3,
   MINOR: 1,
@@ -29,7 +32,12 @@ const ORD = {
   infiltrato_densita:['assente','lieve','moderata','marcata']
 };
 
-const EXACT_ARRAY_FIELDS = new Set(['spongiosi','paracheratosi','neutrofili']);
+// v2.18.1 — Un elenco di valori attesi significa "uno di questi", su qualunque campo.
+// Prima l'esattezza valeva solo per tre campi (spongiosi, paracheratosi, neutrofili) e
+// per tutti gli altri l'elenco veniva interpretato come soglia "almeno": chi scriveva
+// `acantosi:['lieve','moderata']` credeva di aver messo un tetto e il motore accettava
+// anche 'marcata', mentre il referto continuava a stampare l'elenco chiuso.
+// La semantica "almeno" resta disponibile scrivendo un valore singolo (`acantosi:'lieve'`).
 
 // Campi non realmente ordinali: "marcata" non implica "focale".
 const EXACT_FIELDS = new Set([
@@ -105,10 +113,7 @@ const matchAtLeast = (field, expected, actual) => {
 
 const matches = (field, expected, actual) => {
   if(typeof expected === 'boolean') return actual === expected;
-  if(Array.isArray(expected)){
-    if(EXACT_ARRAY_FIELDS.has(field)) return expected.includes(actual);
-    return expected.some(e => matchAtLeast(field,e,actual));
-  }
+  if(Array.isArray(expected)) return expected.includes(actual);
   return matchAtLeast(field,expected,actual);
 };
 
@@ -124,10 +129,12 @@ const INIT = {
   mucina_dermica:'', infiltrato_perianessiale:'', atrofia_epidermica:'', ispessimento_bmz:'',
   sede_bolla:'', acantolisi:'',
   tipo_granuloma:'', necrobiosi:'',
+  materiale_polarizzabile:'', cellule_giganti_corpo_estraneo:false,
   necrosi_fibrinoide:'', leucocitoclasia:'', eritrociti_extravasati_dermici:'',
   trombi_vasali:'',
   figure_a_fiamma:'', tipo_panniculite:'', vasculite_subcutanea:'', mastociti_aumentati:'',
   ialinosi_dermica:'', microascessi_papille_dermica:'',
+  emosiderina_dermica:'', proliferazione_capillare_dermica:'', fibrosi_dermica_papillare:'',
   sede_anatomica:'', note_cliniche:''
 };
 
@@ -221,7 +228,7 @@ const DX = {
     nome:'Lupus eritematoso (DLE/SCLE)', cat:'Interfaccia vacuolare',
     required:['pattern_primario','vacuolizzazione_basale'],
     major:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'presente', mucina_dermica:'si', infiltrato_perianessiale:'si'},
-    minor:{atrofia_epidermica:'si', ispessimento_bmz:'si', plasmacellule:['presenti','abbondanti'], necrosi_keratinociti:'presente', paracheratosi:'focale'},
+    minor:{atrofia_epidermica:'si', ispessimento_bmz:'si', plasmacellule:['presenti','abbondanti'], necrosi_keratinociti:['presente'], paracheratosi:'focale'},
     against:{microascessi_munro:'si', necrosi_keratinociti:'marcata', eosinofili:'abbondanti', infiltrato_distribuzione:'banda_lichenoide'},
     note:'Interfaccia vacuolare con infiltrato perivascolare e perianessiale, mucina dermica, ispessimento della membrana basale. Distingue da EM/TEN per il pattern perianessiale, la mucina dermica e l\'evoluzione cronica con atrofia. DIF (IgG/IgM/C3 lineare alla BMZ — lupus band test) è dirimente. DLE: più atrofia e follicular plugging; SCLE: meno atrofia, più apoptosi e fotodistribuzione.',
     workup:['DIF: lupus band test (IgG/IgM/C3 alla BMZ)','colorazione Alcian/colloidal iron per quantificare mucina','PAS per ispessimento BMZ','ANA, anti-Ro/SSA (SCLE), anti-La/SSB, anti-dsDNA','correlazione clinica: fotodistribuzione, lesioni discoidi, sintomi sistemici']
@@ -347,7 +354,7 @@ const DX = {
     nome:'Reazione a farmaci morbilliforme', cat:'Perivascolare eosinofilo',
     required:['pattern_primario'],
     major:{pattern_primario:'perivascolare_eosinofilo', eosinofili:['presenti','abbondanti']},
-    minor:{infiltrato_distribuzione:'perivascolare_superficiale', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente'},
+    minor:{infiltrato_distribuzione:'perivascolare_superficiale', vacuolizzazione_basale:'presente', necrosi_keratinociti:['presente']},
     against:{necrosi_keratinociti:'marcata', plasmacellule:'abbondanti'},
     note:'Pattern perivascolare con eosinofili e interfaccia vacuolare lieve/focale, con cheratinociti necrotici sparsi. Differenziale: reazione a puntura (distribuzione "a cuneo", focale), DRESS (eosinofilia ematica, linfadenopatia, alterazioni epatiche), SJS/TEN (necrosi cheratinocitaria estesa, bolle).',
     workup:['anamnesi farmacologica: latenza tipica 7-14 giorni','escludere DRESS: eosinofilia > 1500, febbre, linfadenopatia, transaminasi alterate, RegiSCAR score','escludere SJS/TEN: necrosi epidermica estesa, mucose, BSA bullosa','sospensione farmaco causale → risoluzione in 1-2 settimane']
@@ -410,7 +417,7 @@ const DX = {
     nome:'Sifilide secondaria', cat:'Psoriasiforme/Lichenoide',
     required:['pattern_primario','plasmacellule'],
     major:{pattern_primario:['psoriasiforme','interfaccia_lichenoide'], plasmacellule:['presenti','abbondanti']},
-    minor:{paracheratosi:['focale','moderata'], acantosi:['lieve','moderata'], vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', infiltrato_distribuzione:'perivascolare_profondo'},
+    minor:{paracheratosi:['focale','moderata'], acantosi:'lieve', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', infiltrato_distribuzione:'perivascolare_profondo'},
     against:{linfociti_atipici:'presenti', spongiosi_proporzionata:'si'},
     note:'"Great imitator": sifilide secondaria può mimare psoriasi, lichen planus, dermatite seborroica, vasculite, sarcoide. Cardine istopatologico: plasmacellule nell\'infiltrato (presenti nell\'80%, assenti nel 20%). Pattern psoriasiforme o lichenoide. Endotelite (vacuolizzazione cellule endoteliali, ispessimento pareti vasali) suggestiva. Treponemi visualizzabili con IHC anti-treponema (sensibilità 90-95%) o Warthin-Starry.',
     workup:['TPHA, VDRL, FTA-ABS, RPR (test treponemici e non)','IHC anti-Treponema pallidum (più sensibile di Warthin-Starry)','PCR su tessuto se sierologia equivoca o coinfezione HIV','correlazione clinica: lesioni mucose, condyloma lata, alopecia "a chiazze a fungo", linfadenopatia generalizzata','sempre considerare se: plasmacellule + pattern psoriasiforme/lichenoide, lesioni palmo-plantari, contesto epidemiologico']
@@ -450,6 +457,24 @@ const DX = {
     against:{linfociti_atipici:'presenti', plasmacellule:'abbondanti', necrosi_fibrinoide:'si'},
     note:'Infiltrato monomorfo di mastociti (citoplasma granulare basofilo) prevalente nel derma superficiale, talvolta perivascolare-interstiziale denso. Distribuzione varia per forma clinica: mastocitoma (focale), urticaria pigmentosa (multipla nodulare-maculare), TMEP (telangectasia macularis eruptiva perstans, mastociti perivascolari + telangectasie). Bullosa nei bambini. Forme aggressive nell\'adulto possono indicare mastocitosi sistemica.',
     workup:['colorazioni: blu di toluidina (mastociti metacromatici), Giemsa, triptasi IHC, CD117 (KIT), CD25 (aberrante, suggestivo)','triptasi sierica (> 20 ng/mL → sospetto sistemico)','escludere mastocitosi sistemica nell\'adulto: biopsia midollare, mutazione KIT D816V, ecografia milza/fegato','clinica: segno di Darier (dermografismo orticarioide alla lesione), flushing, sintomi mediator-related']
+  },
+  dermatite_da_stasi:{
+    nome:'Dermatite da stasi (dermatite gravitazionale)', cat:'Spongotico',
+    required:['pattern_primario','proliferazione_capillare_dermica'],
+    major:{pattern_primario:'spongotico', proliferazione_capillare_dermica:'si', emosiderina_dermica:'si'},
+    minor:{fibrosi_dermica_papillare:'si', spongiosi:['lieve','moderata'], infiltrato_distribuzione:'perivascolare_superficiale', acantosi:['lieve','moderata']},
+    against:{linfociti_atipici:'presenti', epidermotropismo:'presente', vacuolizzazione_basale:'marcata'},
+    note:'Pattern spongiotico sovrapposto a proliferazione capillare dermica papillare (spesso a bulbo di cipolla) con estravasazione di eritrociti, depositi di emosiderina nei macrofagi (siderofagi) e fibrosi dermica papillare progressiva. Spongiosi lieve-moderata, aspecifica. Sede tipica: terzo distale delle gambe, spesso bilaterale. Il quadro cronico può mimare o sovrapporsi ad acroangiodermatite (pseudo-Kaposi).',
+    workup:['correlazione clinica: edema declive, varici, ipertensione venosa, ulcere perimalleolari','colorazione di Perls (blu di Prussia) per confermare emosiderina se dubbia','escludere dermatite da contatto sovrapposta (spesso da topici applicati sulla stasi)','differenziale con sarcoma di Kaposi se proliferazione vascolare atipica o marcata: IHC HHV-8']
+  },
+  granuloma_corpo_estraneo:{
+    nome:'Granuloma da corpo estraneo', cat:'Granulomatoso',
+    required:['pattern_primario','tipo_granuloma'],
+    major:{pattern_primario:'granulomatoso', tipo_granuloma:'corpi_estranei', cellule_giganti_corpo_estraneo:true},
+    minor:{materiale_polarizzabile:'si', infiltrato_distribuzione:'interstiziale', neutrofili:['presenti','abbondanti']},
+    against:{necrobiosi:'si', tipo_granuloma:['sarcoide_like','tubercolare_caseoso'], plasmacellule:['presenti','abbondanti']},
+    note:'Granulomi con cellule giganti multinucleate da corpo estraneo (nuclei disposti irregolarmente, non a ferro di cavallo come nelle Langhans) circondanti materiale esogeno, spesso otticamente vuoto o rifrangente. Componente neutrofila/suppurativa possibile nelle fasi iniziali. Assenza di necrobiosi del collagene (a differenza di GA/NL) e di granulomi "naked" sarcoide-like.',
+    workup:['polariscopia di routine su tutti i granulomi per materiale birifrangente (silice, suture, cheratina)','Ziehl-Neelsen/Fite e PAS/Grocott per escludere causa infettiva se non identificato materiale esogeno','correlazione anamnestica: traumi, iniezioni, chirurgia, tatuaggi, filler cutanei pregressi','se materiale non identificabile: considerare reazione a filler (analisi in luce polarizzata + morfologia specifica del prodotto)']
   }
 };
 
@@ -500,80 +525,121 @@ const findCriterionExpected = (dx, field) => {
   return undefined;
 };
 
+// ─── scoreDx, split into pure, independently testable stages ──────────────
+// Ogni funzione riceve solo i dati di cui ha bisogno e non muta i suoi argomenti;
+// scoreDx (in Engine) resta l'unico punto che le orchestra in sequenza.
+
+// Stage 1: matcha i criteri major/minor di una DX contro i dati del caso.
+// Ritorna pesi/conteggi grezzi, non ancora una percentuale.
+const collectCriteria = (dx, d) => {
+  let raw = 0, answeredWeight = 0, totalWeight = 0, matchedCriteria = 0;
+  const matched = [], unmatched = [], missing = [];
+
+  const addCrit = (field, expected, weight, tier) => {
+    totalWeight += weight;
+    const actual = d[field];
+    if(isUnansweredCriterion(expected, actual)){
+      missing.push(field);
+      return;
+    }
+    answeredWeight += weight;
+    const hit = matches(field, expected, actual);
+    if(hit){
+      raw += weight;
+      matchedCriteria += 1;
+      matched.push({field, expected, actual, tier});
+    }else{
+      unmatched.push({field, expected, actual, tier});
+    }
+  };
+
+  Object.entries(dx.major || {}).forEach(([f,e]) => addCrit(f,e,SC.MAJOR,'major'));
+  Object.entries(dx.minor || {}).forEach(([f,e]) => addCrit(f,e,SC.MINOR,'minor'));
+
+  return {raw, answeredWeight, totalWeight, matchedCriteria, matched, unmatched, missing};
+};
+
+// Stage 2: verifica i campi required/conditionalRequired di una DX.
+// Non tocca major/minor: una DX con required mancanti è comunque "scored"
+// da collectCriteria, ma verrà bloccata più avanti da applySafetyGates.
+const evaluateRequired = (dx, d) => {
+  const missingRequired = [], failedRequired = [];
+
+  (dx.required || []).forEach(field => {
+    const actual = d[field];
+    const expected = findCriterionExpected(dx,field);
+    if(isMissing(actual)) {
+      missingRequired.push(field);
+    } else if(expected !== undefined && !matches(field,expected,actual)) {
+      const rank = ORD[field];
+      const isOrdinal = rank && !EXACT_FIELDS.has(field);
+      // Ordinali: failedRequired solo se al minimo (assente/assenti).
+      // Sub-threshold è penalizzato dallo scoring (unmatched), non bloccante.
+      // Categoriali (EXACT_FIELDS): sempre failedRequired se non corrisponde.
+      if(!isOrdinal || actual === rank[0]) failedRequired.push(field);
+    }
+  });
+
+  (dx.conditionalRequired || []).forEach(rule => {
+    if(rule.when(d)){
+      const actual = d[rule.field];
+      if(isMissing(actual)) missingRequired.push(rule.field);
+    }
+  });
+
+  return {missingRequired, failedRequired};
+};
+
+// Stage 3: applica i "gate" di sicurezza clinica — against, required mancanti/falliti,
+// low-data cap, red flag — e ne deriva pct/blocked. Riceve solo gli aggregati di
+// stage 1/2, non ricalcola i criteri: against è l'unico matching fatto qui perché
+// è un gate (penalità), non un criterio di score.
+const applySafetyGates = (key, dx, d, criteria, required, flags) => {
+  const {raw, answeredWeight, totalWeight, matchedCriteria} = criteria;
+  const {missingRequired, failedRequired} = required;
+  const againstHits = [];
+
+  Object.entries(dx.against || {}).forEach(([field,expected]) => {
+    const actual = d[field];
+    if(!isMissing(actual) && matches(field,expected,actual)) againstHits.push({field,expected,actual});
+  });
+
+  const compatibility = answeredWeight > 0 ? Math.round((raw / answeredWeight) * 100) : 0;
+  const completeness = totalWeight > 0 ? Math.round((answeredWeight / totalWeight) * 100) : 0;
+  const excludedByFlags = flags.filter(rf => rf.escludi.includes(key));
+
+  let pct = compatibility;
+  const lowData = answeredWeight < SC.MIN_ANSWERED_WEIGHT || matchedCriteria < SC.MIN_CRITERIA_FOR_HIGH;
+  const requiredProblem = missingRequired.length > 0 || failedRequired.length > 0;
+
+  if(lowData) pct = Math.min(pct,SC.LOW_DATA_CAP);
+  if(requiredProblem) pct = Math.min(pct,SC.REQUIRED_CAP);
+  if(againstHits.length) pct = Math.max(0,pct - againstHits.length * SC.AGAINST_PENALTY);
+  if(excludedByFlags.length) pct = Math.max(5,pct - SC.RED_PENALTY);
+
+  const blocked = pct < SC.THRESH || lowData || requiredProblem || excludedByFlags.length > 0;
+
+  return {pct, compatibility, completeness, againstHits, excludedByFlags, lowData, requiredProblem, blocked};
+};
+
+// Stage 4: assembla l'oggetto score finale consumato da UI/export. Nessuna logica
+// diagnostica qui — solo merge dei risultati degli stage precedenti.
+const formatScoreForUi = (key, dx, criteria, required, gates) => ({
+  key, ...dx,
+  pct: gates.pct, compatibility: gates.compatibility, completeness: gates.completeness,
+  answeredWeight: criteria.answeredWeight, totalWeight: criteria.totalWeight, matchedCriteria: criteria.matchedCriteria,
+  matched: criteria.matched, unmatched: criteria.unmatched, missing: criteria.missing,
+  missingRequired: required.missingRequired, failedRequired: required.failedRequired,
+  againstHits: gates.againstHits, excludedByFlags: gates.excludedByFlags,
+  lowData: gates.lowData, requiredProblem: gates.requiredProblem, blocked: gates.blocked
+});
+
 const Engine = {
   scoreDx:(key,dx,d,flags) => {
-    let raw = 0, answeredWeight = 0, totalWeight = 0, matchedCriteria = 0;
-    const matched = [], unmatched = [], missing = [], missingRequired = [], failedRequired = [], againstHits = [];
-
-    const addCrit = (field, expected, weight, tier) => {
-      totalWeight += weight;
-      const actual = d[field];
-      if(isUnansweredCriterion(expected, actual)){
-        missing.push(field);
-        return;
-      }
-      answeredWeight += weight;
-      const hit = matches(field, expected, actual);
-      if(hit){
-        raw += weight;
-        matchedCriteria += 1;
-        matched.push({field, expected, actual, tier});
-      }else{
-        unmatched.push({field, expected, actual, tier});
-      }
-    };
-
-    Object.entries(dx.major || {}).forEach(([f,e]) => addCrit(f,e,SC.MAJOR,'major'));
-    Object.entries(dx.minor || {}).forEach(([f,e]) => addCrit(f,e,SC.MINOR,'minor'));
-
-    (dx.required || []).forEach(field => {
-      const actual = d[field];
-      const expected = findCriterionExpected(dx,field);
-      if(isMissing(actual)) {
-        missingRequired.push(field);
-      } else if(expected !== undefined && !matches(field,expected,actual)) {
-        const rank = ORD[field];
-        const isOrdinal = rank && !EXACT_FIELDS.has(field);
-        // Ordinali: failedRequired solo se al minimo (assente/assenti).
-        // Sub-threshold è penalizzato dallo scoring (unmatched), non bloccante.
-        // Categoriali (EXACT_FIELDS): sempre failedRequired se non corrisponde.
-        if(!isOrdinal || actual === rank[0]) failedRequired.push(field);
-      }
-    });
-
-    (dx.conditionalRequired || []).forEach(rule => {
-      if(rule.when(d)){
-        const actual = d[rule.field];
-        if(isMissing(actual)) missingRequired.push(rule.field);
-      }
-    });
-
-    Object.entries(dx.against || {}).forEach(([field,expected]) => {
-      const actual = d[field];
-      if(!isMissing(actual) && matches(field,expected,actual)) againstHits.push({field,expected,actual});
-    });
-
-    const compatibility = answeredWeight > 0 ? Math.round((raw / answeredWeight) * 100) : 0;
-    const completeness = totalWeight > 0 ? Math.round((answeredWeight / totalWeight) * 100) : 0;
-    const excludedByFlags = flags.filter(rf => rf.escludi.includes(key));
-
-    let pct = compatibility;
-    const lowData = answeredWeight < SC.MIN_ANSWERED_WEIGHT || matchedCriteria < SC.MIN_CRITERIA_FOR_HIGH;
-    const requiredProblem = missingRequired.length > 0 || failedRequired.length > 0;
-
-    if(lowData) pct = Math.min(pct,SC.LOW_DATA_CAP);
-    if(requiredProblem) pct = Math.min(pct,SC.REQUIRED_CAP);
-    if(againstHits.length) pct = Math.max(0,pct - againstHits.length * SC.AGAINST_PENALTY);
-    if(excludedByFlags.length) pct = Math.max(5,pct - SC.RED_PENALTY);
-
-    const blocked = pct < SC.THRESH || lowData || requiredProblem || excludedByFlags.length > 0;
-
-    return {
-      key,...dx,
-      pct, compatibility, completeness, answeredWeight, totalWeight, matchedCriteria,
-      matched, unmatched, missing, missingRequired, failedRequired, againstHits, excludedByFlags,
-      lowData, requiredProblem, blocked
-    };
+    const criteria = collectCriteria(dx,d);
+    const required = evaluateRequired(dx,d);
+    const gates = applySafetyGates(key,dx,d,criteria,required,flags);
+    return formatScoreForUi(key,dx,criteria,required,gates);
   },
   calc:(d) => {
     const flags = RED_FLAGS.filter(rf => rf.test(d));
@@ -616,7 +682,7 @@ const formatExpected = (v) => {
   return String(v);
 };
 
-const buildExportText = (data, res, version='v2.18.0') => {
+const buildExportText = (data, res, version='v'+VERSION) => {
   const lines = [
     `DERMPATH ${version} — Valutazione morfologica`,
     `Pattern: ${data.pattern_primario || '—'}`,
@@ -626,7 +692,14 @@ const buildExportText = (data, res, version='v2.18.0') => {
   ];
   if(res.flags.length) {
     lines.push('RED FLAGS ATTIVE:');
-    res.flags.forEach(f => lines.push(`  ⚠ ${f.label}: ${f.diagnosi}`));
+    res.flags.forEach(f => {
+      lines.push(`  ⚠ ${f.label}: ${f.diagnosi}`);
+      // v2.18.1 — `favorisce` era dichiarato in tutte le red flag e non letto da nessuna
+      // parte. Non entra nel punteggio (sarebbe una taratura da rifare): viene riportato
+      // come orientamento, che e' l'informazione che il campo contiene.
+      const nomi = (f.favorisce || []).map(k => DX[k]?.nome).filter(Boolean);
+      if(nomi.length) lines.push(`     orienta verso: ${nomi.join(', ')}`);
+    });
     lines.push('');
   }
   if(res.unsupportedPattern) {
@@ -655,5 +728,6 @@ const buildExportText = (data, res, version='v2.18.0') => {
 
 // Export per Node (test runner) e browser (script tag).
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { SC, ORD, EXACT_FIELDS, EXACT_ARRAY_FIELDS, isMissing, isUnansweredCriterion, labelize, matchAtLeast, matches, INIT, PATTERNS, DX, RED_FLAGS, findCriterionExpected, Engine, buildExportText, discriminantFields, formatExpected };
+  module.exports = { VERSION, SC, ORD, EXACT_FIELDS, isMissing, isUnansweredCriterion, labelize, matchAtLeast, matches, INIT, PATTERNS, DX, RED_FLAGS, findCriterionExpected, Engine, buildExportText, discriminantFields, formatExpected, collectCriteria, evaluateRequired, applySafetyGates, formatScoreForUi };
 }
+

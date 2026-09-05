@@ -1,0 +1,876 @@
+// Casi di regressione del motore DermPath — UNICA copia, condivisa fra:
+//   • tests/run.mjs   (node, `npm test`)
+//   • test.html       (browser, stessa lista)
+// Prima vivevano dentro test.html e non erano eseguibili fuori dal browser.
+//
+// Ogni caso: {group} oppure {name, input, check:(res)=>null se ok, stringa se fallisce}.
+// `INIT`, `Engine` e gli altri simboli arrivano dal motore: in node via require,
+// nel browser dai global definiti da engine.js.
+(function (root, factory) {
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = factory(require('../engine.js'));
+  } else {
+    root.CASES = factory({
+      INIT: root.INIT, Engine: root.Engine, DX: root.DX, SC: root.SC, ORD: root.ORD,
+      EXACT_FIELDS: root.EXACT_FIELDS, EXACT_ARRAY_FIELDS: root.EXACT_ARRAY_FIELDS,
+      RED_FLAGS: root.RED_FLAGS, labelize: root.labelize, matchAtLeast: root.matchAtLeast,
+      buildExportText: root.buildExportText, discriminantFields: root.discriminantFields,
+      formatExpected: root.formatExpected
+    });
+  }
+})(typeof self !== 'undefined' ? self : this, function (E) {
+const { INIT, Engine, DX, SC, ORD, EXACT_FIELDS, EXACT_ARRAY_FIELDS, RED_FLAGS,
+        labelize, matchAtLeast, buildExportText, discriminantFields, formatExpected } = E;
+
+// Helpers
+const base = () => ({...INIT});
+const topScore = (res, key) => res.allScores.find(x => x.key === key);
+
+// Ogni caso: {group, name, input, check: (res) => null se ok, string se fail}
+const CASES = [
+  // ─── GRUPPO: pipeline & semantica motore ───────────────────────
+  {group:'engine'},
+  {
+    name:'pattern vuoto → nessuna diagnosi, niente unsupportedPattern',
+    input:{},
+    check:(res) => res.diagnoses.length===0 && !res.unsupportedPattern ? null : `diagnoses=${res.diagnoses.length}, unsupp=${res.unsupportedPattern}`
+  },
+  {
+    name:'pattern non valido (stringa inesistente) → unsupportedPattern=true',
+    input:{pattern_primario:'pattern_inesistente_xyz'},
+    check:(res) => res.unsupportedPattern && res.diagnoses.length===0 ? null : `unsupp=${res.unsupportedPattern}, dx=${res.diagnoses.length}`
+  },
+  {
+    name:'checkbox boolean false (saw_toothing) NON penalizza lichen planus',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', ipergranulosi:'si', saw_toothing:false},
+    check:(res) => {
+      const lp = topScore(res,'lichen_planus');
+      // saw_toothing è minor (peso 1, expected:true). Con false deve essere "missing", non "unmatched".
+      return lp.missing.includes('saw_toothing') ? null : `saw_toothing in missing? ${lp.missing.includes('saw_toothing')}, in unmatched=${lp.unmatched.map(x=>x.field).includes('saw_toothing')}`;
+    }
+  },
+  {
+    name:'EXACT_FIELDS: paracheratosi focale ≠ marcata',
+    input:{pattern_primario:'psoriasiforme', acantosi:'marcata', paracheratosi:'focale', ipogranulosi:'si'},
+    check:(res) => {
+      const ps = topScore(res,'psoriasi_vulgaris');
+      // paracheratosi è in EXACT_FIELDS, atteso ['moderata','marcata'] → 'focale' non matcha.
+      // È required → essendo present ma non al minimo ('assente'), con il fix v2.11.5 NON dovrebbe failedRequired.
+      // (la paracheratosi è in ORD ma EXACT_FIELDS la rende non ordinale → con fix isOrdinal=false → failedRequired)
+      // Aspettativa: failedRequired include paracheratosi (paracheratosi è EXACT_FIELDS → non ordinale → categoriale)
+      return ps.failedRequired.includes('paracheratosi') ? null : `failedRequired=${JSON.stringify(ps.failedRequired)}`;
+    }
+  },
+  {
+    name:'EXACT_ARRAY_FIELDS: spongiosi marcata matcha [moderata,marcata]',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata', esocitosi:'presente'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      return dac.matched.some(c=>c.field==='spongiosi') ? null : `spongiosi non matcha: ${JSON.stringify(dac.matched.map(c=>c.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: bug fix v2.11.5 (failedRequired sub-threshold) ────
+  {group:'fix v2.11.5 — failedRequired'},
+  {
+    name:'spongiosi lieve (sub-threshold ma presente) NON blocca DAC',
+    input:{pattern_primario:'spongotico', spongiosi:'lieve', esocitosi:'presente', eosinofili:'presenti'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      // spongiosi è ordinale (in ORD, NON in EXACT_FIELDS). Con valore 'lieve' (non 'assente'), non deve essere in failedRequired.
+      return !dac.failedRequired.includes('spongiosi') ? null : `failedRequired contiene spongiosi: ${JSON.stringify(dac.failedRequired)}`;
+    }
+  },
+  {
+    name:'spongiosi assente (al minimo) BLOCCA DAC via failedRequired',
+    input:{pattern_primario:'spongotico', spongiosi:'assente', esocitosi:'presente'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      return dac.failedRequired.includes('spongiosi') && dac.blocked ? null : `failedRequired=${JSON.stringify(dac.failedRequired)}, blocked=${dac.blocked}`;
+    }
+  },
+  {
+    name:'linfociti_atipici rari (sub-threshold) NON blocca MF early',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'rari', epidermotropismo:'presente', spongiosi_proporzionata:'no'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return !mf.failedRequired.includes('linfociti_atipici') ? null : `failedRequired contiene linfociti_atipici: ${JSON.stringify(mf.failedRequired)}`;
+    }
+  },
+  {
+    name:'linfociti_atipici assenti (al minimo) blocca MF early',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'assenti', epidermotropismo:'presente'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return mf.failedRequired.includes('linfociti_atipici') ? null : `failedRequired=${JSON.stringify(mf.failedRequired)}`;
+    }
+  },
+  {
+    name:'pattern_primario psoriasiforme (categoriale) blocca DAC',
+    input:{pattern_primario:'psoriasiforme', spongiosi:'marcata', esocitosi:'presente'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      return dac.failedRequired.includes('pattern_primario') && dac.blocked ? null : `failedRequired=${JSON.stringify(dac.failedRequired)}, blocked=${dac.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: required mancanti ─────────────────────────────────
+  {group:'required mancanti'},
+  {
+    name:'DAC senza esocitosi → missingRequired include esocitosi',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      return dac.missingRequired.includes('esocitosi') && dac.blocked ? null : `missingRequired=${JSON.stringify(dac.missingRequired)}, blocked=${dac.blocked}`;
+    }
+  },
+  {
+    name:'MF con epidermotropismo presente ma spongiosi_proporzionata vuota → conditionalRequired',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'presenti', epidermotropismo:'presente'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return mf.missingRequired.includes('spongiosi_proporzionata') && mf.blocked ? null : `missingRequired=${JSON.stringify(mf.missingRequired)}, blocked=${mf.blocked}`;
+    }
+  },
+  {
+    name:'MF con epidermotropismo assente → conditionalRequired NON scatta',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'presenti', epidermotropismo:'assente'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return !mf.missingRequired.includes('spongiosi_proporzionata') ? null : `missingRequired contiene spongiosi_proporzionata: ${JSON.stringify(mf.missingRequired)}`;
+    }
+  },
+
+  // ─── GRUPPO: red flags ─────────────────────────────────────────
+  {group:'red flags'},
+  {
+    name:'microascessi Munro: attiva flag, esclude DAC e DA',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata', esocitosi:'presente', microascessi_munro:'si'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      const flagOk = res.flags.some(f => f.flag==='microascessi_munro');
+      const dacExcl = dac.excludedByFlags.some(f=>f.flag==='microascessi_munro');
+      return flagOk && dacExcl ? null : `flag=${flagOk}, dacExcl=${dacExcl}`;
+    }
+  },
+  {
+    name:'corpi di Civatte: attiva flag, esclude psoriasi',
+    input:{pattern_primario:'psoriasiforme', corpi_civatte:'si'},
+    check:(res) => {
+      const ps = topScore(res,'psoriasi_vulgaris');
+      return ps.excludedByFlags.some(f=>f.flag==='corpi_civatte') ? null : `psoriasi non esclusa: ${JSON.stringify(ps.excludedByFlags.map(f=>f.flag))}`;
+    }
+  },
+  {
+    name:'plasmacellule + pattern psoriasiforme → red flag sifilide',
+    input:{pattern_primario:'psoriasiforme', plasmacellule:'presenti'},
+    check:(res) => res.flags.some(f => f.flag==='plasmacellule_psoriasiforme') ? null : `flags=${JSON.stringify(res.flags.map(f=>f.flag))}`
+  },
+  {
+    name:'PLEVA: necrosi diffusa + eritrociti intraepidermici → flag PLEVA, esclude MF',
+    input:{pattern_primario:'spongotico', necrosi_cheratinociti_diffusa:true, eritrociti_extravasati_intraepidermici:true, linfociti_atipici:'presenti', epidermotropismo:'presente', spongiosi_proporzionata:'no'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      const pleva = res.flags.some(f => f.flag==='pleva_necrosi_eritrociti');
+      return pleva && mf.excludedByFlags.some(f=>f.flag==='pleva_necrosi_eritrociti') ? null : `pleva=${pleva}, mfExcl=${JSON.stringify(mf.excludedByFlags.map(f=>f.flag))}`;
+    }
+  },
+  {
+    name:'spongiosi proporzionata + epidermotropismo → flag MF→dermatite',
+    input:{pattern_primario:'spongotico', epidermotropismo:'presente', spongiosi_proporzionata:'si', linfociti_atipici:'presenti'},
+    check:(res) => {
+      const mf = topScore(res,'micosi_fungoide_early');
+      return res.flags.some(f=>f.flag==='spongiosi_proporzionata_mf') && mf.blocked ? null : `flags=${JSON.stringify(res.flags.map(f=>f.flag))}, mfBlocked=${mf.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: DX classiche (alta compatibilità) ──────────────────
+  {group:'DX classiche'},
+  {
+    name:'DAC classica: spongiosi marcata + esocitosi + eosinofili → proponibile',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata', esocitosi:'presente', eosinofili:'presenti', infiltrato_distribuzione:'perivascolare_superficiale', spongiosi_proporzionata:'si'},
+    check:(res) => {
+      const dac = res.diagnoses.find(x => x.key==='dermatite_allergica_contatto');
+      return dac && dac.pct >= 50 ? null : `dac.pct=${dac?.pct}, blocked=${dac?.blocked}, diagnoses=${res.diagnoses.length}`;
+    }
+  },
+  {
+    name:'Psoriasi classica: acantosi marcata + paracheratosi marcata + ipogranulosi + Munro → proponibile',
+    input:{pattern_primario:'psoriasiforme', acantosi:'marcata', paracheratosi:'marcata', ipogranulosi:'si', neutrofili:'presenti', microascessi_munro:'si', assottigliamento_soprapapillare:true, capillari_dilatati_papille:true},
+    check:(res) => {
+      // microascessi_munro è red flag che esclude DAC/DA (non psoriasi). Psoriasi deve essere proponibile.
+      const ps = res.diagnoses.find(x => x.key==='psoriasi_vulgaris');
+      return ps && ps.pct >= 50 ? null : `ps.pct=${ps?.pct}, blocked=${ps?.blocked}`;
+    }
+  },
+  {
+    name:'Lichen planus classico: banda lichenoide + vacuolizzazione + corpi Civatte',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', ipergranulosi:'si', corpi_civatte:'si', saw_toothing:true},
+    check:(res) => {
+      const lp = res.diagnoses.find(x => x.key==='lichen_planus');
+      return lp && lp.pct >= 50 ? null : `lp.pct=${lp?.pct}, blocked=${lp?.blocked}`;
+    }
+  },
+  {
+    name:'Dermatite seborroica classica: spongiosi lieve + paracheratosi focale + perivascolare',
+    input:{pattern_primario:'spongotico', spongiosi:'moderata', esocitosi:'lieve', paracheratosi:'focale', infiltrato_distribuzione:'perivascolare_superficiale', neutrofili:'presenti', acantosi:'moderata'},
+    check:(res) => {
+      const ds = res.diagnoses.find(x => x.key==='dermatite_seborroica');
+      return ds && ds.pct >= 50 ? null : `ds.pct=${ds?.pct}, blocked=${ds?.blocked}`;
+    }
+  },
+  {
+    name:'Eritema multiforme classico: vacuolizzazione marcata + necrosi cheratinocitaria + corpi Civatte',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'marcata', necrosi_keratinociti:'presente', corpi_civatte:'si', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const em = res.diagnoses.find(x => x.key==='eritema_multiforme');
+      return em && em.pct >= 50 ? null : `em.pct=${em?.pct}, blocked=${em?.blocked}`;
+    }
+  },
+  {
+    name:'MF early classico: epidermotropismo + linfociti atipici + spongiosi NON proporzionata + alone chiaro',
+    input:{pattern_primario:'spongotico', linfociti_atipici:'presenti', epidermotropismo:'marcato', spongiosi_proporzionata:'no', alone_chiaro:'si', spongiosi:'lieve'},
+    check:(res) => {
+      const mf = res.diagnoses.find(x => x.key==='micosi_fungoide_early');
+      return mf && mf.pct >= 50 ? null : `mf.pct=${mf?.pct}, blocked=${mf?.blocked}, missingRequired=${JSON.stringify(mf?.missingRequired)}`;
+    }
+  },
+
+  // ─── GRUPPO: reazione lichenoide da farmaci ────────────────────
+  {group:'reazione lichenoide farmaci'},
+  {
+    name:'Drug lichenoide classico: banda + vacuolizzazione + eosinofili + paracheratosi focale',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', eosinofili:'presenti', paracheratosi:'focale', necrosi_keratinociti:'presente'},
+    check:(res) => {
+      const drug = res.diagnoses.find(x => x.key==='reazione_lichenoide_farmaci');
+      return drug && drug.pct >= 50 ? null : `drug.pct=${drug?.pct}, blocked=${drug?.blocked}`;
+    }
+  },
+  {
+    name:'Drug vs LP: con saw_toothing → LP > drug (against -12)',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', saw_toothing:true, ipergranulosi:'si', corpi_civatte:'si', necrosi_keratinociti:'presente'},
+    check:(res) => {
+      const lp = topScore(res,'lichen_planus');
+      const drug = topScore(res,'reazione_lichenoide_farmaci');
+      const drugAgainst = drug.againstHits.some(h=>h.field==='saw_toothing') && drug.againstHits.some(h=>h.field==='ipergranulosi');
+      return lp.pct > drug.pct && drugAgainst ? null : `lp.pct=${lp.pct}, drug.pct=${drug.pct}, drugAgainst=${drugAgainst}`;
+    }
+  },
+  {
+    name:'Drug vs LP: con eosinofili senza saw_toothing/ipergranulosi → drug ≥ LP',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', eosinofili:'abbondanti', paracheratosi:'focale', necrosi_keratinociti:'presente'},
+    check:(res) => {
+      const lp = topScore(res,'lichen_planus');
+      const drug = topScore(res,'reazione_lichenoide_farmaci');
+      return drug.pct >= lp.pct ? null : `drug.pct=${drug.pct} < lp.pct=${lp.pct}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern bolloso ───────────────────────────────────
+  {group:'pattern bolloso'},
+  {
+    name:'Pemfigoide bolloso classico: subepidermica + eosinofili abbondanti, no acantolisi',
+    input:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', eosinofili:'abbondanti', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const bp = res.diagnoses.find(x => x.key==='pemfigoide_bolloso');
+      return bp && bp.pct >= 50 ? null : `bp.pct=${bp?.pct}, blocked=${bp?.blocked}`;
+    }
+  },
+  {
+    name:'Pemfigoide con acantolisi → against -12',
+    input:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', eosinofili:'abbondanti', acantolisi:'si'},
+    check:(res) => {
+      const bp = topScore(res,'pemfigoide_bolloso');
+      return bp.againstHits.some(h=>h.field==='acantolisi') ? null : `againstHits=${JSON.stringify(bp.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Pemfigo volgare classico: intraepidermica + acantolisi',
+    input:{pattern_primario:'intraepidermico', sede_bolla:'intraepidermica', acantolisi:'si', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const pv = res.diagnoses.find(x => x.key==='pemfigo_volgare');
+      return pv && pv.pct >= 50 ? null : `pv.pct=${pv?.pct}, blocked=${pv?.blocked}, missing=${JSON.stringify(pv?.missingRequired)}`;
+    }
+  },
+  {
+    name:'Pemfigo senza acantolisi → bloccato via failedRequired',
+    input:{pattern_primario:'intraepidermico', sede_bolla:'intraepidermica', acantolisi:'no'},
+    check:(res) => {
+      const pv = topScore(res,'pemfigo_volgare');
+      return pv.failedRequired.includes('acantolisi') && pv.blocked ? null : `failedRequired=${JSON.stringify(pv.failedRequired)}, blocked=${pv.blocked}`;
+    }
+  },
+  {
+    name:'sede_bolla è EXACT_FIELDS: subepidermica non matcha intraepidermica',
+    input:{pattern_primario:'intraepidermico', sede_bolla:'subepidermica', acantolisi:'si'},
+    check:(res) => {
+      const pv = topScore(res,'pemfigo_volgare');
+      // sede_bolla è EXACT_FIELDS, non ordinale → mismatch categoriale → failedRequired sempre
+      return pv.failedRequired.includes('sede_bolla') ? null : `failedRequired=${JSON.stringify(pv.failedRequired)}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern granulomatoso ─────────────────────────────
+  {group:'pattern granulomatoso'},
+  {
+    name:'Granuloma anulare classico: palizzata + necrobiosi + mucina, no plasmacellule',
+    input:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si', mucina_dermica:'si', infiltrato_distribuzione:'interstiziale'},
+    check:(res) => {
+      const ga = res.diagnoses.find(x => x.key==='granuloma_anulare');
+      return ga && ga.pct >= 50 ? null : `ga.pct=${ga?.pct}, blocked=${ga?.blocked}`;
+    }
+  },
+  {
+    name:'GA con plasmacellule abbondanti → against -12 (verso NL)',
+    input:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si', plasmacellule:'abbondanti'},
+    check:(res) => {
+      const ga = topScore(res,'granuloma_anulare');
+      return ga.againstHits.some(h=>h.field==='plasmacellule') ? null : `againstHits=${JSON.stringify(ga.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Necrobiosi lipoide classica: palizzata + necrobiosi + plasmacellule abbondanti',
+    input:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si', plasmacellule:'abbondanti', infiltrato_distribuzione:'perivascolare_profondo'},
+    check:(res) => {
+      const nl = res.diagnoses.find(x => x.key==='necrobiosi_lipoide');
+      return nl && nl.pct >= 50 ? null : `nl.pct=${nl?.pct}, blocked=${nl?.blocked}`;
+    }
+  },
+  {
+    name:'NL vs GA: con plasmacellule abbondanti → NL > GA',
+    input:{pattern_primario:'granulomatoso_palizzata', tipo_granuloma:'a_palizzata', necrobiosi:'si', plasmacellule:'abbondanti'},
+    check:(res) => {
+      const nl = topScore(res,'necrobiosi_lipoide');
+      const ga = topScore(res,'granuloma_anulare');
+      return nl.pct > ga.pct ? null : `nl.pct=${nl.pct} ≤ ga.pct=${ga.pct}`;
+    }
+  },
+  {
+    name:'Sarcoide cutaneo classico: granulomatoso + sarcoide-like, no necrobiosi',
+    input:{pattern_primario:'granulomatoso', tipo_granuloma:'sarcoide_like', infiltrato_distribuzione:'perivascolare_profondo', infiltrato_densita:'moderata'},
+    check:(res) => {
+      const sa = res.diagnoses.find(x => x.key==='sarcoide_cutaneo');
+      return sa && sa.pct >= 50 ? null : `sa.pct=${sa?.pct}, blocked=${sa?.blocked}`;
+    }
+  },
+  {
+    name:'Sarcoide con necrobiosi → against -12',
+    input:{pattern_primario:'granulomatoso', tipo_granuloma:'sarcoide_like', necrobiosi:'si'},
+    check:(res) => {
+      const sa = topScore(res,'sarcoide_cutaneo');
+      return sa.againstHits.some(h=>h.field==='necrobiosi') ? null : `againstHits=${JSON.stringify(sa.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Sarcoide con tipo a_palizzata → against (array EXACT_FIELDS)',
+    input:{pattern_primario:'granulomatoso', tipo_granuloma:'a_palizzata'},
+    check:(res) => {
+      const sa = topScore(res,'sarcoide_cutaneo');
+      // against:{tipo_granuloma:['a_palizzata','tubercolare_caseoso']} → 'a_palizzata' matcha → hit
+      return sa.againstHits.some(h=>h.field==='tipo_granuloma') ? null : `againstHits=${JSON.stringify(sa.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern vasculitico ───────────────────────────────
+  {group:'pattern vasculitico'},
+  {
+    name:'LCV classica: necrosi fibrinoide + leucocitoclasia + neutrofili + eritrociti dermici',
+    input:{pattern_primario:'vasculitico', necrosi_fibrinoide:'si', leucocitoclasia:'si', neutrofili:'abbondanti', eritrociti_extravasati_dermici:'si', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const lcv = res.diagnoses.find(x => x.key==='vasculite_leucocitoclastica');
+      return lcv && lcv.pct >= 50 ? null : `lcv.pct=${lcv?.pct}, blocked=${lcv?.blocked}, missing=${JSON.stringify(lcv?.missingRequired)}`;
+    }
+  },
+  {
+    name:'LCV senza necrosi fibrinoide → bloccata via missingRequired',
+    input:{pattern_primario:'vasculitico', leucocitoclasia:'si', neutrofili:'abbondanti'},
+    check:(res) => {
+      const lcv = topScore(res,'vasculite_leucocitoclastica');
+      return lcv.missingRequired.includes('necrosi_fibrinoide') && lcv.blocked ? null : `missing=${JSON.stringify(lcv.missingRequired)}, blocked=${lcv.blocked}`;
+    }
+  },
+  {
+    name:'LCV con necrosi fibrinoide=no → bloccata via failedRequired',
+    input:{pattern_primario:'vasculitico', necrosi_fibrinoide:'no', leucocitoclasia:'si'},
+    check:(res) => {
+      const lcv = topScore(res,'vasculite_leucocitoclastica');
+      // necrosi_fibrinoide non è in ORD → matchAtLeast usa actual===expected → 'no' !== 'si' → failedRequired sempre (non ordinale)
+      return lcv.failedRequired.includes('necrosi_fibrinoide') && lcv.blocked ? null : `failedRequired=${JSON.stringify(lcv.failedRequired)}, blocked=${lcv.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern subcorneo ─────────────────────────────────
+  {group:'pattern subcorneo'},
+  {
+    name:'Impetigine bollosa classica: subcornea + neutrofili + acantolisi',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', acantolisi:'si', spongiosi:'lieve'},
+    check:(res) => {
+      const imp = res.diagnoses.find(x => x.key==='impetigine_bollosa');
+      return imp && imp.pct >= 50 ? null : `imp.pct=${imp?.pct}, blocked=${imp?.blocked}`;
+    }
+  },
+  {
+    name:'Impetigine con eosinofili abbondanti → against (verso AGEP)',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', eosinofili:'abbondanti'},
+    check:(res) => {
+      const imp = topScore(res,'impetigine_bollosa');
+      return imp.againstHits.some(h=>h.field==='eosinofili') ? null : `againstHits=${JSON.stringify(imp.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'AGEP classica: subcornea + neutrofili + eosinofili presenti',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', eosinofili:'presenti', spongiosi:'lieve'},
+    check:(res) => {
+      const agep = res.diagnoses.find(x => x.key==='agep');
+      return agep && agep.pct >= 50 ? null : `agep.pct=${agep?.pct}, blocked=${agep?.blocked}`;
+    }
+  },
+  {
+    name:'AGEP vs impetigine: con eosinofili abbondanti → AGEP > impetigine',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', eosinofili:'abbondanti'},
+    check:(res) => {
+      const agep = topScore(res,'agep');
+      const imp = topScore(res,'impetigine_bollosa');
+      return agep.pct > imp.pct ? null : `agep.pct=${agep.pct} ≤ imp.pct=${imp.pct}`;
+    }
+  },
+  {
+    name:'Sneddon-Wilkinson: subcornea + neutrofili + plasmacellule, no eosinofili abbondanti',
+    input:{pattern_primario:'subcorneo', sede_bolla:'subcornea', neutrofili:'abbondanti', plasmacellule:'presenti'},
+    check:(res) => {
+      const sw = res.diagnoses.find(x => x.key==='sneddon_wilkinson');
+      return sw && sw.pct >= 50 ? null : `sw.pct=${sw?.pct}, blocked=${sw?.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern perivascolare ─────────────────────────────
+  {group:'pattern perivascolare'},
+  {
+    name:'Pitiriasi rosea classica: perivascolare + paracheratosi focale + spongiosi lieve',
+    input:{pattern_primario:'perivascolare', infiltrato_distribuzione:'perivascolare_superficiale', paracheratosi:'focale', spongiosi:'lieve', eritrociti_extravasati_dermici:'si'},
+    check:(res) => {
+      const pr = res.diagnoses.find(x => x.key==='pitiriasi_rosea');
+      return pr && pr.pct >= 50 ? null : `pr.pct=${pr?.pct}, blocked=${pr?.blocked}`;
+    }
+  },
+  {
+    name:'Pitiriasi rosea con plasmacellule abbondanti → against (sospetto sifilide)',
+    input:{pattern_primario:'perivascolare', paracheratosi:'focale', spongiosi:'lieve', plasmacellule:'abbondanti'},
+    check:(res) => {
+      const pr = topScore(res,'pitiriasi_rosea');
+      return pr.againstHits.some(h=>h.field==='plasmacellule') ? null : `againstHits=${JSON.stringify(pr.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Urticaria classica: perivascolare + eosinofili + neutrofili rari, no necrosi fibrinoide',
+    input:{pattern_primario:'perivascolare', infiltrato_distribuzione:'perivascolare_superficiale', eosinofili:'presenti', neutrofili:'rari'},
+    check:(res) => {
+      const u = res.diagnoses.find(x => x.key==='urticaria');
+      return u && u.pct >= 50 ? null : `u.pct=${u?.pct}, blocked=${u?.blocked}`;
+    }
+  },
+  {
+    name:'Urticaria con necrosi fibrinoide → against (verso vasculite urticarioide)',
+    input:{pattern_primario:'perivascolare', eosinofili:'presenti', necrosi_fibrinoide:'si', leucocitoclasia:'si'},
+    check:(res) => {
+      const u = topScore(res,'urticaria');
+      return u.againstHits.some(h=>h.field==='necrosi_fibrinoide') && u.againstHits.some(h=>h.field==='leucocitoclasia') ? null : `againstHits=${JSON.stringify(u.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern perivascolare eosinofilo ──────────────────
+  {group:'pattern perivascolare eosinofilo'},
+  {
+    name:'Reazione puntura classica: perivascolare eosinofilo + eosinofili abbondanti',
+    input:{pattern_primario:'perivascolare_eosinofilo', eosinofili:'abbondanti', infiltrato_distribuzione:'perivascolare_profondo', spongiosi:'lieve'},
+    check:(res) => {
+      const p = res.diagnoses.find(x => x.key==='reazione_puntura');
+      return p && p.pct >= 50 ? null : `p.pct=${p?.pct}, blocked=${p?.blocked}`;
+    }
+  },
+  {
+    name:'Drug eruption morbilliforme classica: perivascolare eosinofilo + eosinofili + interfaccia minima',
+    input:{pattern_primario:'perivascolare_eosinofilo', eosinofili:'presenti', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const drug = res.diagnoses.find(x => x.key==='drug_eruption_morbilliforme');
+      return drug && drug.pct >= 50 ? null : `drug.pct=${drug?.pct}, blocked=${drug?.blocked}`;
+    }
+  },
+  {
+    name:'Drug eruption con necrosi marcata → against (verso SJS/TEN)',
+    input:{pattern_primario:'perivascolare_eosinofilo', eosinofili:'presenti', necrosi_keratinociti:'marcata'},
+    check:(res) => {
+      const drug = topScore(res,'drug_eruption_morbilliforme');
+      return drug.againstHits.some(h=>h.field==='necrosi_keratinociti') ? null : `againstHits=${JSON.stringify(drug.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern vasculopatico ─────────────────────────────
+  {group:'pattern vasculopatico'},
+  {
+    name:'Vasculopatia trombotica classica: trombi vasali, NO necrosi fibrinoide, NO leucocitoclasia',
+    input:{pattern_primario:'vasculopatico', trombi_vasali:'si', eritrociti_extravasati_dermici:'si', infiltrato_densita:'lieve'},
+    check:(res) => {
+      const vt = res.diagnoses.find(x => x.key==='vasculopatia_trombotica');
+      return vt && vt.pct >= 50 ? null : `vt.pct=${vt?.pct}, blocked=${vt?.blocked}, missing=${JSON.stringify(vt?.missingRequired)}`;
+    }
+  },
+  {
+    name:'Vasculopatia con necrosi fibrinoide → against (verso vasculite vera)',
+    input:{pattern_primario:'vasculopatico', trombi_vasali:'si', necrosi_fibrinoide:'si', leucocitoclasia:'si'},
+    check:(res) => {
+      const vt = topScore(res,'vasculopatia_trombotica');
+      return vt.againstHits.some(h=>h.field==='necrosi_fibrinoide') && vt.againstHits.some(h=>h.field==='leucocitoclasia') ? null : `againstHits=${JSON.stringify(vt.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Vasculopatico senza trombi → bloccato via missingRequired',
+    input:{pattern_primario:'vasculopatico'},
+    check:(res) => {
+      const vt = topScore(res,'vasculopatia_trombotica');
+      return vt.missingRequired.includes('trombi_vasali') && vt.blocked ? null : `missing=${JSON.stringify(vt.missingRequired)}, blocked=${vt.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern interstiziale eosinofilo ──────────────────
+  {group:'pattern interstiziale eosinofilo'},
+  {
+    name:'Wells syndrome classico: interstiziale eosinofilo + eosinofili abbondanti + figure a fiamma',
+    input:{pattern_primario:'interstiziale_eosinofilo', eosinofili:'abbondanti', infiltrato_distribuzione:'interstiziale', figure_a_fiamma:'si'},
+    check:(res) => {
+      const w = res.diagnoses.find(x => x.key==='wells_syndrome');
+      return w && w.pct >= 50 ? null : `w.pct=${w?.pct}, blocked=${w?.blocked}`;
+    }
+  },
+  {
+    name:'Wells con plasmacellule abbondanti → against',
+    input:{pattern_primario:'interstiziale_eosinofilo', eosinofili:'abbondanti', infiltrato_distribuzione:'interstiziale', plasmacellule:'abbondanti'},
+    check:(res) => {
+      const w = topScore(res,'wells_syndrome');
+      return w.againstHits.some(h=>h.field==='plasmacellule') ? null : `againstHits=${JSON.stringify(w.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern panniculitico ─────────────────────────────
+  {group:'pattern panniculitico'},
+  {
+    name:'Eritema nodoso classico: panniculitico settale, no vasculite',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'settale', neutrofili:'presenti', infiltrato_distribuzione:'perivascolare_profondo'},
+    check:(res) => {
+      const en = res.diagnoses.find(x => x.key==='eritema_nodoso');
+      return en && en.pct >= 50 ? null : `en.pct=${en?.pct}, blocked=${en?.blocked}`;
+    }
+  },
+  {
+    name:'Eritema nodoso con vasculite → against (sospetto Bazin)',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'settale', vasculite_subcutanea:'si'},
+    check:(res) => {
+      const en = topScore(res,'eritema_nodoso');
+      return en.againstHits.some(h=>h.field==='vasculite_subcutanea') ? null : `againstHits=${JSON.stringify(en.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Lupus profundus classico: lobulare + plasmacellule + mucina + interfaccia',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare', plasmacellule:'abbondanti', mucina_dermica:'si', vacuolizzazione_basale:'presente'},
+    check:(res) => {
+      const lp = res.diagnoses.find(x => x.key==='lupus_profundus');
+      return lp && lp.pct >= 50 ? null : `lp.pct=${lp?.pct}, blocked=${lp?.blocked}`;
+    }
+  },
+  {
+    name:'Eritema indurato Bazin: lobulare + vasculite sottocutanea + granuloma tubercolare',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare', vasculite_subcutanea:'si', tipo_granuloma:'tubercolare_caseoso', necrobiosi:'si'},
+    check:(res) => {
+      const eb = res.diagnoses.find(x => x.key==='eritema_indurato_bazin');
+      return eb && eb.pct >= 50 ? null : `eb.pct=${eb?.pct}, blocked=${eb?.blocked}`;
+    }
+  },
+  {
+    name:'Lupus profundus vs Bazin: stesso lobulare ma plasmacellule abbondanti → lupus > Bazin',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare', plasmacellule:'abbondanti', mucina_dermica:'si'},
+    check:(res) => {
+      const lp = topScore(res,'lupus_profundus');
+      const eb = topScore(res,'eritema_indurato_bazin');
+      return lp.pct > eb.pct ? null : `lp.pct=${lp.pct} ≤ eb.pct=${eb.pct}`;
+    }
+  },
+  {
+    name:'Bazin senza vasculite sottocutanea → bloccato via missingRequired',
+    input:{pattern_primario:'panniculitico', tipo_panniculite:'lobulare'},
+    check:(res) => {
+      const eb = topScore(res,'eritema_indurato_bazin');
+      return eb.missingRequired.includes('vasculite_subcutanea') && eb.blocked ? null : `missing=${JSON.stringify(eb.missingRequired)}, blocked=${eb.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: pattern mastocitario ──────────────────────────────
+  {group:'pattern mastocitario'},
+  {
+    name:'Mastocitosi classica: mastocitario + mastociti aumentati + eosinofili',
+    input:{pattern_primario:'mastocitario', mastociti_aumentati:'si', eosinofili:'presenti', infiltrato_distribuzione:'perivascolare_superficiale', infiltrato_densita:'moderata'},
+    check:(res) => {
+      const mc = res.diagnoses.find(x => x.key==='mastocitosi_cutanea');
+      return mc && mc.pct >= 50 ? null : `mc.pct=${mc?.pct}, blocked=${mc?.blocked}`;
+    }
+  },
+  {
+    name:'Mastocitosi senza mastociti aumentati → bloccata via missingRequired',
+    input:{pattern_primario:'mastocitario'},
+    check:(res) => {
+      const mc = topScore(res,'mastocitosi_cutanea');
+      return mc.missingRequired.includes('mastociti_aumentati') && mc.blocked ? null : `missing=${JSON.stringify(mc.missingRequired)}, blocked=${mc.blocked}`;
+    }
+  },
+  {
+    name:'Mastocitosi con linfociti atipici → against (sospetto linfoma)',
+    input:{pattern_primario:'mastocitario', mastociti_aumentati:'si', linfociti_atipici:'presenti'},
+    check:(res) => {
+      const mc = topScore(res,'mastocitosi_cutanea');
+      return mc.againstHits.some(h=>h.field==='linfociti_atipici') ? null : `againstHits=${JSON.stringify(mc.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: PLEVA / sifilide / lichen sclerosus / pemfigo foliaceo / DH ─
+  {group:'completamento pattern'},
+  {
+    name:'PLEVA classica: vacuolare + necrosi marcata + eritrociti intraepidermici',
+    input:{pattern_primario:'interfaccia_vacuolare', necrosi_keratinociti:'marcata', necrosi_cheratinociti_diffusa:true, eritrociti_extravasati_intraepidermici:true, vacuolizzazione_basale:'presente'},
+    check:(res) => {
+      const p = res.diagnoses.find(x => x.key==='pleva');
+      return p && p.pct >= 50 ? null : `pleva.pct=${p?.pct}, blocked=${p?.blocked}, missing=${JSON.stringify(p?.missingRequired)}`;
+    }
+  },
+  {
+    name:'PLEVA con mucina → against (verso lupus)',
+    input:{pattern_primario:'interfaccia_vacuolare', necrosi_keratinociti:'marcata', necrosi_cheratinociti_diffusa:true, eritrociti_extravasati_intraepidermici:true, mucina_dermica:'si'},
+    check:(res) => {
+      const p = topScore(res,'pleva');
+      return p.againstHits.some(h=>h.field==='mucina_dermica') ? null : `againstHits=${JSON.stringify(p.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Sifilide secondaria classica: psoriasiforme + plasmacellule abbondanti',
+    input:{pattern_primario:'psoriasiforme', plasmacellule:'abbondanti', paracheratosi:'focale', acantosi:'moderata', infiltrato_distribuzione:'perivascolare_profondo'},
+    check:(res) => {
+      const s = res.diagnoses.find(x => x.key==='sifilide_secondaria');
+      return s && s.pct >= 50 ? null : `sif.pct=${s?.pct}, blocked=${s?.blocked}`;
+    }
+  },
+  {
+    name:'Sifilide vs psoriasi: con plasmacellule abbondanti → sifilide > psoriasi (psoriasi ha red flag)',
+    input:{pattern_primario:'psoriasiforme', plasmacellule:'abbondanti', acantosi:'marcata', paracheratosi:'marcata', ipogranulosi:'si'},
+    check:(res) => {
+      const s = topScore(res,'sifilide_secondaria');
+      const psr = topScore(res,'psoriasi_vulgaris');
+      // psoriasi viene esclusa dalla red flag plasmacellule_psoriasiforme; sifilide deve risalire
+      return s.pct > psr.pct && psr.excludedByFlags.some(f=>f.flag==='plasmacellule_psoriasiforme') ? null : `sif=${s.pct}, psr=${psr.pct}, psr excluded=${psr.excludedByFlags.length}`;
+    }
+  },
+  {
+    name:'Pemfigo foliaceo: intraepidermico + acantolisi + sede subcornea',
+    input:{pattern_primario:'intraepidermico', acantolisi:'si', sede_bolla:'subcornea', eosinofili:'presenti'},
+    check:(res) => {
+      const pf = res.diagnoses.find(x => x.key==='pemfigo_foliaceo');
+      return pf && pf.pct >= 50 ? null : `pf.pct=${pf?.pct}, blocked=${pf?.blocked}`;
+    }
+  },
+  {
+    name:'PV vs PF: stessa pattern intraepidermico, sede_bolla discriminante',
+    input:{pattern_primario:'intraepidermico', acantolisi:'si', sede_bolla:'intraepidermica'},
+    check:(res) => {
+      const pv = topScore(res,'pemfigo_volgare');
+      const pf = topScore(res,'pemfigo_foliaceo');
+      // sede_bolla intraepidermica → favorisce PV; PF richiede subcornea (EXACT_FIELDS, failedRequired)
+      return pv.pct > pf.pct && pf.failedRequired.includes('sede_bolla')===false && pf.blocked ? null : `pv=${pv.pct}, pf=${pf.pct} blocked=${pf.blocked}, failedReq=${JSON.stringify(pf.failedRequired)}`;
+    }
+  },
+  {
+    name:'Dermatite erpetiforme classica: subepidermica + microascessi papille + neutrofili',
+    input:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', microascessi_papille_dermica:'si', neutrofili:'abbondanti'},
+    check:(res) => {
+      const dh = res.diagnoses.find(x => x.key==='dermatite_erpetiforme');
+      return dh && dh.pct >= 50 ? null : `dh.pct=${dh?.pct}, blocked=${dh?.blocked}`;
+    }
+  },
+  {
+    name:'DH con acantolisi → against (impossibile per definizione)',
+    input:{pattern_primario:'subepidermico_bolloso', sede_bolla:'subepidermica', microascessi_papille_dermica:'si', acantolisi:'si'},
+    check:(res) => {
+      const dh = topScore(res,'dermatite_erpetiforme');
+      return dh.againstHits.some(h=>h.field==='acantolisi') ? null : `againstHits=${JSON.stringify(dh.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Lichen sclerosus classico: vacuolare + ialinosi + atrofia',
+    input:{pattern_primario:'interfaccia_vacuolare', ialinosi_dermica:'si', atrofia_epidermica:'si', vacuolizzazione_basale:'presente'},
+    check:(res) => {
+      const ls = res.diagnoses.find(x => x.key==='lichen_sclerosus');
+      return ls && ls.pct >= 50 ? null : `ls.pct=${ls?.pct}, blocked=${ls?.blocked}`;
+    }
+  },
+  {
+    name:'LS senza ialinosi → bloccato via missingRequired',
+    input:{pattern_primario:'interfaccia_vacuolare', atrofia_epidermica:'si'},
+    check:(res) => {
+      const ls = topScore(res,'lichen_sclerosus');
+      return ls.missingRequired.includes('ialinosi_dermica') && ls.blocked ? null : `missing=${JSON.stringify(ls.missingRequired)}, blocked=${ls.blocked}`;
+    }
+  },
+
+  // ─── GRUPPO: red flags favorisce (v2.18.0) ─────────────────────
+  {group:'red flags — favorisce (esclusioni mutue)'},
+  {
+    name:'Ogni red flag ha array favorisce con almeno una DX valida',
+    input:{},
+    check:(res) => {
+      const bad = RED_FLAGS.filter(f => !Array.isArray(f.favorisce) || f.favorisce.length === 0 || f.favorisce.some(k => !DX[k]));
+      return bad.length === 0 ? null : `red flags con favorisce mancante/non valida: ${JSON.stringify(bad.map(f=>f.flag))}`;
+    }
+  },
+  {
+    name:'microascessi_munro favorisce psoriasi_vulgaris',
+    input:{},
+    check:(res) => {
+      const f = RED_FLAGS.find(x => x.flag==='microascessi_munro');
+      return f.favorisce.includes('psoriasi_vulgaris') ? null : `favorisce=${JSON.stringify(f.favorisce)}`;
+    }
+  },
+  {
+    name:'plasmacellule_psoriasiforme favorisce sifilide_secondaria',
+    input:{},
+    check:(res) => {
+      const f = RED_FLAGS.find(x => x.flag==='plasmacellule_psoriasiforme');
+      return f.favorisce.includes('sifilide_secondaria') ? null : `favorisce=${JSON.stringify(f.favorisce)}`;
+    }
+  },
+  {
+    name:'spongiosi_proporzionata_mf favorisce DAC e DA',
+    input:{},
+    check:(res) => {
+      const f = RED_FLAGS.find(x => x.flag==='spongiosi_proporzionata_mf');
+      return f.favorisce.includes('dermatite_allergica_contatto') && f.favorisce.includes('dermatite_atopica_acuta') ? null : `favorisce=${JSON.stringify(f.favorisce)}`;
+    }
+  },
+  {
+    name:'pleva_necrosi_eritrociti favorisce pleva',
+    input:{},
+    check:(res) => {
+      const f = RED_FLAGS.find(x => x.flag==='pleva_necrosi_eritrociti');
+      return f.favorisce.includes('pleva') ? null : `favorisce=${JSON.stringify(f.favorisce)}`;
+    }
+  },
+
+  // ─── GRUPPO: differential explorer ─────────────────────────────
+  {group:'differential explorer'},
+  {
+    name:'discriminantFields esclude pattern_primario',
+    input:{},
+    check:(res) => {
+      const fields = discriminantFields(DX.dermatite_allergica_contatto, DX.dermatite_atopica_acuta);
+      return fields.every(f => f.field !== 'pattern_primario') ? null : `pattern_primario presente`;
+    }
+  },
+  {
+    name:'discriminantFields: DAC vs DA → paracheratosi e infiltrato_distribuzione discriminano',
+    input:{},
+    check:(res) => {
+      const fields = discriminantFields(DX.dermatite_allergica_contatto, DX.dermatite_atopica_acuta);
+      const fieldNames = fields.map(f => f.field);
+      // DAC ha infiltrato_distribuzione in minor, DA ha paracheratosi in minor → entrambi discriminano
+      return fieldNames.includes('paracheratosi') && fieldNames.includes('infiltrato_distribuzione') ? null : `discriminating fields: ${JSON.stringify(fieldNames)}`;
+    }
+  },
+  {
+    name:'discriminantFields: identità → array vuoto',
+    input:{},
+    check:(res) => {
+      const fields = discriminantFields(DX.psoriasi_vulgaris, DX.psoriasi_vulgaris);
+      return fields.length === 0 ? null : `fields non vuoto: ${fields.length}`;
+    }
+  },
+
+  // ─── GRUPPO: lupus eritematoso ─────────────────────────────────
+  {group:'lupus eritematoso'},
+  {
+    name:'DLE classico: vacuolare + mucina + perianessiale + atrofia + BMZ → proponibile',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'presente', mucina_dermica:'si', infiltrato_perianessiale:'si', atrofia_epidermica:'si', ispessimento_bmz:'si', plasmacellule:'presenti'},
+    check:(res) => {
+      const le = res.diagnoses.find(x => x.key==='lupus_eritematoso');
+      return le && le.pct >= 50 ? null : `le.pct=${le?.pct}, blocked=${le?.blocked}, missing=${JSON.stringify(le?.missingRequired)}`;
+    }
+  },
+  {
+    name:'Lupus vs EM: vacuolare + mucina + perianessiale → lupus > EM',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'presente', mucina_dermica:'si', infiltrato_perianessiale:'si', necrosi_keratinociti:'presente'},
+    check:(res) => {
+      const le = topScore(res,'lupus_eritematoso');
+      const em = topScore(res,'eritema_multiforme');
+      return le.pct >= em.pct ? null : `le.pct=${le.pct} < em.pct=${em.pct}`;
+    }
+  },
+  {
+    name:'EM vs lupus: vacuolare marcata + necrosi marcata, senza mucina → EM > lupus',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'marcata', necrosi_keratinociti:'marcata', corpi_civatte:'si', infiltrato_distribuzione:'perivascolare_superficiale'},
+    check:(res) => {
+      const em = topScore(res,'eritema_multiforme');
+      const le = topScore(res,'lupus_eritematoso');
+      // necrosi marcata è against per lupus (-12), em ha required matchati
+      return em.pct > le.pct ? null : `em.pct=${em.pct} ≤ le.pct=${le.pct}`;
+    }
+  },
+  {
+    name:'Lupus senza vacuolizzazione (assente) → bloccato via failedRequired',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'assente', mucina_dermica:'si'},
+    check:(res) => {
+      const le = topScore(res,'lupus_eritematoso');
+      return le.failedRequired.includes('vacuolizzazione_basale') && le.blocked ? null : `failedRequired=${JSON.stringify(le.failedRequired)}, blocked=${le.blocked}`;
+    }
+  },
+  {
+    name:'Lupus con banda lichenoide → against -12',
+    input:{pattern_primario:'interfaccia_vacuolare', vacuolizzazione_basale:'presente', mucina_dermica:'si', infiltrato_distribuzione:'banda_lichenoide'},
+    check:(res) => {
+      const le = topScore(res,'lupus_eritematoso');
+      return le.againstHits.some(h=>h.field==='infiltrato_distribuzione') ? null : `againstHits=${JSON.stringify(le.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: penalità against ──────────────────────────────────
+  {group:'against'},
+  {
+    name:'Lichen planus con plasmacellule: against -12',
+    input:{pattern_primario:'interfaccia_lichenoide', infiltrato_distribuzione:'banda_lichenoide', vacuolizzazione_basale:'presente', necrosi_keratinociti:'presente', ipergranulosi:'si', plasmacellule:'presenti'},
+    check:(res) => {
+      const lp = topScore(res,'lichen_planus');
+      return lp.againstHits.some(h=>h.field==='plasmacellule') ? null : `againstHits=${JSON.stringify(lp.againstHits.map(h=>h.field))}`;
+    }
+  },
+  {
+    name:'Psoriasi con spongiosi marcata: against -12',
+    input:{pattern_primario:'psoriasiforme', acantosi:'marcata', paracheratosi:'marcata', ipogranulosi:'si', spongiosi:'marcata'},
+    check:(res) => {
+      const ps = topScore(res,'psoriasi_vulgaris');
+      return ps.againstHits.some(h=>h.field==='spongiosi') ? null : `againstHits=${JSON.stringify(ps.againstHits.map(h=>h.field))}`;
+    }
+  },
+
+  // ─── GRUPPO: lowData / cap ─────────────────────────────────────
+  {group:'low data'},
+  {
+    name:'Solo pattern compilato → lowData attivo, tutte bloccate',
+    input:{pattern_primario:'spongotico'},
+    check:(res) => res.diagnoses.length===0 && res.allScores.every(s=>s.blocked) ? null : `diagnoses=${res.diagnoses.length}, allBlocked=${res.allScores.every(s=>s.blocked)}`
+  },
+  {
+    name:'lowData cap a 49: solo 2 criteri matched, compatibility 100% → pct ≤ 49',
+    input:{pattern_primario:'spongotico', spongiosi:'marcata'},
+    check:(res) => {
+      const dac = topScore(res,'dermatite_allergica_contatto');
+      // pattern + spongiosi = 2 major hits (matchedCriteria=2 < MIN=3) → lowData → cap 49
+      return dac.pct <= 49 && dac.lowData ? null : `dac.pct=${dac.pct}, lowData=${dac.lowData}, matched=${dac.matchedCriteria}, answeredWeight=${dac.answeredWeight}, compatibility=${dac.compatibility}`;
+    }
+  },
+];
+
+return CASES;
+});

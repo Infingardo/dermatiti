@@ -1,4 +1,4 @@
-# DermPath v2.18.0
+# DermPath v2.18.1
 
 Strumento di supporto decisionale per dermatopatologia. Valutazione morfologica EE-first con motore a compatibilità euristica conservativa. Non produce diagnosi automatiche: produce un ranking ragionato di ipotesi diagnostiche con esplicitazione dei criteri soddisfatti, mancanti e controindicanti.
 
@@ -254,6 +254,16 @@ Il comportamento atteso sarebbe: blocca solo se **assente** (campo vuoto) o **es
 ---
 
 ## Changelog
+
+### v2.18.1 — *Una sola copia del motore; elenchi di criteri con un tetto vero*
+
+- **[FIX CRITICO] `index.html` non caricava `engine.js`: erano due copie.** L'applicazione conteneva la propria copia inline dell'intero motore (`SC`, `ORD`, `INIT`, `PATTERNS`, `DX`, `RED_FLAGS`, `Engine`, `buildExportText`), mentre `test.html` ne caricava un'altra. Le due erano già divergenti: **35 DX nella pagina, 33 nel file testato** — `dermatite_da_stasi` e `granuloma_corpo_estraneo`, con i loro cinque campi del form, esistevano solo nell'app e non erano coperti da nessuno dei 95 casi. La copia inline era anche più avanti nel refactoring (`scoreDx` già diviso in `collectCriteria` / `evaluateRequired` / `applySafetyGates` / `formatScoreForUi`). Ora `engine.js` è quella copia e `index.html` la carica: fonte unica, e un test verifica che la pagina non torni a ridefinire il motore.
+- **[FIX] Un elenco di valori attesi significa "uno di questi", su qualunque campo.** L'esattezza valeva solo per `spongiosi`, `paracheratosi` e `neutrofili`; per tutti gli altri campi ordinali `['lieve','moderata']` veniva interpretato come soglia *almeno lieve*, quindi accettava anche `marcata` — mentre il referto continuava a stampare l'elenco chiuso. Sei dichiarazioni ne erano affette. Effetto misurato: l'input ideale della psoriasi non propone più anche una dermatite seborroica al 51%. La semantica "almeno" resta disponibile scrivendo un valore singolo.
+- **[FIX] Nessun reperto conta più a favore e contro insieme.** In lupus e drug eruption `necrosi_keratinociti` era attesa *presente* (soglia aperta, quindi soddisfatta anche da *marcata*) ed elencata in `against` come *marcata*: lo stesso reperto risultava fra i "Criteri presenti" del referto e nello stesso calcolo toglieva 12 punti.
+- **[DATI] Sifilide secondaria: acantosi "almeno lieve"** invece di `['lieve','moderata']` — l'iperplasia psoriasiforme della sifilide può essere marcata.
+- **[FIX] Le DX favorite dalle red flag entrano anche nel referto esportato** ("orienta verso: …"), dove mancavano pur essendo già mostrate nell'interfaccia.
+- **[TEST] `npm test`.** I 95 casi si sono spostati in `tests/cases.js`, unica copia condivisa fra il runner node e `test.html`. Aggiunte le invarianti strutturali che i casi non coprivano: motore non duplicato nella pagina, motore senza DOM, versione allineata a `package.json`, ogni DX raggiungibile con il proprio input ideale, nessun campo a favore e contro insieme, nessun elenco senza tetto, red flag che puntano a DX esistenti. Totale **214 asserzioni**.
+
 
 | Versione | Modifiche |
 |---|---|
